@@ -1,0 +1,267 @@
+# Sofia - Content Strategist Tools
+# Frameworks i templates z książek
+
+---
+
+frameworks:
+
+  # 1. Content Inc. - Joe Pulizzi
+  content_tilt:
+    name: "Content Tilt"
+    description: "Unikalny kąt który wyróżnia nas w oceanie contentu"
+    template: |
+      ## Content Tilt Analysis
+      
+      ### Category: [np. "Software Development"]
+      
+      ### Crowded (co robią wszyscy):
+      - [Lista ogólnych tematów]
+      
+      ### Uncrowded (nasz tilt):
+      - [Unikalny kąt - np. "Scala + Distributed Systems + Fintech"]
+      
+      ### Why it works:
+      - [Dlaczego to rezonuje z naszą audycją]
+      
+      ### Content Mission Statement:
+      "Pomagamy [audience] rozwiązywać [problem] poprzez [unique approach]"
+
+  audience_building:
+    name: "Audience Building Model"
+    description: "Budowanie owned audience przed monetization"
+    steps:
+      - "1. Identify sweet spot: Knowledge + Passion + Audience needs"
+      - "2. Determine content tilt: Differentiation"
+      - "3. Build base: One platform (LinkedIn/blog)"
+      - "4. Harvest audience: Email list > social followers"
+      - "5. Diversify: Expand to other channels"
+      - "6. Monetize: Content supports business goals"
+
+  # 2. Killing Marketing - Joe Pulizzi
+  newsletter_strategy:
+    name: "Subscriber-First Newsletter"
+    template: |
+      ## Newsletter Strategy: [Nazwa]
+      
+      ### Format:
+      - Frequency: [Weekly/Bi-weekly/Monthly]
+      - Length: [3-5 min read]
+      - Structure:
+        1. [Curated content / Original insight]
+        2. [Case study / Example]
+        3. [Call to action]
+      
+      ### Content Pillars:
+      1. [Pillar 1 - 40% content]
+      2. [Pillar 2 - 30% content]
+      3. [Pillar 3 - 20% content]
+      4. [Pillar 4 - 10% content]
+      
+      ### Metrics:
+      - Subscriber growth: [target/week]
+      - Open rate: >40%
+      - Click rate: >5%
+      - Unsubscribe: <0.5%
+
+  # 3. The Content Strategy Toolkit - Meghan Casey
+  content_audit:
+    name: "Content Audit Framework"
+    template: |
+      ## Content Audit: [Scope]
+      
+      ### Inventory:
+      | Asset | Type | Last Updated | Traffic | Conversions | Action |
+      |-------|------|--------------|---------|-------------|--------|
+      | [Name] | [Blog/Case/Video] | [Date] | [#] | [#] | [Keep/Update/Archive] |
+      
+      ### Gap Analysis:
+      - Missing topics: [co brakuje]
+      - Outdated: [co wymaga update]
+      - High-performing: [co rozwijać]
+      
+      ### Priorities:
+      1. [P0 - Critical]
+      2. [P1 - High]
+      3. [P2 - Medium]
+
+  editorial_calendar:
+    name: "3-Month Editorial Calendar"
+    template: |
+      ## Editorial Calendar: [Q X 20XX]
+      
+      ### Month 1:
+      Week 1:
+      - Blog: [Topic] (Type: CORE/AI) | Owner: [Kto] | Due: [Data]
+      - LinkedIn: [Post topic]
+      - Newsletter: [Theme]
+      
+      Week 2:
+      - ...
+      
+      ### Themes by Month:
+      - Month 1: [Theme]
+      - Month 2: [Theme]
+      - Month 3: [Theme]
+      
+      ### Content Mix:
+      - 40%: Educational (how-to, guides)
+      - 30%: Thought leadership (insights, opinions)
+      - 20%: Case studies (proof)
+      - 10%: Company news, culture
+
+  # 4. Epic Content Marketing - Joe Pulizzi
+  epic_content:
+    name: "Epic Content Framework"
+    description: "Duże, kompleksowe content pieces które przyciągają ruch przez lata"
+    criteria:
+      - "Comprehensive: Covers topic exhaustively"
+      - "Authoritative: Data, research, expert insights"
+      - "Evergreen: Relevant for 2+ years"
+      - "Visual: Charts, diagrams, infographics"
+      - "Actionable: Practical takeaways"
+    
+    epic_ideas_core:
+      - "Complete Guide to Migrating from Java to Scala at Scale (50 pages)"
+      - "The Distributed Systems Playbook: Akka, Kafka, K8s"
+      - "Team Extension ROI Calculator + Research Report"
+      - "Scala Hiring Guide 2024: Salaries, Skills, Market Data"
+    
+    epic_ideas_ai:
+      - "Production RAG Architecture Blueprint"
+      - "Sovereign AI Compliance Checklist & Guide"
+      - "The RAG Mirage: Why 80% POCs Fail at Scale"
+      - "Complete Guide to Private LLMs for Banking"
+
+  # 5. Product-Led SEO - Eli Schwartz
+  seo_strategy:
+    name: "Intent-Based SEO Strategy"
+    template: |
+      ## SEO Strategy: [Topic Area]
+      
+      ### Keyword Research by Intent:
+      
+      #### Informational (Learn/Know):
+      - [Keyword] | Volume: [X] | Difficulty: [Y] | Priority: [P]
+      - Content type: Blog post, Guide
+      
+      #### Navigational (Find website):
+      - [Keyword] | Volume: [X] | Difficulty: [Y]
+      - Content type: Landing page
+      
+      #### Commercial Investigation (Compare/Best):
+      - [Keyword] | Volume: [X] | Difficulty: [Y]
+      - Content type: Comparison page, "Best of"
+      
+      #### Transactional (Buy/Hire):
+      - [Keyword] | Volume: [X] | Difficulty: [Y]
+      - Content type: Service page, Pricing
+      
+      ### Content Clusters:
+      Cluster: [Main topic]
+      - Pillar: [URL]
+      - Supporting content:
+        - [Sub-topic 1]
+        - [Sub-topic 2]
+
+  # 6. Made to Stick - Chip & Dan Heath
+  sticky_message:
+    name: "SUCCESs Framework"
+    description: "6 cech wiadomości które zapadają w pamięć"
+    framework:
+      Simple: "Core message condensed to 1 sentence"
+      Unexpected: "Surprise, break pattern, create curiosity gap"
+      Concrete: "Specific details, not abstractions"
+      Credible: "Data, statistics, endorsements"
+      Emotional: "Make people feel something"
+      Stories: "Narrative, not just facts"
+    
+    example_liga_digital:
+      Simple: "2x faster processing"
+      Unexpected: "Removed 100% of tech debt"
+      Concrete: "50,000 messages per second"
+      Credible: "Before/after metrics, client quote"
+      Emotional: ""CTO can finally sleep at night""
+      Stories: "The journey from legacy to modern"
+
+---
+
+templates:
+
+  content_brief:
+    name: "Content Brief Template"
+    fields:
+      - title: "Content Title"
+      - type: "[Blog/Case Study/Whitepaper/Video]"
+      - goal: "[Traffic/Leads/Thought Leadership/SEO]"
+      - audience: "[Primary/Secondary persona]"
+      - key_message: "One thing they must remember"
+      - keywords: "[SEO targets]"
+      - outline: "[H2/H3 structure]"
+      - sources: "[Research, interviews, data]"
+      - cta: "[What action to take]"
+      - deadline: "[Due date]"
+
+  case_study_structure:
+    name: "Case Study Structure"
+    sections:
+      - "Headline: [Result] + [Company] + [Timeframe]"
+      - "Lead: Hook with challenge"
+      - "About Client: Context"
+      - "Challenge: Problem + Impact"
+      - "Solution: Approach + Implementation"
+      - "Results: Metrics + Proof"
+      - "Quote: Client testimonial"
+      - "CTA: Next steps"
+
+---
+
+metrics:
+  
+  content_kpis:
+    - metric: "Organic traffic growth"
+      target: "+20% QoQ"
+      tool: "Google Analytics, Ahrefs"
+    
+    - metric: "Lead generation"
+      target: "100 leads/month from content"
+      tool: "HubSpot, Pardot"
+    
+    - metric: "Engagement"
+      target: "Avg time on page >3 min"
+      tool: "Google Analytics"
+    
+    - metric: "SEO rankings"
+      target: "Top 10 for 50 target keywords"
+      tool: "Ahrefs, SEMrush"
+    
+    - metric: "Content ROI"
+      target: "Pipeline attributed to content >200k PLN/month"
+      tool: "Attribution modeling"
+
+---
+
+workflows:
+
+  quarterly_planning:
+    name: "Quarterly Content Planning"
+    steps:
+      - "1. Review previous quarter performance"
+      - "2. Identify gaps and opportunities"
+      - "3. Align with business goals (new services, markets)"
+      - "4. Plan epic content (1-2 per quarter)"
+      - "5. Create editorial calendar (3 months)"
+      - "6. Assign owners and deadlines"
+      - "7. Set up measurement dashboard"
+
+  content_creation:
+    name: "Content Creation Process"
+    steps:
+      - "1. Brief creation (Sofia)"
+      - "2. Research and outline (Writer)"
+      - "3. First draft (Writer)"
+      - "4. Technical review (Engineer)"
+      - "5. Copy edit (Kai)"
+      - "6. Visual design (Designer)"
+      - "7. SEO optimization (Sofia)"
+      - "8. Publish and distribute"
+      - "9. Measure and iterate"

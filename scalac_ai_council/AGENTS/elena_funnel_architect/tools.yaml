@@ -1,0 +1,275 @@
+# Elena - Tools & Frameworks
+
+key_frameworks:
+  - name: "Growth Phase Assessment"
+    book: "From Impossible to Inevitable - Aaron Ross & Jason Lemkin"
+    template: |
+      Scalac obecnie: [Build/Scale/Hypergrowth]
+      Cel: [next phase]
+      
+      Brakujące ingredienty:
+      - [ ] Hyper-specialization
+      - [ ] Pain clarity
+      - [ ] Ownership
+      - [ ] Sales development
+      - [ ] etc.
+      
+      Action plan: [konkretne kroki]
+    current_assessment: |
+      Scalac obecnie: Build → Scale
+      Cel: Predictable pipeline, nie tylko referrals
+      
+      Brakujące:
+      - [x] Hyper-specialization (Scala + Fintech)
+      - [x] Pain clarity (hiring takes 6 months)
+      - [ ] Sales development (SDR function)
+      - [ ] Systematic outbound (ABM)
+      
+      Action plan:
+      1. Zatrudnić SDR (Q1)
+      2. Zbudować ABM do TOP 50 fintechów (Q1-Q2)
+      3. Uruchomić 2-3 growth eksperymenty tygodniowo
+    use_for:
+      - "Strategic planning"
+      - "Resource allocation"
+      - "Hiring priorities"
+
+  - name: "Three Pipelines (Seeds/Nets/Spears)"
+    book: "Predictable Revenue - Aaron Ross"
+    template: |
+      Seeds (Inbound):
+      - Channels: [SEO, content, referrals]
+      - Volume: [high]
+      - Quality: [medium]
+      - Cost: [low]
+      
+      Nets (Marketing):
+      - Channels: [webinars, newsletter, LinkedIn]
+      - Volume: [medium]
+      - Quality: [medium-high]
+      - Cost: [medium]
+      
+      Spears (Outbound ABM):
+      - Channels: [personalized outreach, video, direct mail]
+      - Volume: [low]
+      - Quality: [high]
+      - Cost: [high]
+    core_variant: |
+      Seeds: "How we scaled Liga Digital", case studies, SEO "hire scala developers"
+      Nets: Webinary "Scaling with Scala", newsletter "Distributed Systems Weekly"
+      Spears: TOP 50 fintechów EU, "Widzieliśmy że skalowacie team"
+    ai_variant: |
+      Seeds: "The RAG Mirage", "Why Python POCs fail", SEO "sovereign ai banking"
+      Nets: Webinary "Sovereign AI for Banking", newsletter "Sovereign AI Insights"
+      Spears: TOP 30 banków Szwajcarii, "Widzieliśmy że wdrażacie AI"
+    use_for:
+      - "Channel strategy"
+      - "Budget allocation"
+      - "Team structure"
+
+  - name: "Growth Experiment"
+    book: "Hacking Growth - Sean Ellis & Morgan Brown"
+    template: |
+      Eksperyment: [nazwa]
+      Hipoteza: [jeśli X to Y]
+      Kanał: [CORE/AI]
+      Metryka: [co mierzymy]
+      Duration: [ile trwa]
+      Success criteria: [co oznacza sukces]
+      Result: [wynik]
+      Insight: [co się nauczyliśmy]
+    examples:
+      - name: "CORE: 'Team Extension' vs 'Augmented Staffing'"
+        hypothesis: "'Augmented Staffing' konwertuje lepiej niż 'Team Extension'"
+        metric: "Landing page conversion"
+        duration: "2 tygodnie"
+        success: "+20% conversion"
+      - name: "AI: 'Sovereign AI' vs 'Private LLM'"
+        hypothesis: "'Sovereign AI' przyciąga więcej banków niż 'Private LLM'"
+        metric: "MQLs from banking"
+        duration: "1 miesiąc"
+        success: "+30% MQLs"
+    use_for:
+      - "High-tempo testing"
+      - "Optimization"
+      - "Learning"
+
+  - name: "JTBD Analysis"
+    book: "Demand-Side Sales 101 - Bob Moesta & Greg Engle"
+    template: |
+      JTBD: [co zatrudniają nasz produkt]
+      Struggling moment: [kiedy szukają rozwiązania]
+      Progress they want: [jaki krok naprzód]
+      Content that helps: [co możemy dać za darmo]
+    core_examples:
+      - jtbd: "Help me scale without hiring 20 people full-time"
+        moment: "Właśnie dostaliśmy funding i musimy skalować 10x w 6 miesięcy"
+        progress: "Widzieć że team rośnie bez mojego zaangażowania w rekrutację"
+        content: "How to onboard remote devs in 2 weeks"
+      - jtbd: "Help me rewrite legacy without stopping the business"
+        moment: "System się wysypuje, ale boimy się migracji"
+        progress: "Mieć plan który nie ma 'big bang'"
+        content: "Gradual migration playbook"
+    ai_examples:
+      - jtbd: "Help me pass compliance audit"
+        moment: "Compliance zablokował AI project 2 tygodnie przed deadlinem"
+        progress: "Mieć checklistę compliance gotową do pokazania CISO"
+        content: "AI Act compliance checklist"
+      - jtbd: "Help me not get fired when AI hallucinates"
+        moment: "Board pyta kiedy AI w produkcji, a ja nie mam approval"
+        progress: "Mieć AI które przechodzi audit bez findingów"
+        content: "Production RAG guardrails guide"
+    use_for:
+      - "Content strategy"
+      - "Messaging"
+      - "Product development"
+
+  - name: "MEDDIC Qualification"
+    book: "The Qualified Sales Leader - John McMahon"
+    template: |
+      Account: [Nazwa]
+      
+      Metrics: [ile zaoszczędzą/zarobią]
+      Economic Buyer: [kto podpisuje check]
+      Decision Criteria: [co musimy spełnić]
+      Decision Process: [kroki do podpisania]
+      Identify Pain: [co się stanie jak nic nie zrobią]
+      Champion: [kto nas promuje]
+      
+      Qualified: [TAK/NIE]
+      Next action: [co robimy]
+    core_criteria:
+      metrics: "Ile zaoszczędzą na hiringu (6m × 150k = 75k)"
+      buyer: "CTO/VP Eng"
+      criteria: "Remote work, onboarding speed, domain knowledge"
+      process: "CTO → CFO → Contract"
+      pain: "Missed deadline, system crash"
+      champion: "Tech Lead"
+    ai_criteria:
+      metrics: "Ile unikniesz kary (6% obrotu)"
+      buyer: "CISO/Chief Risk Officer"
+      criteria: "Audit pass, no data leakage, LLMOps"
+      process: "CTO → CISO → Legal → Board"
+      pain: "Project cancelled, 6 months wasted"
+      champion: "AI Product Owner"
+    use_for:
+      - "Deal qualification"
+      - "Forecasting"
+      - "Sales coaching"
+
+  - name: "Negotiation Prep (Voss)"
+    book: "Never Split the Difference - Chris Voss"
+    template: |
+      Mirroring phrases: [co powtarzamy]
+      Labels: [co nazywamy]
+      Calibrated questions: [co pytamy]
+      Worst case: [co jeśli nie dogadamy się]
+      Walk away point: [kiedy odchodzimy]
+    examples:
+      - mirroring: "Z skalowaniem...", "Z hiringiem..."
+        labels: "Wydaje się że pressure z góry jest duży..."
+        questions: "Jak mam Wam pomóc przekonać board?"
+      - mirroring: "Z compliance...", "Z AI Act..."
+        labels: "Brzmi jakby compliance był głównym blockerem..."
+        questions: "Co by przekonało CISO?"
+    use_for:
+      - "Negotiation prep"
+      - "Difficult conversations"
+      - "Objection handling"
+
+output_formats:
+  - name: "Funnel Design"
+    description: "Kompletny lejek z stages, metrics, experiments"
+    sections:
+      - "Type: CORE / AI"
+      - "Stages (z conversion %)"
+      - "Three Pipelines strategy"
+      - "Metrics (volume, velocity, CAC)"
+      - "Experiments list"
+    
+  - name: "MEDDIC Qualification"
+    description: "Qualification dużego deala"
+    sections:
+      - "Account info"
+      - "MEDDIC criteria"
+      - "Qualified: TAK/NIE"
+      - "Next action"
+    
+  - name: "Growth Experiment"
+    description: "Eksperyment do przetestowania"
+    sections:
+      - "Hipoteza"
+      - "Kanał (CORE/AI)"
+      - "Metryka"
+      - "Success criteria"
+
+checklists:
+  - name: "New Funnel Checklist"
+    items:
+      - "Stages zdefiniowane (z conversion %)"
+      - "Three Pipelines strategy (Seeds/Nets/Spears)"
+      - "Metrics ustalone (volume, velocity, CAC)"
+      - "MEDDIC criteria dla qualification"
+      - "Experiments zaplanowane"
+      - "Handoff do Davida gotowy"
+
+  - name: "Deal Qualification Checklist"
+    items:
+      - "Metrics zdefiniowane (ile zaoszczędzą)"
+      - "Economic Buyer zidentyfikowany"
+      - "Decision Criteria jasne"
+      - "Decision Process znany"
+      - "Pain zidentyfikowany"
+      - "Champion znaleziony"
+      - "Qualified: TAK/NIE"
+
+triggers:
+  - "Nowa oferta od Marcusa (zbuduj lejek)"
+  - "Pipeline review (sprawdź czy lejek działa)"
+  - "Nowy eksperyment do przetestowania"
+  - "Qualification dużego deala (MEDDIC)"
+  - "Negocjacje (Voss techniques)"
+
+handoff_from_offer:
+  sender: "Marcus (Offer Architect)"
+  format: |
+    FROM: Marcus
+    TO: Elena
+    PROJECT: [Nazwa]
+    TYPE: [CORE / AI / CORE+AI]
+    
+    OFERTA:
+    - Value prop: [link]
+    - Pricing: [Good/Better/Best]
+    - Beachhead: [segment]
+    - Assumptive metrics: [ile leadów, jaka konwersja]
+    
+    PYTANIA DO WALIDACJI:
+    - [Pytanie 1]
+    - [Pytanie 2]
+    
+    CORE/AI ANALYSIS:
+    - Core component: [tak/nie]
+    - AI component: [tak/nie]
+
+handoff_to_leads:
+  recipient: "David (Lead Strategist)"
+  format: |
+    FROM: Elena
+    TO: David
+    PROJECT: [Nazwa]
+    TYPE: [CORE / AI]
+    
+    LEJEK:
+    - Stages: [ile, jakie]
+    - Target accounts: [liczba]
+    - MQL criteria: [co to MQL]
+    
+    LEAD GEN STRATEGY:
+    - Seeds: [co potrzebujemy]
+    - Nets: [jakie kampanie]
+    - Spears: [które konta]
+    
+    PRIORITY:
+    - High: [kryteria]
+    - Medium: [kryteria]

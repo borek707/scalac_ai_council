@@ -1,0 +1,28 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Projects output (generated)
+projects/
+*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# API Keys (safety)
+.env
+.env.local
+*.key
