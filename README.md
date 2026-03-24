@@ -1,312 +1,237 @@
-# Rada AI - Scalac Marketing Council
-## Kompletny System Marketingowych AI Doradców
+# Rada AI Scalac - Kompletny System Marketingowych AI Doradców
 
-> 🚀 **Start Here:**
-> - **Chcesz użyć od razu?** → Przewiń do ["🚀 Jak Używać - 4 Sposoby"](#-jak-używać---4-sposoby)
-> - **Masz 15 minut?** → Przeczytaj [`QUICKSTART.md`](scalac_ai_council/QUICKSTART.md)
-> - **Używasz Kimi?** → Zobacz [`KIMI_GUIDE.md`](scalac_ai_council/KIMI_GUIDE.md)
-> - **Programista?** → Zobacz [`INTEGRATION.md`](scalac_ai_council/INTEGRATION.md)
+> **Profesjonalny system AI do tworzenia strategii marketingowej i sprzedażowej dla Scalac.**
+>
+> Od prostych promptów, przez prawdziwy multi-agent, po enterprise roadmapę.
 
 ---
 
-## Co To Jest?
+## 🎯 Dwa sposoby użycia
 
-Rada AI to zespół 5 specjalistycznych agentów AI, każdy z osobowością opartą na 5-6 książkach biznesowych, którzy współpracują aby budować i optymalizować marketing i sprzedaż Scalac.
+Wybierz jeden:
 
-**Kluczowa zasada:** 80% focus na CORE (team extension, distributed systems), 20% na AI (Sovereign AI, RAG).
-
----
-
-## 5 Agentów
-
-### 1. Marcus - Architekt Oferty
-**Książki:** Crossing the Chasm, Monetizing Innovation, Building a StoryBrand, The Challenger Sale, Gap Selling, The Mom Test
-**Rola:** Projektowanie ofert, pricing, positioning
-**Output:** Offer Packages, BrandScripts, Challenger Pitches
-
-### 2. Elena - Architektka Lejków
-**Książki:** From Impossible to Inevitable, Predictable Revenue, The JOLT Effect, Demand-Side Sales, The Qualified Sales Leader, Never Split the Difference
-**Rola:** Projektowanie lejków sprzedażowych, eksperymenty, kwalifikacja
-**Output:** Funnel Designs, MEDDIC Qualifications, Growth Experiments
-
-### 3. Kai - Główny Copywriter
-**Książki:** Everybody Writes, They Ask You Answer, Content Chemistry, The Copywriter's Handbook, Obviously Awesome, On Writing Well
-**Rola:** Pisanie copy które konwertuje
-**Output:** Landing pages, Case studies, Email sequences, Ad copy
-
-### 4. Sofia - Strateg Treści
-**Książki:** Content Inc., Killing Marketing, The Content Strategy Toolkit, Epic Content Marketing, Product-Led SEO, Made to Stick
-**Rola:** Planowanie contentu, SEO, editorial calendar
-**Output:** Content calendars, SEO strategy, Epic content
-
-### 5. David - Strateg Leadów
-**Książki:** Account-Based Marketing, The ABM Playbook, No Forms No Spam, LinkedIn Content Strategy, The Ultimate Sales Machine, Fanatical Prospecting, Sales Engagement
-**Rola:** Generowanie leadów, outbound, ABM
-**Output:** ABM campaigns, Outbound sequences, Lead gen strategy
+| Opcja | Dla kogo | Czas setup | Złożoność | Działa teraz? |
+|-------|----------|------------|-----------|---------------|
+| **[Opcja A: Multi-Agent (Polecana)](#opcja-a-multi-agent-system)** | Użytkowników końcowych (Head of Growth, Marketing) | 5 minut | Niska | ✅ Tak |
+| **[Opcja B: Roadmapa Techniczna](#opcja-b-roadmapa-techniczna)** | Developerów, DevOps | 2-3 miesiące | Wysoka | 🚧 W budowie |
 
 ---
 
-## 🚀 Jak Używać - 4 Sposoby
+## Opcja A: Multi-Agent System (Polecana)
 
-Wybierz jeden z poniższych sposobów korzystania z Rady AI:
+**4 agenci AI pracują równolegle, debatują i tworzą kompletny plan marketingowy.**
 
----
+### Co to daje:
 
-### SPOSÓB 1: Kimi Code (Najłatwiejszy - Tutaj i Teraz)
+- ✅ **Marcus** - Projektuje ofertę (pricing, positioning, Challenger Pitch)
+- ✅ **Elena** - Buduje lejek (MEDDIC, konwersje, forecast)
+- ✅ **Kai** - Pisze copy (landing page, emails, LinkedIn ads)
+- ✅ **David** - Planuje ABM (Dream 100, sequences)
 
-**Użyj Kimi jako orchestratora.** Kimi zarządza wszystkimi 5 agentami w jednej rozmowie.
+Wszystko w **30 minut**, z prawdziwą debatą i feedback loopami.
 
-#### Szybki Start:
-```
-Jako Marcus zaprojektuj ofertę "Team Extension dla fintechów Series B".
-Przeczytaj swój system_prompt.md z AGENTS/marcus_offer_architect/
-Użyj: Gap Selling, StoryBrand, Good-Better-Best.
-```
+### Do czego to używać:
 
-#### Potem przejdź do kolejnych agentów:
-```
-Jako Elena zbuduj lejek dla oferty Marcusa wyżej.
-Przeczytaj swój prompt z AGENTS/elena_funnel_architect/
-Użyj: MEDDIC, JOLT, Three Pipelines.
-```
+| Scenariusz | Wynik |
+|------------|-------|
+| Nowa oferta | Kompletny Offer Package + Pricing |
+| Nowy segment | Funnel + ABM Strategy |
+| Launch produktu | Landing Page + Lead Gen |
+| Pipeline Review | Analiza problemów + Action Plan |
 
-#### Lub uruchom całą Radę naraz:
-```
-Uruchom Radę AI dla projektu "Sovereign AI dla banków":
-1. Marcus - oferta
-2. Elena - lejek
-3. Kai - landing page
-4. David - ABM
-5. Sofia - content strategy
+### Szybki start (3 kroki):
 
-Przeczytajcie swoje system_prompt.md z folderu AGENTS/.
-```
-
-**✅ Zalety:** Zero setup, działa od razu
-**❌ Wady:** Trzeba ręcznie przełączać agentów komendami
-
-**📖 Szczegóły:** [`KIMI_GUIDE.md`](scalac_ai_council/KIMI_GUIDE.md)
-
----
-
-### SPOSÓB 2: ChatGPT / Claude (Osobne Chaty)
-
-**Otwórz 5 niezależnych chatów i wklej prompt każdego agenta.**
-
-#### Krok po kroku:
-1. Otwórz ChatGPT Plus lub Claude Pro
-2. Stwórz 5 nowych chatów, nazwij: "Marcus", "Elena", "Kai", "Sofia", "David"
-3. W każdym wklej odpowiedni `system_prompt.md`
-4. Rozmawiaj z każdym osobno
-5. Ręcznie kopiuj handoff'y między chatami
-
-**✅ Zalety:** Każdy agent ma "pamięć", możesz wracać do chatów
-**❌ Wady:** Ręczne handoff'y, 5 okien do śledzenia
-
-**📖 Szczegóły:** [`INTEGRATION.md`](scalac_ai_council/INTEGRATION.md) (Opcja 2)
-
----
-
-### SPOSÓB 3: Python Orchestrator (Dla Developerów)
-
-**Automatycznie uruchamia wszystkich 5 agentów przez API.**
-
-#### Setup (5 minut):
 ```bash
-# 1. Zainstaluj
-pip install openai
+# 1. Wejdź w katalog
+cd scalac_council_v2
 
-# 2. Dodaj API key
-export OPENAI_API_KEY="sk-..."
+# 2. Uruchom orchestrator
+python orchestrator.py
 
-# 3. Uruchom projekt
-python scalac_ai_council/orchestrator.py --project "Team Extension" --type CORE --export
+# 3. Postępuj zgodnie z instrukcjami (spawn 4 agentów)
 ```
 
-#### Koszt:
-- ~$1-2 per projekt (5-10 wywołań API)
-- GPT-4 = lepsze wyniki, droższe
-- GPT-3.5 = szybsze, tańsze
-
-**✅ Zalety:** Automatyczne handoff'y, eksport do JSON, skalowalne
-**❌ Wady:** Wymaga API key i Pythona
-
-**📖 Szczegóły:** [`INTEGRATION.md`](scalac_ai_council/INTEGRATION.md) (Opcja 1)
+**📖 Pełna dokumentacja:** [`scalac_council_v2/README.md`](scalac_council_v2/README.md)
 
 ---
 
-### SPOSÓB 4: Make.com / Zapier (No-Code Automation)
+## Opcja B: Roadmapa Techniczna
 
-**Zbuduj workflow w Make.com bez kodu.**
+**Enterprise-grade multi-agent system z pamięcią, narzędziami i auto-uczeniem.**
 
-#### Workflow:
-```
-Webhook (trigger)
-  → OpenAI (Marcus)
-  → OpenAI (Elena)
-  → [Kai + David równolegle]
-  → OpenAI (Sofia)
-  → Google Docs (output)
-```
+Dla zespołów developerskich które chcą zbudować produkcyjny system.
 
-**✅ Zalety:** Zero kodu, integracje (Slack, Notion), automatyzacja
-**❌ Wady:** Płatne po 1000 operacji, wolniejsze
+### Fazy rozwoju:
 
-**📖 Szczegóły:** [`INTEGRATION.md`](scalac_ai_council/INTEGRATION.md) (Opcja 4)
+| Faza | Czas | Co dostajesz |
+|------|------|--------------|
+| **Faza 1** | 1-2 tyg | Agenci z pamięcią długoterminową |
+| **Faza 2** | 2-3 tyg | Narzędzia research (konkurencja, SEO) |
+| **Faza 3** | 4-6 tyg | LangGraph, feedback loop'y, autonomia |
+| **Faza 4** | 2-3 mies | Kubernetes, API, dashboard |
 
----
+### Stack technologiczny:
 
-## Porównanie Opcji
+- Python + LangChain/LangGraph
+- ChromaDB/Pinecone (Vector DB)
+- Redis (Message Queue)
+- Kubernetes (Orchestration)
 
-| Sposób | Setup | Koszt | Idealne dla |
-|--------|-------|-------|-------------|
-| **Kimi** (Sposób 1) | Zero | Darmowe | Start, prototypy, testy |
-| **ChatGPT** (Sposób 2) | 15 min | $20/mies | Regularna praca, pamięć chatów |
-| **Python** (Sposób 3) | 5 min | ~$1/projekt | Automatyzacja, wiele projektów |
-| **Make.com** (Sposób 4) | 30 min | $9+/mies | No-code, integracje |
+**📖 Szczegóły:** [`ROADMAP.md`](ROADMAP.md) i [`roadmap/`](roadmap/)
 
 ---
 
-## Przykładowy Workflow (Sposób 1 - Kimi)
+## ⚡ Porównanie Opcji
 
-```
-TY: Jako Marcus zaprojektuj ofertę "Team Extension dla fintechów Series B"
-
-TY: Jako Elena zbuduj lejek dla oferty Marcusa
-
-TY: Jako Kai napisz landing page
-TY: Jako David przygotuj ABM
-
-TY: Jako Sofia przygotuj content strategy
-
-TY: Daj podsumowanie całego projektu
-```
+| Aspekt | Multi-Agent (Opcja A) | Roadmapa (Opcja B) |
+|--------|----------------------|-------------------|
+| **Czas do wyniku** | 30 minut | 2-3 miesiące |
+| **Koszt** | $0 (Kimi Code) | ~$1000/miesiąc |
+| **Setup** | 5 minut | 2-3 tygodnie |
+| **Skalowalność** | Do 10 projektów/dzień | Nieograniczona |
+| **Integracje** | Manualne | API, Webhooks |
+| **Idealne dla** | Pilot, testy, mała skala | Produkcja, enterprise |
 
 ---
 
-## Struktura Repozytorium
+## 🎬 Przykładowy Przebieg
+
+### Multi-Agent w akcji:
+
+**Round 1 (równolegle):**
+- Marcus: "Pricing 75-85 EUR/h, lead with 2-week guarantee"
+- Elena: "Potrzebujemy 160 leads dla 3 deali"
+- Kai: "Messaging jest OK, ale za techniczny"
+- David: "Mam listę 50 fintechów do ABM"
+
+**Round 2 (debaty):**
+- Elena: "Marcus, 50% konwersja to nierealistyczne!"
+- Marcus: "Elena, za niski pricing zabija wartość!"
+- Kai: "Oboje piszecie jak do developerów, nie CTO!"
+
+**Round 3 (konsensus):**
+- Agenci się zgadzają: 25% konwersja, 80 EUR/h, lead with speed
+
+**Output:**
+4 dokumenty: Oferta, Lejek, Copy, ABM - spójne i przemyślane.
+
+---
+
+## 📁 Struktura Repozytorium
 
 ```
 scalac_ai_council/
-├── scalac_ai_council/
-│   ├── orchestrator.py               # Python orchestrator (5 agentów, API)
-│   ├── QUICKSTART.md                 # Start w 15 minut
-│   ├── INTEGRATION.md                # 4 sposoby użycia
-│   ├── KIMI_GUIDE.md                 # Instrukcja użycia z Kimi
-│   ├── AGENTS/                       # 5 agentów z pełnymi promptami
-│   │   ├── marcus_offer_architect/   # system_prompt.md, tools.yaml, examples/
-│   │   ├── elena_funnel_architect/   # system_prompt.md, tools.yaml, examples/
-│   │   ├── kai_copywriter/           # system_prompt.md, tools.yaml, examples/
-│   │   ├── sofia_content_strategist/ # system_prompt.md, tools.yaml, examples/
-│   │   └── david_lead_strategist/    # system_prompt.md, tools.yaml, examples/
-│   ├── WORKFLOW/
-│   │   ├── operating_system.yaml     # Spotkania, decyzje, kultura
-│   │   ├── project_workflows.yaml    # 4 typy projektów
-│   │   └── handoff_templates.md      # Szablony przekazywania pracy
-│   ├── TOOLKIT/
-│   │   ├── templates/                # BrandScript, Pricing, Challenger Pitch
-│   │   ├── checklists/               # Diagnosis, Launch, QA
-│   │   ├── scripts/                  # Discovery, Demo
-│   │   └── calculators/              # ROI, Pricing
-│   └── LEARNING/
-│       ├── post_mortem_template.md
-│       ├── book_study_guide.md
-│       ├── framework_update_process.md
-│       └── quarterly_balance_review.md
-└── README.md                         # Ten plik
+│
+├── README.md                    # Ten plik - wybierz swoją opcję
+│
+├── scalac_council_v2/           # ✅ OPCJA A: Działający Multi-Agent
+│   ├── README.md               #    Pełna dokumentacja
+│   ├── orchestrator.py         #    Główny koordynator
+│   ├── agents/                 #    4 agenci (Marcus, Elena, Kai, David)
+│   └── shared/                 #    Brief + dyskusja + outputy
+│
+├── ROADMAP.md                   # 🚧 OPCJA B: Roadmapa techniczna
+├── roadmap/                     #    Szczegóły faz
+│   ├── PHASE_1_MEMORY.md
+│   ├── PHASE_2_TOOLS.md
+│   ├── PHASE_3_AUTONOMY.md
+│   ├── PHASE_4_ENTERPRISE.md
+│   ├── ARCHITECTURE.md
+│   └── DECISION_LOG.md
+│
+├── scripts/                     #    Skrypty pomocnicze
+│   ├── setup.py
+│   ├── ingest_knowledge.py
+│   └── migrate_to_v2.py
+│
+└── scalac_ai_council/           # 📦 OPCJA C: Stary system (v1)
+    └── ...                      #    (dla kompatybilności)
 ```
 
 ---
 
-## CORE vs AI Balance
+## 🚀 Rekomendacja
 
-| Pytanie | → CORE | → AI |
-|---------|--------|------|
-| Czy klient ma working infrastructure? | Nie | Tak |
-| AI to "nice to have" czy "compliance blocker"? | Nice | Blocker |
-| Potrzebują devs czy consulting? | Devs | Consulting |
+### Dla Head of Growth / Marketing Manager:
+**Użyj Opcji A (Multi-Agent).** 
 
-### 80/20 Rule
-- **80% effort na CORE:** Team extension, distributed systems
-- **20% effort na AI:** Sovereign AI, RAG
+Działa od razu, daje profesjonalne wyniki, nie wymaga technicznej wiedzy.
 
----
+```bash
+cd scalac_council_v2
+python orchestrator.py
+```
 
-## Metryki Sukcesu
+**Bonus:** Masz dostęp do `battlecards.md` (analiza konkurencji) i `content_plan.md` - agenci mogą proponować webinary wypełniające luki rynku. Zobacz [`scalac_council_v2/WEBINAR_GUIDE.md`](scalac_council_v2/WEBINAR_GUIDE.md)
 
-| Metric | Target |
-|--------|--------|
-| Pipeline | 500k PLN/miesiąc |
-| CORE Pipeline | 400k PLN (80%) |
-| AI Pipeline | 100k PLN (20%) |
-| Win Rate | >30% |
-| CAC (CORE) | <15k PLN |
-| CAC (AI) | <50k PLN |
+### Dla CTO / Tech Lead:
+**Rozważ Opcję B (Roadmapa)** jeśli:
+- Musicie robić 100+ projektów miesięcznie
+- Potrzebujecie API do integracji z CRM
+- Chcecie auto-learning z wyników
+
+W przeciwnym razie **Opcja A wystarczy**.
 
 ---
 
-## System Operacyjny
+## 💡 Przykładowe Projekty
 
-- **Weekly Brief** (Poniedziałek, async) — co zrobiliśmy, CORE/AI split, blockers
-- **Creative Sprint** (Środa, 30 min) — problem → 2 agenty prezentują → 3 pomagają
-- **Ship It** (Piątek, 30 min) — demo assetów, feedback
+### Projekt 1: Team Extension Fintech
+```
+Brief: "Team Extension dla fintechów Series B, 300-500k EUR budget"
+Wynik: Kompletny plan launchu
+Czas: 30 minut
+```
 
----
+### Projekt 2: Sovereign AI Banking
+```
+Brief: "Sovereign AI dla banków szwajcarskich, compliance-first"
+Wynik: Oferta + ABM strategy dla CH market
+Czas: 30 minut
+```
 
-## Books Bibliography
-
-### Marcus (Architekt Oferty)
-- Crossing the Chasm — Geoffrey Moore
-- Monetizing Innovation — Madhavan Ramanujam
-- Building a StoryBrand — Donald Miller
-- The Challenger Sale — Matthew Dixon
-- Gap Selling — Keenan
-- The Mom Test — Rob Fitzpatrick
-
-### Elena (Architektka Lejków)
-- From Impossible to Inevitable — Aaron Ross & Jason Lemkin
-- Predictable Revenue — Aaron Ross
-- The JOLT Effect — Matthew Dixon & Ted McKenna
-- Demand-Side Sales 101 — Bob Moesta & Greg Engle
-- The Qualified Sales Leader — John McMahon
-- Never Split the Difference — Chris Voss
-
-### Kai (Copywriter)
-- Everybody Writes — Ann Handley
-- They Ask, You Answer — Marcus Sheridan
-- Content Chemistry — Andy Crestodina
-- The Copywriter's Handbook — Robert Bly
-- Obviously Awesome — April Dunford
-- On Writing Well — William Zinsser
-
-### Sofia (Strateg Treści)
-- Content Inc. — Joe Pulizzi
-- Killing Marketing — Joe Pulizzi
-- The Content Strategy Toolkit — Meghan Casey
-- Epic Content Marketing — Joe Pulizzi
-- Product-Led SEO — Eli Schwartz
-- Made to Stick — Chip & Dan Heath
-
-### David (Strateg Leadów)
-- Account-Based Marketing — Sangram Vajre
-- The ABM Playbook — Andrew Mahr
-- No Forms, No Spam, No Cold Calls — Latané Conant
-- LinkedIn Content Strategy — Mina Seetharaman
-- The Ultimate Sales Machine — Chet Holmes
-- Fanatical Prospecting — Jeb Blount
-- Sales Engagement — Mursalitza, Vogl, Böttger
-
-### Wspólne (Wszyscy)
-- The Hard Thing About Hard Things — Ben Horowitz
-- Zero to One — Peter Thiel
-- The Innovator's Dilemma — Clayton Christensen
-- Hooked — Nir Eyal
-- Thinking, Fast and Slow — Daniel Kahneman
+### Projekt 3: Migration Campaign
+```
+Brief: "Migration Legacy Java → Scala, enterprise target"
+Wynik: Case study + landing page + ABM dla enterprise
+Czas: 30 minut
+```
 
 ---
 
-## Need Help?
+## 📞 Wsparcie
 
-- **Kimi nie działa?** → [`KIMI_GUIDE.md`](scalac_ai_council/KIMI_GUIDE.md)
-- **Python errors?** → [`INTEGRATION.md`](scalac_ai_council/INTEGRATION.md) Opcja 1
-- **General help?** → [`QUICKSTART.md`](scalac_ai_council/QUICKSTART.md)
+### Problemy z Multi-Agent (Opcja A):
+1. Sprawdź czy brief.md istnieje w `scalac_council_v2/shared/`
+2. Upewnij się, że agenci używają absolutnych ścieżek
+3. Poczekaj 30 minut - agenci debatują
+4. Przeczytaj [`scalac_council_v2/README.md`](scalac_council_v2/README.md) - sekcja "Troubleshooting"
+
+### Pytania o Roadmapę (Opcja B):
+Zobacz [`roadmap/ARCHITECTURE.md`](roadmap/ARCHITECTURE.md) i [`roadmap/DECISION_LOG.md`](roadmap/DECISION_LOG.md)
+
+---
+
+## 🎯 Podsumowanie
+
+| Chcesz... | Użyj... |
+|-----------|---------|
+| Wynik TERAZ, bez setupu | `scalac_council_v2/` (Opcja A) |
+| Enterprise system za 3 miesiące | `roadmap/` (Opcja B) |
+| Zrozumieć jak to działa | Przeczytaj oba README |
+
+---
+
+**Gotowy?**
+
+```bash
+cd scalac_council_v2 && python orchestrator.py
+```
+
+Lub jeśli chcesz roadmapę:
+
+```bash
+cat ROADMAP.md
+```
+
+🚀 Powodzenia!
