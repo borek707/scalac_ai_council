@@ -138,11 +138,11 @@ Runda 3 (jeśli potrzebna) — konsensus:
 To celowe — David potrzebuje pełnych danych do ABM, pozostali do swojej pracy potrzebują tylko kontekstu.
 
 **Tier 1 z danych (Scala + aktywna rekrutacja AI):**
-- Depop (London) — Scala+Spark, multiple ML vacancies, keyur@depop.com
-- Artifact (Lausanne, CH) — Scala w stacku, Senior AI/Consultant, michael.wegmueller@artifact.swiss
-- Kaluza (London) — Kafka+LangChain+MCP, andy.worsley@kaluza.com
-- iManage (Chicago) — Scala/Java AI Engineer, bijo.thomas@imanage.com
-- Feedzai (Lisbon) — Scala + AI Risk Platform, pedro.faria@feedzai.com
+- Depop (London) — Scala+Spark, multiple ML vacancies
+- Artifact (Lausanne, CH) — Scala w stacku, Senior AI/Consultant
+- Kaluza (London) — Kafka+LangChain+MCP
+- iManage (Chicago) — Scala/Java AI Engineer
+- Feedzai (Lisbon) — Scala + AI Risk Platform
 
 ---
 
@@ -460,7 +460,7 @@ Testuje czy Kai dostaje robotę bez pełnego flow debaty. Szybkie copy bez 3 run
 ### 5. Edge case — konkretne konto z target_accounts
 ```
 @Scalac Council ABM sequence dla Artifact (Lausanne, Scala w stacku, rekrutują Senior AI).
-Kontakt: michael.wegmueller@artifact.swiss. 12-touch cadence, 8 tygodni.
+12-touch cadence, 8 tygodni.
 Ton: DACH — suchy, konkretny, po niemiecku na Touch #9.
 ```
 Testuje czy David korzysta z `target_accounts.md`. Artifact jest w Tier 1 DACH — David powinien znać firmę bez dodatkowego tłumaczenia.
