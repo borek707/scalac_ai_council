@@ -1,318 +1,384 @@
-# Rada AI Scalac - Multi-Agent Marketing Council
+# Rada AI Scalac — Multi-Agent Marketing Council
 
-> **4 agenci AI pracują równolegle, debatują i tworzą kompletny plan marketingowy w 30 minut.**
-> 
-> Zamiast sekwencyjnie "najpierw Marcus, potem Elena" - wszyscy na raz, z feedback loopami i konsensusem.
-
----
-
-## Co to jest
-
-Rada AI to system gdzie 4 wyspecjalizowani agenci AI (Marcus, Elena, Kai, David) współpracują równolegle nad Twoim projektem marketingowym.
-
-**Każdy agent to osobna sesja w Kimi Code** - działają jednocześnie, czytają nawzajem swoje wypowiedzi, kwestionują, proponują, dochodzą do konsensusu.
-
-### Proces (3 rundy):
-
-```
-Round 1 (równolegle):
-  Marcus pisze ofertę ──────┐
-  Elena pisze lejek ───────┼──► Wszyscy widzą wzajemne pomysły
-  Kai pisze copy ──────────┤
-  David planuje ABM ───────┘
-
-Round 2 (reakcje):
-  Elena: "Marcus, Twoje konwersje są nierealistyczne!"
-  Marcus: "Elena, za niski pricing zabija wartość!"
-  Kai: "Oboje jesteście za techniczni!"
-
-Round 3 (konsensus):
-  Agenci się zgadzają lub zapisują disagreement
-  Każdy pisze finalny dokument
-
-Output: 4 spójne dokumenty
-```
+> **4 agenci AI pracują równolegle, debatują i tworzą kompletny plan marketingowy Scalac.**
+>
+> Powiedz `@Scalac Council zrób plan dla X` — agenci działają sami.
 
 ---
 
-## Dlaczego to lepsze niż "5 promptów"
+## Do czego to służy
 
-| Tradycyjne podejście | Rada AI |
-|---------------------|---------|
-| Sekwencyjnie: Marcus → Elena → Kai → David | Równolegle: wszyscy na raz |
-| Każdy agent działa w próżni (nie widzi innych) | Agenci czytają i komentują nawzajem |
-| Brak krytyki - każdy pisze co chce | Prawdziwa debata i feedback loop'y |
-| Wyniki niespójne | Konsensus lub uzasadniony disagreement |
-| 15 minut, słaba jakość | 30 minut, wysoka jakość |
+System do tworzenia **kompletnych planów marketingowych Scalac** w 30 minut zamiast kilku dni.
 
-**Kluczowa różnica:** Agenci **krytykują się nawzajem**. Elena zmniejszy optymizm Marcusa, Kai uprości techniczny żargon, David zweryfikuje czy plan jest wykonalny.
+Zamiast pisania jednego długiego prompta — 4 wyspecjalizowani eksperci pracują równolegle, kwestionują nawzajem swoje założenia i dochodzą do konsensusu.
 
----
+### Przykładowe projekty
 
-## Co dostajesz
-
-4 dokumenty które razem tworzą kompletny plan:
-
-| Agent | Output | Co zawiera |
-|-------|--------|------------|
-| **Marcus** | `marcus_offer.md` | Gap Analysis, BrandScript, Good-Better-Best Pricing, Challenger Pitch |
-| **Elena** | `elena_funnel.md` | Funnel stages, MEDDIC criteria, JOLT strategy, 90-day forecast |
-| **Kai** | `kai_copy.md` | Landing page (hero, problem, solution, pricing), 5-email sequence, LinkedIn ads |
-| **David** | `david_abm.md` | Dream 100 accounts, 12-touch sequences, intent signals, tools stack |
-
-Plus `FINAL_PROPOSAL.md` - wszystko razem w jednym dokumencie.
+| Projekt | Co dostajesz |
+|---------|--------------|
+| **Team Extension dla Fintechów Series B** | Oferta + Lejek + Landing page + Dream 100 |
+| **Sovereign AI dla Banków** | Compliance-first pitch + 6-miesięczny cykl sprzedaży + White paper |
+| **Migration Legacy → Scala 3** | Fixed-price offer + Technical case studies + Targeting enterprise architects |
+| **Scala+AI dla Scale-upów** | Positioning + Playbook content + ABM Tier 1 |
+| **Webinar / Event launch** | Messaging + Email sequence + Follow-up cadence |
 
 ---
 
-## Do czego to używać
+## Agenci — kto co robi
 
-### 1. Nowa oferta
-**Brief:** "Team Extension dla fintechów Series B"  
-**Wynik:** Kompletny launch package (oferta, lejek, copy, ABM)
+### Marcus — Offer Architect
+**Rola:** Projektuje ofertę, pricing i positioning.
 
-### 2. Webinar ideation (z battlecards)
-**Brief:** "Znajdź temat webinaru który wypełnia lukę rynku"  
-**Wynik:** 3 tematy oparte na analizie konkurencji (VirtusLab, SoftwareMill, Xebia)
+Używa: *Gap Selling*, *The Challenger Sale*, *Monetizing Innovation* (Good-Better-Best pricing), *StoryBrand SB7*.
 
-### 3. Pipeline review
-**Brief:** "Pipeline spadł o 30%, potrzebny action plan"  
-**Wynik:** Analiza problemów + konkretne fixy
+Wie: Scalac jest jedynym Official Akka Tech Partnerem w EU. Rynek płaci $50–99/hr (VirtusLab, SoftwareMill). Target dla Series B to €300–500K/rok.
 
-### 4. Wejście na nowy rynek
-**Brief:** "Sovereign AI dla banków szwajcarskich"  
-**Wynik:** Oferta + strategia ABM dla CH market
+Walczy o: wysoką cenę i wartość zamiast godzinówek. Elena zawsze chce obniżyć — Marcus broni.
+
+**Output:** `output/marcus_offer.md` — oferta z ROI, pricing tiers, challenger pitch.
 
 ---
 
-## 🚀 Szybki Start
+### Elena — Funnel Architect
+**Rola:** Projektuje lejek, kwalifikację leadów i pipeline.
 
-### Wymagania
-- Dostęp do Kimi Code z funkcją `sessions_spawn`
-- 30-40 minut czasu
+Używa: *MEDDIC*, *The JOLT Effect*, *Predictable Revenue* (Seeds/Nets/Spears), *From Impossible to Inevitable*.
 
-### Krok po kroku
+Wie: 1 marketer + 1 intern = lejek musi być realistyczny. SoftwareMill ma NPS 73 i 70% CTO re-engagement — to benchmark do pobicia. Pipeline target: 500K PLN w 90 dni.
 
-```bash
-# 1. Wejdź w katalog systemu
-cd scalac_council_v2
+Walczy o: realistyczne konwersje. Kwestionuje zbyt optymistyczne założenia Marcusa.
 
-# 2. Uruchom orchestrator (pokaże instrukcje)
-python orchestrator.py
-```
-
-**3. Spawn 4 agentów w Kimi Code** (skopiuj i wklej):
-
-```python
-# Marcus - Offer Architect
-sessions_spawn(
-    runtime="subagent",
-    task="""Jesteś Marcus, Offer Architect w Scalac.
-Przeczytaj /root/.openclaw/workspace/scalac-council-v2/shared/brief.md
-Napisz Round 1 do shared/discussion/round_1_marcus.md
-Czekaj na innych, czytaj ich, odpowiadaj. 3 rundy lub konsensus.
-Final: output/marcus_offer.md""",
-    label="marcus"
-)
-
-# Elena - Funnel Architect  
-sessions_spawn(
-    runtime="subagent",
-    task="""Jesteś Elena, Funnel Architect w Scalac.
-Przeczytaj brief i dyskusję. Napisz Round 1 do round_1_elena.md.
-Debata z Marcusem o pricing vs conversion. Final: output/elena_funnel.md""",
-    label="elena"
-)
-
-# Kai - Copywriter
-sessions_spawn(
-    runtime="subagent",
-    task="""Jesteś Kai, Copywriter w Scalac.
-Przeczytaj brief i dyskusję. Napisz Round 1 do round_1_kai.md.
-Czy messaging jest zbyt techniczny? Final: output/kai_copy.md""",
-    label="kai"
-)
-
-# David - Lead Strategist
-sessions_spawn(
-    runtime="subagent",
-    task="""Jesteś David, Lead Strategist w Scalac.
-Przeczytaj brief i dyskusję. Napisz Round 1 do round_1_david.md.
-Dream 100 accounts. Final: output/david_abm.md""",
-    label="david"
-)
-```
-
-**4. Poczekaj 30 minut**
-
-Agenci piszą równolegle, debatują przez 3 rundy.
-
-**5. Pobierz wyniki**
-
-```bash
-# Sprawdź dyskusję
-cat shared/discussion/round_1_marcus.md
-cat shared/discussion/round_2_elena.md
-
-# Pobierz finalne outputy
-cat output/marcus_offer.md
-cat output/elena_funnel.md
-cat output/kai_copy.md
-cat output/david_abm.md
-
-# Lub wszystko razem
-cat output/FINAL_PROPOSAL.md
-```
+**Output:** `output/elena_funnel.md` — etapy lejka, metryki konwersji, MEDDIC dla każdego etapu.
 
 ---
 
-## 📁 Struktura repozytorium
+### Kai — Copywriter
+**Rola:** Pisze landing pages, email sequences, LinkedIn hooks, ad copy.
 
-```
-scalac_ai_council/
-├── README.md                      # Ten plik - start tutaj
-├── scalac_battlecards.docx.md    # Analiza 5 konkurentów + whitespace
-├── scalac_content_plan.docx.md   # Plan contentowy Q2-Q3 (10 postów)
-│
-└── scalac_council_v2/            # ✅ SYSTEM
-    ├── orchestrator.py           # Koordynator (status + agregacja)
-    │
-    ├── agents/                   # 4 agenci
-    │   ├── marcus_agent.py       # Offer Architect
-    │   ├── elena_agent.py        # Funnel Architect
-    │   ├── kai_agent.py          # Copywriter
-    │   ├── david_agent.py        # Lead Strategist
-    │   ├── marcus_agent_enhanced.py  # Czyta battlecards
-    │   └── kai_webinar.py        # Specjalizacja: webinary
-    │
-    ├── shared/                   # Inputy
-    │   ├── brief.md              # Brief projektu (edytuj to)
-    │   ├── brief_webinar.md      # Brief do webinar ideation
-    │   ├── battlecards.md        # Analiza konkurencji
-    │   ├── content_plan.md       # Plan contentowy
-    │   └── discussion/           # Dyskusja agentów (autogenerowane)
-    │
-    ├── output/                   # Wyniki (autogenerowane)
-    │   ├── marcus_offer.md
-    │   ├── elena_funnel.md
-    │   ├── kai_copy.md
-    │   ├── david_abm.md
-    │   └── FINAL_PROPOSAL.md
-    │
-    ├── README.md                 # Pełna dokumentacja techniczna
-    └── WEBINAR_GUIDE.md          # Jak używać z battlecards
-```
+Używa: *They Ask You Answer* (Big 5), *StoryBrand*, *Obviously Awesome*, frameworki AIDA i PAS.
+
+Wie: nikt na rynku nie ma spójnego messagingu "Scala+AI" — to złota okazja. Positioning: *"Jedyni, gdzie Twoi Scala engineerzy SĄ Twoimi AI engineerami."* VirtusLab ma 8 Clutch reviews, Scalac 23.
+
+Walczy o: jasność dla CTO który ma 30 sekund. Kwestionuje zbyt techniczny język Marcusa i Davida.
+
+**Output:** `output/kai_copy.md` — hero headline, email subject lines, LinkedIn hooks, CTA, porównanie z konkurencją.
 
 ---
 
-## 🎭 Kim są agenci
+### David — Lead Strategist
+**Rola:** Buduje listę Dream 100 kont, sekwencje outreach i ABM.
 
-### Marcus (Offer Architect)
-- **Osobowość:** Były Principal Engineer → PM w fintech unicorn. Bezpośredni, liczbowy.
-- **Broni:** Wysokiego pricingu, wartości ROI
-- **Atakuje:** Niskich konwersji, braku jasności w ofercie
-- **Frameworki:** Gap Selling, StoryBrand, Good-Better-Best, Challenger Sale
+Używa: *ABM Playbook*, *Fanatical Prospecting*, *Signal-Based Selling*, *12-Touch Cadence*.
 
-### Elena (Funnel Architect)
-- **Osobowość:** Była VP Growth (0→10M ARR). Procesowa, pragmatyczna.
-- **Broni:** Realistycznych konwersji, wykonalności planu
-- **Atakuje:** Optymizmu Marcusa, nierealistycznych timeline'ów
-- **Frameworki:** MEDDIC, JOLT, Three Pipelines, Predictable Revenue
+Wie: VirtusLab jest mocny w Retail/Insurance/FinTech. SoftwareMill dominuje FinTech (ale ma 2 osobne teamy = słabość). Endava/EPAM mają zero Scala+AI → ich klienci używający Scali to warm leady.
 
-### Kai (Copywriter)
-- **Osobowość:** Clarity-focused. "Customer voice" > buzzwords.
-- **Broni:** Prostego języka, czytelności
-- **Atakuje:** Technicznego żargonu, buzzwords
-- **Frameworki:** AIDA, Big 5, Challenger messaging
+Sygnały do atakowania konta: Series B announcement, job posting "Scala developer", Scala Days/Akka meetupy, klient Endavy używający Scali.
 
-### David (Lead Strategist)
-- **Osobowość:** Konkretny, operacyjny.
-- **Broni:** Wykonalności planu, realnych kont
-- **Atakuje:** Ogólników, braku konkretów
-- **Frameworki:** ABM tiers, Signal-based selling, 12-touch sequences
+**Output:** `output/david_abm.md` — Dream 100 lista, tiering, sekwencje, timing z content planem.
 
 ---
 
-## 💡 Przykładowa debata (Round 2)
+## Jak działa debata
 
-**Marcus (Round 1):**
-> "Proponuję pricing 75-85 EUR/h. Target: 50% konwersja lead→MQL."
+Agenci piszą 3 rundy. Każda runda to osobny plik w `shared/discussion/`.
 
-**Elena (Round 2 - odpowiedź na Marcusa):**
-> "Marcus, 50% konwersja to nierealistyczne dla fintech B2B. Realistycznie: 25%. To zmienia kalkulację - potrzebujemy 2x więcej leadów."
+```
+Runda 1 — wszyscy naraz (~5 min):
+  Marcus pisze ofertę
+  Elena planuje lejek          ← czytają się wzajemnie
+  Kai przygotowuje copy
+  David wybiera konta
 
-**Marcus (Round 2 - kontrargument):**
-> "Elena, masz rację co do konwersji, ale przy 25% musimy bronić wyższego pricingu. Quality > quantity. Proponuję dodać '2-week guarantee' jako risk reversal."
+Runda 2 — konfrontacja (~10 min):
+  Elena: "Marcus, konwersje 40% są nierealistyczne dla cold outreach!"
+  Marcus: "Elena, pricing €150/hr jest poniżej wartości którą dostarczamy"
+  Kai: "Oboje jesteście zbyt techniczni — CTO nie rozumie 'Akka actor model'"
+  David: "Mam 3 konta Tier 1 które potrzebują case study od Kai"
 
-**Kai (Round 2 - wtrącenie):**
-> "Oboje piszecie za technicznie. CTO nie rozumie 'konwersji' i 'MQL'. On chce usłyszeć: 'Scale your team in 2 weeks'. Lead with outcome, nie metrics."
+Runda 3 — konsensus (~10 min):
+  Agenci dostosowują swoje outputy do feedbacku
+  Zapisują finalny output
+```
 
-**Round 3 - Konsensus:**
-> Pricing 80 EUR/h, konwersja 25%, messaging: "2-week guarantee, scale without hiring delays"
+**Shared workspace** w `shared/discussion/` — agenci czytają pliki nawzajem i odpowiadają. Plik `round_2_elena.md` zawiera bezpośrednie cytaty z `round_1_marcus.md`.
 
 ---
 
-## 📊 Bonus: Battlecards (Competitive Intelligence)
+## Skąd agenci biorą wiedzę o rynku
 
-W `scalac_council_v2/shared/` znajdziesz:
+Każdy agent ma wbudowaną wiedzę z dwóch dokumentów:
 
-### `battlecards.md`
-Analiza 5 konkurentów (VirtusLab, SoftwareMill, Xebia, Endava, EPAM):
-- Ich mocne strony
-- Ich słabe punkty  
-- **6 WHITESPACE OPPORTUNITIES** - luki które Scalac może wypełnić
+**`scalac_battlecards.docx.md`** — analiza konkurencji (marzec 2026):
+- VirtusLab: mocny w Scala, słaby w unified Scala+AI brand. ML team Python-centric.
+- SoftwareMill: 2 osobne teamy (Scala ≠ AI team) — CTO dostaje dwa różne pitch'e.
+- Xebia: ich `xef.ai` to Kotlin, nie Scala. Premium pricing = nie konkurujemy bezpośrednio.
+- Endava/EPAM: zero Scala+AI messagingu → ich klienci to nasze leady.
+- Scalac: jedyny Official Akka Tech Partner. `scalac.ai` jako dedykowany brand.
 
-Przykładowe whitespace:
-- "Akka + Agentic AI" - nikt tego nie robi eksplicytne
-- "Healthcare AI + Scala" - pusta nisza
-- "Scala-Native AI Engineering" - nikt nie branduje Scala+AI jako jedności
+**`scalac_content_plan.docx.md`** — plan contentowy (kwiecień–wrzesień 2026):
+- LinkedIn 3x/tydzień (wtorek thought leadership, czwartek technical)
+- Scala+AI Playbook Blog Series (10 postów, keywords: "scala ai programming", "akka ai agents")
+- Czerwiec 2026: *The Scala+AI Manifesto* — door-opener dla Tier 1 kont
+- Wrzesień 2026: *State of Scala+AI 2026* Survey Report — excuse to reach out
+- Reddit r/scala weekly — community trust building
 
-### `content_plan.md`
-Plan contentowy z 10 postami "Scala + AI Playbook" (Q2-Q3):
-- #3: "Akka Actors as AI Agents" ← idealny na webinar
-- #2: "Building RAG Pipeline in Scala 3"
-- #6: "From Spark to LLMs"
-
-### Jak używać do webinarów
-Zobacz [`scalac_council_v2/WEBINAR_GUIDE.md`](scalac_council_v2/WEBINAR_GUIDE.md) - pełny przewodnik.
+Orchestrator wczytuje oba pliki przy generowaniu promptów i wstrzykuje je do każdego agenta.
 
 ---
 
-## ❓ Troubleshooting
+## Jak uruchomić
 
-### "Agenci nie widzą swoich plików"
-Upewnij się że wszyscy używają **absolutnych ścieżek**:
-```
-✅ /root/.openclaw/workspace/scalac-council-v2/shared/brief.md
-❌ shared/brief.md (może nie działać)
-```
+### VS Code + GitHub Copilot (najłatwiej)
 
-### "Dyskusja stoi w miejscu"
-Agenci czekają na siebie. Dodaj w promptach:
+Wpisz w czacie:
 ```
-JEŚLI minęło >10 minut od ostatniego postu, 
-napisz kolejną rundę nawet jeśli nie ma nowych postów.
+@Scalac Council Team Extension dla fintechów Series B — zrób kompletny plan
 ```
 
-### "Chcę zresetować i zacząć od nowa"
-```bash
-rm -rf shared/discussion/*.md output/*.md
-# Edytuj shared/brief.md
-# Spawnuj agentów ponownie
-```
+Orchestrator agent automatycznie:
+1. Zapisuje brief do `shared/brief.md`
+2. Wywołuje 4 subagenty równolegle
+3. Agreguje debatę
+4. Zwraca `output/FINAL_PROPOSAL.md`
 
 ---
 
-## 📖 Więcej dokumentacji
+### Cursor
 
-- **Pełna instrukcja:** [`scalac_council_v2/README.md`](scalac_council_v2/README.md)
-- **Webinar ideation:** [`scalac_council_v2/WEBINAR_GUIDE.md`](scalac_council_v2/WEBINAR_GUIDE.md)
+1. Uruchom orchestrator żeby wygenerować pliki promptów:
+   ```bash
+   cd scalac_council_v2 && python orchestrator.py
+   ```
+
+2. Otwórz 4 zakładki Composer (`Ctrl+Shift+I` → "+ New Composer"):
+   - Wklej `prompts/marcus_prompt.md`
+   - Wklej `prompts/elena_prompt.md`
+   - Wklej `prompts/kai_prompt.md`
+   - Wklej `prompts/david_prompt.md`
+
+3. Uruchom wszystkie 4 jednocześnie.
+
+4. Po zakończeniu:
+   ```bash
+   python orchestrator.py --final
+   ```
+
+Cursor zna ten workflow — wpisz "scalac council" a reguła `.cursor/rules/scalac-council.mdc` podpowie mu co robić.
 
 ---
 
-## 🚀 Start
+### OpenClaw / Kimi Code (auto-spawn)
 
 ```bash
 cd scalac_council_v2 && python orchestrator.py
 ```
 
-🎯 **Gotowe do użycia w Kimi Code.**
+Orchestrator automatycznie wykrywa `sessions_spawn()` i spawnuje 4 sesje równolegle. Nic więcej nie trzeba robić.
+
+Monitorowanie:
+```bash
+python orchestrator.py --monitor
+```
+
+Finalna agregacja (po 3 rundach):
+```bash
+python orchestrator.py --final
+```
+
+---
+
+### Claude Code
+
+```bash
+cd scalac_council_v2 && python orchestrator.py
+```
+
+Generuje `prompts/*.md`. Otwórz 4 osobne okna terminala z Claude:
+```bash
+claude --file prompts/marcus_prompt.md
+claude --file prompts/elena_prompt.md
+claude --file prompts/kai_prompt.md
+claude --file prompts/david_prompt.md
+```
+
+---
+
+### Google Antigravity
+
+```bash
+cd scalac_council_v2 && python orchestrator.py
+```
+
+W Mission Control:
+1. Otwórz Mission Control (`Ctrl+Shift+M`)
+2. "+ New Agent" × 4
+3. Dla każdego: `@file prompts/[agent]_prompt.md`
+4. Uruchom wszystkich jednocześnie — Antigravity synchronizuje dostęp do `shared/` przez Cross-surface Agents
+
+---
+
+### Dowolny chatbot (ChatGPT, Claude.ai, Gemini itp.)
+
+```bash
+python orchestrator.py
+```
+
+Otwórz 4 osobne okna chata. W każdym wklej zawartość odpowiedniego pliku z `prompts/`.
+
+---
+
+## Struktura plików
+
+```
+scalac_ai_council/
+├── scalac_battlecards.docx.md     ← wiedza o konkurencji (źródło)
+├── scalac_content_plan.docx.md    ← plan contentowy (źródło)
+│
+├── .github/agents/                ← VS Code Copilot agents
+│   ├── scalac-council.agent.md    ← główny orchestrator (@Scalac Council)
+│   ├── marcus.agent.md            ← subagent Offer Architect
+│   ├── elena.agent.md             ← subagent Funnel Architect
+│   ├── kai.agent.md               ← subagent Copywriter
+│   └── david.agent.md             ← subagent Lead Strategist
+│
+├── .cursor/rules/
+│   └── scalac-council.mdc         ← Cursor workflow rules
+│
+└── scalac_council_v2/
+    ├── orchestrator.py             ← główny skrypt (Kimi/Claude Code/terminal)
+    ├── shared/
+    │   ├── brief.md                ← brief projektu (edytuj przed startem)
+    │   ├── battlecards.md          ← kopia battlecards dla agentów
+    │   ├── content_plan.md         ← kopia content planu dla agentów
+    │   └── discussion/             ← debata agentów (round_X_agent.md)
+    ├── output/                     ← finalne outputy agentów
+    │   ├── marcus_offer.md
+    │   ├── elena_funnel.md
+    │   ├── kai_copy.md
+    │   ├── david_abm.md
+    │   └── FINAL_PROPOSAL.md       ← agregacja wszystkiego
+    ├── prompts/                    ← generowane przez orchestrator.py
+    │   ├── marcus_prompt.md        ← gotowy prompt (battlecards wbudowane)
+    │   ├── elena_prompt.md
+    │   ├── kai_prompt.md
+    │   └── david_prompt.md
+    └── agents/                     ← kod źródłowy agentów (Python)
+        ├── marcus_agent.py
+        ├── elena_agent.py
+        ├── kai_agent.py
+        └── david_agent.py
+```
+
+---
+
+## Jak przygotować brief
+
+Edytuj `scalac_council_v2/shared/brief.md` przed uruchomieniem. Minimalna struktura:
+
+```markdown
+# Brief Projektu: [nazwa]
+
+## Segment
+[kto jest targetem — np. "Fintechy Series B EU, CTO/VP Engineering"]
+
+## Cel
+[co chcemy osiągnąć — np. "500K PLN pipeline w 90 dni"]
+
+## Pain
+[główny ból klienta — np. "Hiring Scala devów trwa 6+ miesięcy"]
+
+## Budget klienta
+[np. "300-500K EUR/rok na team extension"]
+
+## Constraints
+[ograniczenia — np. "1 marketer + 1 intern, launch w Q2 2026"]
+```
+
+Im więcej kontekstu, tym lepsze outputy agentów.
+
+---
+
+## Niezbędna wiedza kontekstowa dla agentów
+
+Każdy wygenerowany prompt (`prompts/*.md`) zawiera automatycznie:
+
+1. **System prompt agenta** — jego rola, książki, styl, zasady debaty
+2. **Battlecards** — pełna analiza konkurencji z `scalac_battlecards.docx.md`
+3. **Content Plan** — strategia contentowa z `scalac_content_plan.docx.md`
+4. **Brief projektu** — zawartość `shared/brief.md`
+5. **Aktualna dyskusja** — to co inni agenci już napisali (dla rund 2 i 3)
+
+Agenci **nie pytają** o kontekst rynkowy — mają go wbudowanego.
+
+---
+
+## Monitorowanie i debugowanie
+
+```bash
+# Status dyskusji
+python scalac_council_v2/orchestrator.py --monitor
+
+# Ręczne sprawdzenie rundy
+cat scalac_council_v2/shared/discussion/round_1_marcus.md
+
+# Lista wszystkich plików dyskusji
+ls scalac_council_v2/shared/discussion/
+
+# Finalna agregacja
+python scalac_council_v2/orchestrator.py --final
+
+# Wynik
+cat scalac_council_v2/output/FINAL_PROPOSAL.md
+```
+
+---
+
+## Prompty testowe
+
+Gotowe briefe do przetestowania całego flow. Wpisz jako `@Scalac Council [prompt]` w VS Code, albo wklej przy uruchamianiu orchestratora.
+
+### 1. Klasyczny — Team Extension (domyślny brief)
+```
+@Scalac Council Zrób pełny plan marketingowy dla Team Extension dla fintechów Series B w EU. Target: CTO/VP Eng, budget 300-500K EUR/rok, 90 dni do pipeline 500K PLN.
+```
+Przetestuje cały happy path — agenci mają ten brief w `shared/brief.md`. Dobry punkt startowy do sprawdzenia czy system w ogóle działa.
+
+---
+
+### 2. Nowy segment — Sovereign AI dla banków
+```
+@Scalac Council Segment: banki i instytucje finansowe Tier 1 w DACH i Benelux. Potrzebują wdrożyć AI on-premise (compliance, DORA, regulacje). CTO + Chief Compliance Officer jako decision makers. Budget 500K-1M EUR. Deliverable: oferta compliance-first + lejek 6-miesięczny + white paper door-opener.
+```
+Testuje czy agenci potrafią wyjść poza domyślny brief i dostosować messaging do nowego segmentu. Sprawdzi elastyczność Marcusa (nowe pricing) i Davida (nowe targety).
+
+---
+
+### 3. Krótki — jeden output
+```
+@Scalac Council Napisz landing page hero section dla Scalac Team Extension targetowanego w CTO Scale-upu B2B SaaS który właśnie dostał Series B i potrzebuje 5 Scala devów w 8 tygodni.
+```
+Testuje czy Kai dostaje robotę bez pełnego flow 3 rund. Przydatne gdy potrzebujesz szybkiego copy bez debaty.
+
+---
+
+### 4. Edge case — konkretne konto z target_accounts
+```
+@Scalac Council Zrób ABM sequence dla iManage (zarządzanie dokumentami prawnymi, Scala w stacku, aktywnie szukają AI engineer). Kontakt: bijo.thomas@imanage.com. 12-touch cadence, 6 tygodni. Zacznij od cold email Runda 1.
+```
+Testuje czy David korzysta z `target_accounts.md` i potrafi operować na konkretnym koncie. David powinien znać iManage bez Twojego tłumaczenia — firma jest w jego Tier 1 liście.
+
+---
+
+### 5. Stres test — konflikt cenowy między agentami
+```
+@Scalac Council Marcus chce wycenić Team Extension na €175/hr żeby podkreślić premium. Elena twierdzi że cold conversion przy takiej cenie to 0.5% i nie udźwignie pipeline 500K PLN. Wy dwoje rozstrzygnijcie to w debacie i zaproponujcie finalny pricing z uzasadnieniem ROI.
+```
+Testuje mechanizm debaty — czy agenci naprawdę kwestionują swoje założenia i dochodzą do konsensusu. Najlepszy test integracyjny systemu.
+
+---
+
+### 6. Content zamiast sprzedaży
+```
+@Scalac Council Zaplanuj kampanię contentową Q2 2026 wokół tematu "Scala+AI w produkcji finansowej". 3 posty LinkedIn/tydzień, 1 webinar, 1 case study. Output: Kai — tematy i hooki, Marcus — jak każdy content buduje pipeline, Elena — jak sekwencjonować promocję do targetów, David — kto z Dream 100 dostaje każdy kawałek contentu.
+```
+Testuje koordynację między wszystkimi czterema agentami na zadaniu contentowym zamiast sprzedażowego. Sprawdzi spójność outputów cross-agent.
