@@ -10,6 +10,50 @@
 
 Ten system pozwala Ci **w 30 minut** stworzyć kompletny, spójny plan marketingowy dla dowolnego projektu Scalac:
 
+## 🧾 Jak wygląda efekt końcowy
+
+Poniżej skrócony, realny fragment finalnego outputu wygenerowanego przez agentów dla kampanii **JVM/Rust Team Extension**:
+
+```markdown
+# Scalac — Plan Kampanii: JVM/Rust Team Extension
+## DACH (Zürich) · Stockholm · London | Q2–Q3 2026
+
+## TL;DR — 5 decyzji przed poniedziałkiem
+
+1. London first (90 dni), DACH second (180 dni), Nordic to Q3
+2. Żadnych cen na landing page, tylko TCO Calculator z email-gate
+3. DACH entry = pilot-first: 3 mies. ~CHF 60-65K
+4. Webinar async w czerwcu jako touchpoint dla Dream 20
+
+## 1. OFFER — Marcus
+
+### Positioning per Geo
+- DACH: "Hiring a senior Scala engineer in Zürich costs CHF 289K this year. We cost CHF 252K — and start in two weeks."
+- London: "Your Scala hiring pipeline takes seven months. We take two weeks."
+- Nordic: "Scale your JVM team without arbetsgivaravgifter, notice periods, or nine-month hiring gaps."
+
+## 2. LEJEK I PIPELINE — Elena
+
+- London: 3-5 discovery calls w 90 dni, 1 pilot signed
+- DACH: 1 discovery call w 90-180 dni, potem pilot
+- Nordic: nurture first, outbound później
+
+## 3. COPY — Kai
+
+- Hero headline na landing page per region
+- Cold email sequence per geo
+- Webinar invite do shortlisty CTO
+- LinkedIn hooks pod thought leadership
+
+## 4. KONTA I SEKWENCJE — David
+
+- Dream 20 target accounts
+- Priorytetyzacja firm po stacku, hiring signals i ICP fit
+- Sekwencje outbound per region
+```
+
+Pełny przykład znajdziesz w [output/FINAL_PROPOSAL.md](/workspaces/scalac_ai_council/scalac_council_v2/output/FINAL_PROPOSAL.md).
+
 ### ✅ Idealne dla:
 
 | Scenariusz | Co dostajesz |

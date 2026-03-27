@@ -1,104 +1,221 @@
 # Rada AI Scalac — Multi-Agent Marketing Council
 
 > **4 agenci AI pracują równolegle, debatują ze sobą i tworzą kompletny plan marketingowy Scalac.**
->
-> Wpisz `@Scalac Council zrób plan dla X` — agenci działają sami.
+
+System generuje kompletne plany kampanii (oferta, lejek, copy, ABM) w 30–60 minut. Zamiast jednego długiego prompta — 4 wyspecjalizowanych agentów pracuje równolegle, kwestionuje nawzajem założenia i dochodzi do operacyjnego konsensusu. Finalny output to dokument gotowy do wdrożenia.
 
 ---
 
-## Do czego to służy
+## Struktura repozytorium
 
-System do tworzenia **kompletnych planów marketingowych Scalac** w 30–60 minut zamiast kilku dni.
-
-Zamiast jednego długiego prompta — 4 wyspecjalizowanych ekspertów pracuje równolegle, kwestionuje nawzajem założenia i dochodzi do operacyjnego konsensusu. Finalny output to dokument gotowy do wdrożenia następnego dnia roboczego.
-
-### Przykłady projektów
-
-| Projekt | Co dostajesz |
-|---------|--------------|
-| **JVM/Rust Team Extension — DACH, London, Stockholm** | Oferta per geo + TCO Challenger pitch + Dream 20 kont + 12-touch cadence + cold emails |
-| **Team Extension dla Fintechów Series B** | Oferta + lejek MEDDIC + landing page + Dream 100 |
-| **Sovereign AI dla Banków** | Compliance-first pitch + 6-mies. cykl sprzedaży + white paper door-opener |
-| **Scala+AI dla Scale-upów** | Positioning + ABM Tier 1 + Playbook content |
-| **Webinar / Event launch** | Messaging + email sequence + follow-up cadence |
+```
+scalac_ai_council/
+│
+├── README.md                            ← ten plik
+├── scalac_battlecards.docx.md           ← źródłowe battlecards (wersja .docx → .md)
+├── scalac_content_plan.docx.md          ← źródłowy plan contentu (wersja .docx → .md)
+│
+├── csv/                                 ← surowe dane prospektowe
+│   ├── 200 Scala CTO's - Sheet1 (1).csv              (56 KB, ~200 CTOs Scala)
+│   ├── Q1 2026 AI vacancies job postings... (1).csv   (13 KB, job postings AI Q1 2026)
+│   ├── Q1 2026 AI vacancies job postings... (2).csv   (13 KB, j.w. — kopia/wariant)
+│   └── WIZA_CTO_Scala_groups_493112... (1).csv        (79 KB, CTO export z Wiza)
+│
+└── scalac_council_v2/                   ← właściwy system multi-agentowy
+    ├── orchestrator.py                  ← główny skrypt: generuje prompty, raportuje status
+    ├── README.md                        ← README szczegółowe dla v2
+    ├── ARCHITECTURE.md                  ← diagram techniczny shared filesystem
+    ├── WEBINAR_GUIDE.md                 ← instrukcja uruchamiania trybu webinar ideation
+    │
+    ├── agents/                          ← moduły agentów (SYSTEM_PROMPT + helpers)
+    │   ├── marcus_agent.py              ← Marcus — Offer Architect (wersja bazowa)
+    │   ├── marcus_agent_enhanced.py     ← Marcus Enhanced — czyta battlecards + content plan
+    │   ├── elena_agent.py               ← Elena — Funnel Architect
+    │   ├── kai_agent.py                 ← Kai — Copywriter (wersja bazowa)
+    │   ├── kai_webinar.py               ← Kai Webinar — specjalizacja: tytuły i hooki webinarów
+    │   └── david_agent.py               ← David — Lead Strategist
+    │
+    ├── prompts/                         ← gotowe pliki .md do copy-paste w dowolnym AI IDE
+    │   ├── marcus_prompt.md
+    │   ├── elena_prompt.md
+    │   ├── kai_prompt.md
+    │   └── david_prompt.md
+    │
+    ├── shared/                          ← wspólny kontekst czytany przez wszystkich agentów
+    │   ├── brief.md                     ← aktywny brief projektu (JVM/Rust Team Extension)
+    │   ├── brief_webinar.md             ← brief trybu webinar ideation
+    │   ├── battlecards.md               ← analiza 5 konkurentów (Mar 2026, CONFIDENTIAL)
+    │   ├── content_plan.md              ← plan contentu Q2–Q3 2026 (Scala+AI Playbook)
+    │   ├── target_accounts.md           ← 44 KB danych prospektowych z CSV (247 linii)
+    │   └── discussion/                  ← pliki rund debaty (zapisywane przez agentów)
+    │       ├── round_1_marcus.md
+    │       ├── round_1_elena.md
+    │       ├── round_1_kai.md
+    │       ├── round_1_david.md
+    │       ├── round_2_marcus.md
+    │       ├── round_2_elena.md
+    │       ├── round_2_kai.md
+    │       └── round_2_david.md
+    │
+    └── output/
+        └── FINAL_PROPOSAL.md            ← finalny output kampanii JVM/Rust (25 mar 2026)
+```
 
 ---
 
-## Agenci — kto co robi
+## Aktualny stan repozytorium (marzec 2026)
+
+Repozytorium zawiera **kompletny, zakończony run** kampanii **JVM/Rust Team Extension — DACH (Zürich) · Stockholm · London**:
+
+- Dyskusja: **2 rundy** (8 plików w `shared/discussion/`) — konsensus osiągnięty po rundzie 2
+- Finalny output: `output/FINAL_PROPOSAL.md` (394 linie, wygenerowany 25 marca 2026)
+- Dane prospektowe: sparsowane do `shared/target_accounts.md` z 4 plików CSV (~350 firm i kontaktów)
+
+---
+
+## Dane wejściowe (CSV)
+
+Folder `csv/` zawiera surowe dane eksportowane przed uruchomieniem systemu:
+
+| Plik | Zawartość | Rozmiar |
+|------|-----------|---------|
+| `200 Scala CTO's...csv` | Lista ~200 CTO z firm używających Scali | 56 KB |
+| `Q1 2026 AI vacancies...(1).csv` | Job postingi AI Q1 2026 — sygnały hiring | 13 KB |
+| `Q1 2026 AI vacancies...(2).csv` | j.w. — wariant/kopia | 13 KB |
+| `WIZA_CTO_Scala_groups...csv` | Export z Wiza: CTO z grup LinkedIn Scala | 79 KB |
+
+Dane zostały przetworzone manualnie do `shared/target_accounts.md` — plik zawiera ustrukturyzowane tabele z firmami, branżami, lokalizacją, stackiem technologicznym i emailami kontaktowymi.
+
+---
+
+## Jak działa system
+
+### 1. Orchestrator generuje prompty
+
+Uruchom `python scalac_council_v2/orchestrator.py` — skrypt:
+- Wczytuje `shared/brief.md` i wszystkie pliki kontekstowe
+- Embedduje je w gotowych promptach dla każdego agenta
+- Zapisuje prompty do `prompts/*.md`
+- Raportuje status dyskusji (`--monitor`) lub agreguje output (`--final`)
+
+### 2. Agenci działają w równoległych sesjach
+
+System działa w **dowolnym AI IDE** — agenci to pliki `.md` z pełnym kontekstem:
+
+```
+Kimi Code   → sessions_spawn() — automatyczne spawning subagentów
+Claude Code → otwórz 4 okna terminala, wklej prompts/*.md
+Cursor      → 4 zakładki Composer
+Windsurf    → 4 okna Cascade
+Dowolny AI  → copy-paste prompts/*.md do nowego chatu
+```
+
+### 3. Komunikacja przez shared filesystem
+
+Agenci **nie rozmawiają bezpośrednio** — czytają i piszą pliki:
+
+```
+Runda 1 (równolegle):
+  Marcus → shared/discussion/round_1_marcus.md
+  Elena  → shared/discussion/round_1_elena.md
+  Kai    → shared/discussion/round_1_kai.md
+  David  → shared/discussion/round_1_david.md
+
+Runda 2 (każdy czyta rundy pozostałych, odpowiada):
+  Marcus czyta round_1_elena.md + round_1_david.md → round_2_marcus.md
+  Elena  czyta round_1_marcus.md → kwestionuje pricing → round_2_elena.md
+  ...
+
+Po 2–3 rundach: orchestrator agreguje → output/FINAL_PROPOSAL.md
+```
+
+---
+
+## Agenci — role i frameworki
 
 ### Marcus — Offer Architect
-**Rola:** Projektuje ofertę, pricing i positioning.
+Projektuje ofertę, pricing i positioning. Używa: *Gap Selling*, *The Challenger Sale*, *Monetizing Innovation* (Good-Better-Best), *StoryBrand SB7*.
 
-Używa: *Gap Selling*, *The Challenger Sale*, *Monetizing Innovation* (Good-Better-Best), *StoryBrand SB7*.
-
-Wie: Scalac jest jedynym Official Akka Tech Partnerem w EU. Rynek w DACH płaci CHF 150–200K/rok na seniora lokalnie — to jest argument Challengera, nie powód do obniżania ceny. Premium geo = premium framing.
-
-Walczy o: wysoką cenę i value framing zamiast godzinówek. Elena zawsze chce obniżyć — Marcus broni z danymi. Kai go pilnuje żeby nie był zbyt techniczny.
-
-**Output:** `output/FINAL_PROPOSAL.md` sekcja OFFER — positioning per geo, pricing tiers (Starter/Scale/Enterprise), Challenger pitch z TCO per miasto.
-
----
+- Wie: Scalac = jedyny Official Akka Tech Partner w EU; Zürich płaci CHF 150–200K/rok na seniora — to Challenger hook, nie powód do obniżki
+- Walczy o: value framing i premium pricing; Elena go kwestionuje z pipeline math
+- Pliki: `agents/marcus_agent.py`, `agents/marcus_agent_enhanced.py` (czyta battlecards)
+- **Output:** sekcja OFFER w `FINAL_PROPOSAL.md` — positioning per geo, pricing tiers Starter/Scale/Enterprise z CHF/GBP/EUR, Challenger TCO pitch
 
 ### Elena — Funnel Architect
-**Rola:** Projektuje lejek, kwalifikację leadów, pipeline i nurture.
+Projektuje lejek, kwalifikację leadów i pipeline. Używa: *MEDDIC*, *The JOLT Effect*, *Predictable Revenue* (Seeds/Nets/Spears), *From Impossible to Inevitable*.
 
-Używa: *MEDDIC*, *The JOLT Effect*, *Predictable Revenue* (Seeds/Nets/Spears), *From Impossible to Inevitable*.
-
-Wie: 1 marketer + 1 intern = lejek musi być realistyczny. Geo ma znaczenie — DACH buying cycle to 4–6 mies., London 2–4 mies., Nordic 6–12 mies. Nie planuje 3 closed deals w 90 dniach dla DACH.
-
-Walczy o: realistyczne konwersje i pipeline math. Kwestionuje pricing który nie przejdzie MEDDIC Economic Buyer screen.
-
-**Output:** sekcja LEJEK — Three Pipelines, MEDDIC per geo, JOLT techniki, nurture cadence 12 mies., pipeline math per kwartał.
-
----
+- Wie: 1 marketer + 1 intern = constraint który determinuje skalę; DACH buying cycle 4–6 mies., London 2–4 mies., Nordic 6–12 mies.
+- Walczy o: realistyczne konwersje; kwestionuje pricing który nie przejdzie MEDDIC Economic Buyer screen
+- Pliki: `agents/elena_agent.py`
+- **Output:** sekcja LEJEK — Three Pipelines per geo, MEDDIC kwalifikacja, JOLT techniki na niezdecydowanych, nurture cadence 12 mies., pipeline math per kwartał
 
 ### Kai — Copywriter
-**Rola:** Pisze landing pages, cold emails, LinkedIn hooks, webinar invites.
+Pisze landing pages, cold emaile, LinkedIn hooki, webinar invites. Używa: *They Ask You Answer* (Big 5), *StoryBrand*, *Obviously Awesome*, AIDA, PAS.
 
-Używa: *They Ask You Answer* (Big 5), *StoryBrand*, *Obviously Awesome*, AIDA i PAS.
-
-Wie: CTO ma 30 sekund. Jeden claim per hero, nie pięć. DACH cold email musi być inny niż UK — DACH suchy i liczbowy, Nordic peer-framing bez pitch'a, London VC-aware. DACH webinar invite po **niemiecku** — angielski = blast.
-
-Walczy o: jasność i konkret. Przekształca liczby Marcusa i listy Davida w zdania które CTO przeczyta zanim zamknie kartę.
-
-**Output:** sekcja COPY — 3 hero headlines per geo, 3 cold emails, LinkedIn hooks, webinar invites, nurture subject lines.
-
----
+- Wie: CTO ma 30 sekund; DACH cold email = suchy + liczbowy; Nordic = peer-framing bez pitch'a; London = VC-aware; DACH webinar invite po **niemiecku** (angielski = blast)
+- Walczy o: jeden claim per hero, nie pięć; przekształca liczby Marcusa w zdania które CTO przeczyta
+- Pliki: `agents/kai_agent.py`, `agents/kai_webinar.py` (specjalizacja: webinary)
+- **Output:** sekcja COPY — 3 hero headlines per geo, cold emails per geo, LinkedIn hooki, webinar invites, subject lines nurture
 
 ### David — Lead Strategist
-**Rola:** Buduje Dream 20/100 kont, sekwencje outreach i ABM z danych prospektowych.
+Buduje Dream 20/100 kont, sekwencje outreach, ABM z danych prospektowych. Używa: *ABM Playbook*, *Fanatical Prospecting*, *Signal-Based Selling*, *12-Touch Cadence*.
 
-Używa: *ABM Playbook*, *Fanatical Prospecting*, *Signal-Based Selling*, *12-Touch Cadence*.
-
-Wie: Mamy realne dane 350+ firm z CSV (Scala CTOs, AI vacancies, Wiza contacts). David korzysta z `target_accounts.md` jako bazy (44KB danych). Dostaje pełne dane, pozostali agenci dostają tylko Key Intelligence summary.
-
-Walczy o: konkretne konta, triggery i timing. "Zimny outreach bez triggera to poniżej 2% reply rate" — każdy touch musi mieć sygnał.
-
-**Output:** sekcja KONTA — Dream 20 tabela z emailami, 12-touch cadence daily template, webinar mapa per konto, Day 1 SDR Playbook.
+- Wie: 350+ firm z CSV sparsowane do `target_accounts.md`; David dostaje pełne dane, pozostali agenci tylko Key Intelligence summary; signal triggers: funding announcement, job posting Scala, konferencje, Endava/EPAM engagement
+- Walczy o: konkretne konta + triggery; "zimny outreach bez triggera = poniżej 2% reply rate"
+- Pliki: `agents/david_agent.py`
+- **Output:** sekcja KONTA — Dream 20 tabela z emailami i tieringiem, 12-touch cadence daily, webinar mapa per konto, Day 1 SDR Playbook
 
 ---
 
-## Jak działa debata
+## Kontekst biznesowy (shared/)
 
-Agenci piszą 2–3 rundy. Każda runda = osobny plik w `shared/discussion/`.
+Każdy agent przy starcie wczytuje:
 
+| Plik | Zawartość |
+|------|-----------|
+| `shared/brief.md` | Aktywny brief: JVM/Rust Team Extension, geo DACH/Stockholm/London, target Series B–D, budget €400–800K/rok, constraints |
+| `shared/battlecards.md` | Analiza 5 konkurentów: VirtusLab, SoftwareMill, Xebia, Endava, EPAM — oceny 0–5 w 4 wymiarach narratywu Scala+AI, vulnerabilities, whitespace opportunities |
+| `shared/content_plan.md` | Plan contentowy Q2–Q3 2026: LinkedIn 3x/tydzień, blog Playbook Series (10 postów), flagship "Scala+AI Manifesto" (czerwiec), "State of Scala+AI Survey" (wrzesień) |
+| `shared/target_accounts.md` | 44 KB danych: firmy z sygnałami hiring AI/Scala (Depop, Monzo, Kaluza, Feedzai, iManage...) + 142 CTOs z grup LinkedIn Scala z emailami i info o funding |
+
+---
+
+## Tryb webinar ideation
+
+Oprócz głównego trybu kampanijnego system obsługuje **webinar ideation** — patrz `WEBINAR_GUIDE.md`.
+
+Dodatkowe pliki dla tego trybu:
+- `shared/brief_webinar.md` — brief skupiony na generowaniu pomysłów webinarowych z battlecards i content planu
+- `agents/marcus_agent_enhanced.py` — Marcus który analizuje whitespace w battlecards (5 kategorii: "Scala-Native AI Engineering", "Akka + Agentic AI", itp.)
+- `agents/kai_webinar.py` — Kai który ocenia które posty z Playbook (#2 RAG, #3 Akka Agents, #6 Spark→LLMs) nadają się na webinary i pisze tytuły + abstrakty
+
+---
+
+## Uruchomienie
+
+```bash
+cd scalac_council_v2
+
+# Krok 1: Przygotuj brief projektu
+# Edytuj shared/brief.md — opisz: segment, geo, pain points, constraints, deliverables
+
+# Krok 2: Wygeneruj prompty i sprawdź status
+python orchestrator.py
+
+# Krok 3: Uruchom agentów (4 równoległe sesje)
+# → Wklej prompts/marcus_prompt.md do nowej sesji AI
+# → Wklej prompts/elena_prompt.md do nowej sesji AI
+# → Wklej prompts/kai_prompt.md do nowej sesji AI
+# → Wklej prompts/david_prompt.md do nowej sesji AI
+
+# Monitorowanie postępu
+python orchestrator.py --monitor
+
+# Agregacja finalnego outputu po 2-3 rundach
+python orchestrator.py --final
 ```
-Runda 1 — wszyscy równolegle:
-  Marcus: oferta, pricing, Challenger pitch
-  Elena:  lejek, MEDDIC, pipeline math       ← czytają pliki poprzednich rund
-  Kai:    hero copy, cold emails, hooks
-  David:  Dream 20, triggery, sekwencje
 
-Runda 2 — konfrontacja:
-  Elena:  "Marcus, Stockholm pricing jest droższy niż lokalny senior — math nie działa"
-  Marcus: "Racja — obniżam Starter, zmieniam framing na 'zero ryzyk'"
-  David:  "DACH pricing nie może być na landing page — DACH to price reveal w discovery call"
-  Kai:    "Positioning ma 5 claimów naraz — CTO ma 30 sekund, jeden claim per geo"
-
-Runda 3 (jeśli potrzebna) — konsensus:
-  Agenci dostosowują outputy do feedbacku
-  Zapisują finalny output spójny z pozostałymi
-```
+Agenci sami czytają `shared/discussion/round_*.md` poprzednich rund i odpowiadają. Orchestrator nie zarządza kolejnością — tylko raportuje status i agreguje.
 
 **Shared workspace** w `shared/discussion/` — agenci czytają pliki nawzajem przed pisaniem rundy 2.
 `round_2_elena.md` zawiera bezpośrednie odpowiedzi na tezy z `round_1_marcus.md`.
