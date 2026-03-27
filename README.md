@@ -1,13 +1,13 @@
 # Rada AI Scalac - Multi-Agent Marketing Council
 
-4 agenci AI pracuja rownolegle i przygotowuja kompletny plan marketingowo-sprzedazowy: oferta, funnel, copy oraz ABM.
+4 agenci AI pracują równolegle i przygotowują kompletny plan marketingowo-sprzedażowy: oferta, funnel, copy oraz ABM.
 
 ---
 
 ## Co robi ta Rada i po co?
 
 ### Problem
-Tradycyjnie jeden osób tworzy plan marketingowy — np. VP Sales lub Product Lead. To zajmuje dni lub tygodnie, bo trzeba:
+Tradycyjnie jedna osoba tworzy plan marketingowy — np. VP Sales lub Product Lead. To zajmuje dni lub tygodnie, bo trzeba:
 1. Wymyslić pozycjonowanie i pricing.
 2. Zaprojektować funnel od acquisition do close.
 3. Napisać wszystkie materiały.
@@ -18,7 +18,7 @@ A wszystko to robi jeden mózg z ograniczonymi perspektywami.
 ### Rozwiązanie
 Tutaj pracuje **4 specjalistów jednocześnie**, każdy odpowiada za inny obszar. Ale najważniejsze — **dyskutują ze sobą** i się nawzajem kwestionują. 
 
-Zamiast jednego planu — dostajesz plan który przetestowała krytyka czterech ekspertów.
+Zamiast jednego planu — dostajesz plan, który przeszedł krytykę wszystkich czterech perspektyw.
 
 ---
 
@@ -30,13 +30,13 @@ Wyobraź sobie taki dialog:
 
 **Elena** (Funnel Architect): *"Czekaj. Przy tej cenie conversion na discovery call spada do 0.3%. My szukamy 5 dużych dealów w 6 miesięcy, ale pipeline nie przetrwa przy tej konwersji."*
 
-**Marcus**: *"Dobry punkt. Obniżam Starter do CHF 19K, ale Scale i Enterprise zostaję wysoko. To powinno być lepiej."*
+**Marcus**: *"Dobry punkt. Obniżam Starter do CHF 19K, ale Scale i Enterprise zostawiam wysoko. To powinno być lepiej."*
 
-**Kai** (Copywriter): *"Zaraz, DACH nie będzie rozmawiać o cenie na landing page. CTO rozumie koszt porównywczyowo, ale nie lubi go widzieć na stronie. Zróbmy TCO Calculator za email-gate."*
+**Kai** (Copywriter): *"Zaraz, DACH nie będzie rozmawiać o cenie na landing page. CTO rozumie koszt porównawczo, ale nie lubi go widzieć na stronie. Zróbmy TCO Calculator za email-gate."*
 
-**David** (Lead Strategist): *"A ja dodajemy: wkundach które znalazłem z `target_accounts.md`, mają active job postingi dla Scala devów. Otwieramy z tym — 'widzieliśmy że szukasz senior Scala enginiera, zamiast hiring przez 6 miesięcy...'."*
+**David** (Lead Strategist): *"A ja dodaję: w kontach które znalazłem z `target_accounts.md`, mają aktywne oferty pracy dla Scala developerów. Otwieramy z tym — 'widzieliśmy, że szukasz senior Scala inżyniera, zamiast hiring przez 6 miesięcy...'."*
 
-Po 2-3 rundach takiej dyskusji masz plan który **przeszedł krytykę** wszystkich czterech perspektyw. I właśnie taki plan jest w `output/FINAL_PROPOSAL.md`.
+Po 2-3 rundach takiej dyskusji masz plan, który **przeszedł krytykę** wszystkich czterech perspektyw. I właśnie taki plan jest w `output/FINAL_PROPOSAL.md`.
 
 ---
 
@@ -53,14 +53,14 @@ Po 2-3 rundach takiej dyskusji masz plan który **przeszedł krytykę** wszystki
 - Output: sekcja LEJEK — funnel per geo, MEDDIC questions, realistic conversions.
 
 ### Kai - Copywriter
-- Decyduje: co się pisze na landing page, jakie są subject lines emaili, co się mówi na linkedinie.
+- Decyduje: co się pisze na landing page, jakie są subject lines emaili, co się mówi na LinkedInie.
 - Używa: They Ask You Answer, StoryBrand, PAS copywriting.
 - Output: sekcja COPY — hero headlines, cold emails, webinar invites per locale.
 
 ### David - Lead Strategist
 - Decyduje: które konta targetujemy konkretnie, w jakiej kolejności, jakie triggery używamy.
 - Używa: ABM Playbook, Signal-Based Selling, 12-Touch Cadence.
-- Output: sekcja KONTA — Dream 20 tabela, konkretne e-maile i email adresy, 12-touch plan outreach.
+- Output: sekcja KONTA — Dream 20 tabela, konkretne e-maile i adresy e-mail, 12-touch plan outreach.
 
 ---
 
@@ -87,13 +87,13 @@ Plik `output/FINAL_PROPOSAL.md` zawiera:
 - **COPY** — gotowe do wklejenia: hero headlines, cold email templates, webinar zaproszenia.
 - **KONTA** — konkretne 20 firm, z emailami CTOs, 12-touch outreach schedule.
 
-Wszystko to jest spójne — to nie jest 4 sklejone ze sobą dokumenty, tylko jeden plan który przeszedł krytykę wszystkich czterech perspektyw.
+Wszystko to jest spójne — to nie jest 4 sklejone ze sobą dokumenty, tylko jeden plan, który przeszedł krytykę wszystkich czterech perspektyw.
 
 ---
 
 ## Konkretny przykład — kampania JVM/Rust dla DACH/London/Stockholm
 
-W tym repo jest już gotowy run. Agenci dyskutowali o tym jak sprzedawać Team Extension w trzech geografiach:
+W tym repo jest już gotowe uruchomienie kampanii. Agenci dyskutowali o tym, jak sprzedawać Team Extension w trzech geografiach:
 
 - **DACH pricing:** CHF 19-22K Starter (suchy, liczbowy, TCO-focused)
 - **London positioning:** "7 months hiring pipeline, 2 weeks ours" (velocity story)
@@ -113,7 +113,7 @@ Jeśli pracujesz w Scalac i musisz:
 - Zbudować funnel dla nowej geografii,
 - Wybrać Dream 100 kont i outreach sequence,
 
-...zamiast robić to sam lub prosić cztery różne osoby — robisz to wszystko **w 30-60 minut** przez czterech specjalistów agentów. Każdy może pracować równolegle, dyskusja jest natychmiast.
+...zamiast robić to sam lub prosić cztery różne osoby — robisz to wszystko **w 30-60 minut** za pomocą czterech specjalistów agentów. Każdy może pracować równolegle, dyskusja jest natychmiastowa.
 
 ---
 
@@ -121,33 +121,33 @@ Jeśli pracujesz w Scalac i musisz:
 
 Repo zawiera dwa poziomy:
 
-1. Warstwa orchestracji agentow dla VS Code Copilot i Cursor.
-2. Uniwersalny, przenosny system w Pythonie w katalogu `scalac_council_v2`, ktory dziala w wielu IDE.
+1. Warstwa orkiestracji agentów dla VS Code Copilot i Cursor.
+2. Uniwersalny, przenośny system w Pythonie w katalogu `scalac_council_v2`, który działa w wielu IDE.
 
 W praktyce masz gotowy workflow:
 
 - przygotuj brief w `shared/brief.md`,
 - wygeneruj prompty,
-- uruchom 4 agentow rownolegle,
-- zloz finalny dokument.
+- uruchom 4 agentów równolegle,
+- złóż finalny dokument.
 
 ---
 
 ## Aktualny stan (zweryfikowany)
 
-- W repo jest kompletny run kampanii JVM/Rust dla DACH, London, Stockholm.
-- Dyskusja ma 2 rundy i 8 plikow w `scalac_council_v2/shared/discussion/`.
+- W repo jest kompletne uruchomienie kampanii JVM/Rust dla DACH, London, Stockholm.
+- Dyskusja ma 2 rundy i 8 plików w `scalac_council_v2/shared/discussion/`.
 - Final jest zapisany w `scalac_council_v2/output/FINAL_PROPOSAL.md`.
-- Dane wejciowe sa w 4 plikach CSV i w przetworzonej postaci w `scalac_council_v2/shared/target_accounts.md`.
+- Dane wejściowe są w 4 plikach CSV i w przetworzonej postaci w `scalac_council_v2/shared/target_accounts.md`.
 
-Wymiary obecnych plikow:
+Wymiary obecnych plików:
 
-- `scalac_council_v2/shared/target_accounts.md`: 44,991 bajtow.
-- `scalac_council_v2/output/FINAL_PROPOSAL.md`: 24,021 bajtow.
+- `scalac_council_v2/shared/target_accounts.md`: 44,991 bajtów.
+- `scalac_council_v2/output/FINAL_PROPOSAL.md`: 24,021 bajtów.
 
 ---
 
-## Struktura katalogow
+## Struktura katalogów
 
 ```text
 scalac_ai_council/
@@ -218,7 +218,7 @@ scalac_ai_council/
 
 ## CSV i dane prospektowe
 
-W katalogu `csv/` sa 4 rzeczywiste pliki wejsciowe:
+W katalogu `csv/` są 4 rzeczywiste pliki wejściowe:
 
 1. `200 Scala CTO's - Sheet1 (1).csv`
 2. `Q1 2026 AI vacancies job postings to prospect - Sheet1 (1).csv`
@@ -234,7 +234,7 @@ Aktualna liczba linii (wc -l):
 
 Suma: 473 linie.
 
-Plik docelowy z inteligencja kont: `scalac_council_v2/shared/target_accounts.md`.
+Plik docelowy z inteligencją kont: `scalac_council_v2/shared/target_accounts.md`.
 
 ---
 
@@ -244,16 +244,16 @@ Plik docelowy z inteligencja kont: `scalac_council_v2/shared/target_accounts.md`
 
 Konfiguracja jest w `.github/agents/`.
 
-- `scalac-council.agent.md` - orchestrator, ktory deleguje do 4 agentow.
+- `scalac-council.agent.md` - orchestrator, który deleguje do 4 agentów.
 - `marcus.agent.md`, `elena.agent.md`, `kai.agent.md`, `david.agent.md` - agenci wyspecjalizowani.
 
-To podejscie jest wygodne, kiedy chcesz pracowac komenda typu `@Scalac Council ...`.
+To podejście jest wygodne, kiedy chcesz pracować komendą typu `@Scalac Council ...`.
 
 ### 2) Uniwersalny orchestrator Python
 
 Skrypt: `scalac_council_v2/orchestrator.py`.
 
-Dziala tak:
+Działa tak:
 
 1. Wczytuje kontekst z:
     - `shared/brief.md`
@@ -262,22 +262,22 @@ Dziala tak:
     - `shared/target_accounts.md`
     - `shared/discussion/*.md`
 2. Generuje self-contained prompty do `prompts/*.md`.
-3. Dla Kimi Code probuje auto-spawn przez `sessions_spawn`.
+3. Dla Kimi Code próbuje auto-spawn przez `sessions_spawn`.
 4. Dla innych IDE drukuje instrukcje uruchomienia.
 
 Flagi:
 
-- `python orchestrator.py` - setup, status, generacja promptow, ewentualny spawn.
+- `python orchestrator.py` - setup, status, generacja promptów, ewentualny spawn.
 - `python orchestrator.py --monitor` - status dyskusji i ewentualna auto-agregacja po konsensusie.
-- `python orchestrator.py --final` - reczna agregacja finalnego dokumentu.
+- `python orchestrator.py --final` - ręczna agregacja finalnego dokumentu.
 
 ---
 
-## Jak przygotowac brief
+## Jak przygotować brief
 
-Edytuj `scalac_council_v2/shared/brief.md` przed nowa kampania.
+Edytuj `scalac_council_v2/shared/brief.md` przed nową kampanią.
 
-Przykladowy minimalny szablon:
+Przykładowy minimalny szablon:
 
 ```markdown
 # Brief Projektu: [nazwa]
@@ -308,22 +308,22 @@ Przykladowy minimalny szablon:
 3. Kai: [...]
 4. David: [...]
 
-### Konta do rozwazenia (opcjonalne)
-[lista firm i sygnalow]
+### Konta do rozważenia (opcjonalne)
+[lista firm i sygnałów]
 ```
 
-Im wiecej konkretu, tym lepszy output.
+Im więcej konkretu, tym lepszy output.
 
 ---
 
-## Differential injection danych (jak dziala)
+## Differential injection danych (jak działa)
 
 W `orchestrator.py` jest logika:
 
-- David dostaje pelne `target_accounts.md`.
-- Marcus, Elena i Kai dostaja tylko sekcje `## 4. Key Intelligence` (lub fallback na pierwsze 2000 znakow, jesli naglowek nie istnieje).
+- David dostaje pełne `target_accounts.md`.
+- Marcus, Elena i Kai dostają tylko sekcje `## 4. Key Intelligence` (lub fallback na pierwsze 2000 znaków, jeśli nagłówek nie istnieje).
 
-To celowe, bo David odpowiada za ABM i potrzebuje pelnych danych kont.
+To celowe, bo David odpowiada za ABM i potrzebuje pełnych danych kont.
 
 ---
 
@@ -351,7 +351,7 @@ To celowe, bo David odpowiada za ABM i potrzebuje pelnych danych kont.
 
 ---
 
-## Jak uruchomic (workflow krok po kroku)
+## Jak uruchomić (workflow krok po kroku)
 
 ```bash
 cd scalac_council_v2
@@ -360,13 +360,13 @@ python orchestrator.py
 
 Po tym:
 
-1. Otworz 4 sesje/agenty rownolegle.
-2. Uzyj plikow z `prompts/`:
+1. Otwórz 4 sesje/agenty równolegle.
+2. Użyj plików z `prompts/`:
     - `prompts/marcus_prompt.md`
     - `prompts/elena_prompt.md`
     - `prompts/kai_prompt.md`
     - `prompts/david_prompt.md`
-3. Po zakonczeniu rund uruchom:
+3. Po zakończeniu rund uruchom:
 
 ```bash
 python orchestrator.py --final
@@ -386,18 +386,18 @@ python orchestrator.py --monitor
 
 ---
 
-## Agregacja finala (co skrypt sklada)
+## Agregacja finala (co skrypt składa)
 
-Przy `--final` orchestrator probuje dolaczyc:
+Przy `--final` orchestrator próbuje dołączyć:
 
 - `output/marcus_offer.md`
 - `output/elena_funnel.md`
 - `output/kai_copy.md`
 - `output/david_abm.md`
 
-Nastepnie zapisuje wspolny dokument jako `output/FINAL_PROPOSAL.md`.
+Następnie zapisuje wspólny dokument jako `output/FINAL_PROPOSAL.md`.
 
-Jesli ktoregos pliku czastkowego brakuje, skrypt to raportuje i nadal tworzy final z dostepnych fragmentow.
+Jeśli któregoś pliku cząstkowego brakuje, skrypt to raportuje i nadal tworzy final z dostępnych fragmentów.
 
 ---
 
