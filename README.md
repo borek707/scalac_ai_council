@@ -34,7 +34,7 @@ Wyobraź sobie taki dialog:
 
 **Kai** (Copywriter): *"Zaraz, DACH nie będzie rozmawiać o cenie na landing page. CTO rozumie koszt porównawczo, ale nie lubi go widzieć na stronie. Zróbmy TCO Calculator za email-gate."*
 
-**David** (Lead Strategist): *"A ja dodaję: w kontach które znalazłem z `target_accounts.md`, mają aktywne oferty pracy dla Scala developerów. Otwieramy z tym — 'widzieliśmy, że szukasz senior Scala inżyniera, zamiast hiring przez 6 miesięcy...'."*
+**David** (Lead Strategist): *"A ja dodaję: w kontach które znalazłem w danych prospektowych, mają aktywne oferty pracy dla Scala developerów. Otwieramy z tym — 'widzieliśmy, że szukasz senior Scala inżyniera, zamiast hiring przez 6 miesięcy...'."*
 
 Po 2-3 rundach takiej dyskusji masz plan, który **przeszedł krytykę** wszystkich czterech perspektyw. I właśnie taki plan jest w `output/FINAL_PROPOSAL.md`.
 
@@ -138,12 +138,7 @@ W praktyce masz gotowy workflow:
 - W repo jest kompletne uruchomienie kampanii JVM/Rust dla DACH, London, Stockholm.
 - Dyskusja ma 2 rundy i 8 plików w `scalac_council_v2/shared/discussion/`.
 - Final jest zapisany w `scalac_council_v2/output/FINAL_PROPOSAL.md`.
-- Dane wejściowe są w 4 plikach CSV i w przetworzonej postaci w `scalac_council_v2/shared/target_accounts.md`.
-
-Wymiary obecnych plików:
-
-- `scalac_council_v2/shared/target_accounts.md`: 44,991 bajtów.
-- `scalac_council_v2/output/FINAL_PROPOSAL.md`: 24,021 bajtów.
+- Przykładowe briefy i battlecards są dostępne w `scalac_council_v2/shared/`.
 
 ---
 
@@ -155,12 +150,7 @@ scalac_ai_council/
 |- README.md
 |- scalac_battlecards.docx.md
 |- scalac_content_plan.docx.md
-|
-|- csv/
-|  |- 200 Scala CTO's - Sheet1 (1).csv
-|  |- Q1 2026 AI vacancies job postings to prospect - Sheet1 (1).csv
-|  |- Q1 2026 AI vacancies job postings to prospect - Sheet1 (2).csv
-|  |- WIZA_CTO_Scala_groups_493112 - WIZA_CTO_Scala_groups_493112 (1).csv
+|- .gitignore
 |
 |- .github/
 |  |- agents/
@@ -199,7 +189,6 @@ scalac_ai_council/
     |  |- brief_webinar.md
     |  |- battlecards.md
     |  |- content_plan.md
-    |  |- target_accounts.md
     |  |- discussion/
     |     |- round_1_marcus.md
     |     |- round_1_elena.md
@@ -216,25 +205,21 @@ scalac_ai_council/
 
 ---
 
-## CSV i dane prospektowe
+## Dane prospektowe (niepubliczne)
 
-W katalogu `csv/` są 4 rzeczywiste pliki wejściowe:
+**UWAGA: Dane potencjalnych klientów nie są dostępne w tym publicznym repozytorium ze względów prywatności i bezpieczeństwa.**
 
-1. `200 Scala CTO's - Sheet1 (1).csv`
-2. `Q1 2026 AI vacancies job postings to prospect - Sheet1 (1).csv`
-3. `Q1 2026 AI vacancies job postings to prospect - Sheet1 (2).csv`
-4. `WIZA_CTO_Scala_groups_493112 - WIZA_CTO_Scala_groups_493112 (1).csv`
+W rzeczywistej implementacji system przetwarza dane z plików CSV zawierających:
+- Listy CTO i decyzyjnych osób w firmach technologicznych
+- Oferty pracy wskazujące na potrzeby rekrutacyjne
+- Dane kontaktowe i profile LinkedIn
 
-Aktualna liczba linii (wc -l):
+Te dane są przetwarzane do postaci pliku `target_accounts.md` zawierającego intelligence o kontach.
 
-- 117
-- 107
-- 107
-- 142
-
-Suma: 473 linie.
-
-Plik docelowy z inteligencją kont: `scalac_council_v2/shared/target_accounts.md`.
+**Aby używać systemu:**
+- Przygotuj własne pliki CSV z danymi prospektowymi (zachowując prywatność)
+- Umieść je w katalogu `csv/` (który jest ignorowany przez .gitignore)
+- Uruchom `python orchestrator.py` aby przetworzyć dane do `shared/target_accounts.md`
 
 ---
 
@@ -259,7 +244,7 @@ Działa tak:
     - `shared/brief.md`
     - `shared/battlecards.md`
     - `shared/content_plan.md`
-    - `shared/target_accounts.md`
+    - `shared/target_accounts.md` (jeśli istnieje)
     - `shared/discussion/*.md`
 2. Generuje self-contained prompty do `prompts/*.md`.
 3. Dla Kimi Code próbuje auto-spawn przez `sessions_spawn`.
@@ -320,7 +305,7 @@ Im więcej konkretu, tym lepszy output.
 
 W `orchestrator.py` jest logika:
 
-- David dostaje pełne `target_accounts.md`.
+- David dostaje pełne dane z `target_accounts.md` (jeśli plik istnieje).
 - Marcus, Elena i Kai dostają tylko sekcje `## 4. Key Intelligence` (lub fallback na pierwsze 2000 znaków, jeśli nagłówek nie istnieje).
 
 To celowe, bo David odpowiada za ABM i potrzebuje pełnych danych kont.
@@ -461,11 +446,11 @@ ls shared/discussion/
 
 ## Uwaga o aktualizacji danych
 
-Gdy dodajesz nowe CSV:
+Gdy dodajesz nowe dane prospektowe:
 
-1. dorzuc plik do `csv/`,
-2. zaktualizuj `shared/target_accounts.md`,
-3. uruchom ponownie `python orchestrator.py`,
-4. wygenerowane prompty od razu uwzglednia nowe dane.
+1. przygotuj pliki CSV z danymi kontaktowymi (zachowując prywatność),
+2. umieść je w katalogu `csv/` (ignorowanym przez .gitignore),
+3. uruchom `python orchestrator.py` aby przetworzyć dane do `shared/target_accounts.md`,
+4. wygenerowane prompty od razu uwzględnią nowe dane.
 
-To wszystko - nie trzeba zmieniac kodu orchestratora.
+To wszystko - nie trzeba zmieniać kodu orchestratora.

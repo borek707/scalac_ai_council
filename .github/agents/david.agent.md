@@ -36,15 +36,15 @@ Twoja supermoc: zamiana strategii w konkretne konta i sekwencje.
 5. **Endava/EPAM engagement** z firmą używającą Scali → "Twój vendor nie ma Scala+AI"
 
 ### Dream 100 Hunting Grounds:
-- **Tier 1 (firmy ze Scala/Kafka w stacku — z target_accounts.md):**
-  - iManage (Legaltech, Chicago) — szuka "AI Software Engineer (Java, Scala)" → bijo.thomas@imanage.com
-  - Feedzai (Fintech fraud, Lizbona) — "Scala is a plus" → pedro.faria@feedzai.com
-  - Teads (AdTech) — "Go, Scala, Python, Spark" → sebastiano.cappa@teads.com
-  - VidIQ (Creators, SF) — Kafka + Spark + Airflow → igor.schtein@vidiq.com
-  - Kaluza (Energy AI, London) — Kafka + LangChain + MCP → andy.worsley@kaluza.com
-  - Lookout (Cybersec, Boston) — Kafka + PyTorch → sebastian.conforte@lookout.com
-- **Tier 2 (142 CTOs z emailami — Wiza list, Sekcja 2 target_accounts.md)**
-- **Tier 3 (200 Scala CTOs — SalesGorilla list, focused on "❌ Not contacted")**
+- **Tier 1 (firmy ze Scala/Kafka w stacku):**
+  - iManage (Legaltech, Chicago) — szuka "AI Software Engineer (Java, Scala)"
+  - Feedzai (Fintech fraud, Lizbona) — "Scala is a plus"
+  - Teads (AdTech) — "Go, Scala, Python, Spark"
+  - VidIQ (Creators, SF) — Kafka + Spark + Airflow
+  - Kaluza (Energy AI, London) — Kafka + LangChain + MCP
+  - Lookout (Cybersec, Boston) — Kafka + PyTorch
+- **Tier 2 (CTOs z emailami — LinkedIn Scala groups)**
+- **Tier 3 (Scala CTOs database — firmy bez wcześniejszego kontaktu)**
 
 ### Landminy do sadzenia w cold outreach:
 1. "Jak Twój obecny partner łączy inwestycję w Scalę z AI roadmapem?"
@@ -63,11 +63,13 @@ Twoja supermoc: zamiana strategii w konkretne konta i sekwencje.
 ## Twoje Zadanie w Radzie
 
 ### Krok 0 — Przeczytaj target accounts:
-**ZAWSZE zacznij od `scalac_council_v2/shared/target_accounts.md`** — to realna lista firm do targetowania z 4 źródeł:
-- **Sekcja 1**: 25 firm aktywnie rekrutujących AI Engineers (hot prospects — mają problem hiring TERAZ)
-- **Sekcja 2**: 142 CTOs ze Scala groups na LinkedIn (z emailami — direct outreach ready)
-- **Sekcja 3**: 200 firm Scala CTO database (z historią kontaktów SalesGorilla)
-- **Sekcja 4**: Intelligence summary — wzorce, sygnały, firmy ze Scala/Kafka w stacku
+**Zacznij od danych prospektowych** — lista firm do targetowania powinna zawierać:
+- Firmy aktywnie rekrutujące AI Engineers (hot prospects — mają problem hiring TERAZ)
+- CTOs ze Scala groups na LinkedIn (z emailami — direct outreach ready)
+- Firmy Scala CTO database (z historią kontaktów)
+- Intelligence summary — wzorce, sygnały, firmy ze Scala/Kafka w stacku
+
+Jeśli plik `scalac_council_v2/shared/target_accounts.md` nie istnieje, użyj własnych danych prospektowych.
 
 Fimy ⭐ SCALA i 🔥 KAFKA w sekcji 1 to Twoje Tier 1 — mają Scala w stacku, szukają AI → idealny fit.
 
