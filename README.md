@@ -2,7 +2,118 @@
 
 4 agenci AI pracuja rownolegle i przygotowuja kompletny plan marketingowo-sprzedazowy: oferta, funnel, copy oraz ABM.
 
-To README opisuje aktualny, rzeczywisty stan repozytorium na marzec 2026.
+---
+
+## Co robi ta Rada i po co?
+
+### Problem
+Tradycyjnie jeden osób tworzy plan marketingowy — np. VP Sales lub Product Lead. To zajmuje dni lub tygodnie, bo trzeba:
+1. Wymyslić pozycjonowanie i pricing.
+2. Zaprojektować funnel od acquisition do close.
+3. Napisać wszystkie materiały.
+4. Wybrać konta i budować strategie outreachowe.
+
+A wszystko to robi jeden mózg z ograniczonymi perspektywami.
+
+### Rozwiązanie
+Tutaj pracuje **4 specjalistów jednocześnie**, każdy odpowiada za inny obszar. Ale najważniejsze — **dyskutują ze sobą** i się nawzajem kwestionują. 
+
+Zamiast jednego planu — dostajesz plan który przetestowała krytyka czterech ekspertów.
+
+---
+
+## Jak to działa — prosty przykład
+
+Wyobraź sobie taki dialog:
+
+**Marcus** (Offer Architect): *"Wyceniam Team Extension w DACH na CHF 25K/miesiąc per senior. Jest to porównywalne z lokalnym kosztem CHF 180K rocznie."*
+
+**Elena** (Funnel Architect): *"Czekaj. Przy tej cenie conversion na discovery call spada do 0.3%. My szukamy 5 dużych dealów w 6 miesięcy, ale pipeline nie przetrwa przy tej konwersji."*
+
+**Marcus**: *"Dobry punkt. Obniżam Starter do CHF 19K, ale Scale i Enterprise zostaję wysoko. To powinno być lepiej."*
+
+**Kai** (Copywriter): *"Zaraz, DACH nie będzie rozmawiać o cenie na landing page. CTO rozumie koszt porównywczyowo, ale nie lubi go widzieć na stronie. Zróbmy TCO Calculator za email-gate."*
+
+**David** (Lead Strategist): *"A ja dodajemy: wkundach które znalazłem z `target_accounts.md`, mają active job postingi dla Scala devów. Otwieramy z tym — 'widzieliśmy że szukasz senior Scala enginiera, zamiast hiring przez 6 miesięcy...'."*
+
+Po 2-3 rundach takiej dyskusji masz plan który **przeszedł krytykę** wszystkich czterech perspektyw. I właśnie taki plan jest w `output/FINAL_PROPOSAL.md`.
+
+---
+
+## Czym są ci czterej agenci
+
+### Marcus - Offer Architect
+- Decyduje: ile kosztuje, jak to pozycjonujemy, jaki jest hook do klienta.
+- Używa: Gap Selling, Challenger Sale, strategie pricing.
+- Output: sekcja OFFER — positioning per market, pricing tiers, Challenger pitch.
+
+### Elena - Funnel Architect  
+- Decyduje: jak leady wchodzą, jaki jest path do conversion, ile czasu trwa sprzedaż.
+- Używa: MEDDIC (framework kwalifikacji), pipeline math, nurture strategy.
+- Output: sekcja LEJEK — funnel per geo, MEDDIC questions, realistic conversions.
+
+### Kai - Copywriter
+- Decyduje: co się pisze na landing page, jakie są subject lines emaili, co się mówi na linkedinie.
+- Używa: They Ask You Answer, StoryBrand, PAS copywriting.
+- Output: sekcja COPY — hero headlines, cold emails, webinar invites per locale.
+
+### David - Lead Strategist
+- Decyduje: które konta targetujemy konkretnie, w jakiej kolejności, jakie triggery używamy.
+- Używa: ABM Playbook, Signal-Based Selling, 12-Touch Cadence.
+- Output: sekcja KONTA — Dream 20 tabela, konkretne e-maile i email adresy, 12-touch plan outreach.
+
+---
+
+## Dyskusja między agentami
+
+Agenci **nie rozmawiają w czacie**. Zamiast tego:
+
+1. **Runda 1:** Każdy pisze swoje stanowisko niezależnie. Marcus pisze ofertę, Elena pisze funnel, Kai pisze copy, David wybiera konta. To wszystko jednocześnie.
+
+2. **Runda 2:** Każdy czyta co napisali pozostali i pisze odpowiedź. "Ale Marcus, jeśli pricing będzie tak wysoki, to konwersja spadnie." Albo: "Kai, to jest zbyt techniczne dla CTO."
+
+3. **Runda 3:** Dochodzą do konsensusu lub spisują gdzie się nie zgadzają.
+
+Wszystko jest zapisane w plikach (Runda 1 w `discussion/round_1_*.md`, Runda 2 w `discussion/round_2_*.md`). Dzięki temu można śledzić całą debatę.
+
+---
+
+## Co dostajesz na koniec
+
+Plik `output/FINAL_PROPOSAL.md` zawiera:
+
+- **OFFER** — konkretne pricing, positioning per kraj, Challenger pitch z danymi TCO.
+- **LEJEK** — funnel per geography, ile discovery calls, co to kosztuje, jak długo trwa.
+- **COPY** — gotowe do wklejenia: hero headlines, cold email templates, webinar zaproszenia.
+- **KONTA** — konkretne 20 firm, z emailami CTOs, 12-touch outreach schedule.
+
+Wszystko to jest spójne — to nie jest 4 sklejone ze sobą dokumenty, tylko jeden plan który przeszedł krytykę wszystkich czterech perspektyw.
+
+---
+
+## Konkretny przykład — kampania JVM/Rust dla DACH/London/Stockholm
+
+W tym repo jest już gotowy run. Agenci dyskutowali o tym jak sprzedawać Team Extension w trzech geografiach:
+
+- **DACH pricing:** CHF 19-22K Starter (suchy, liczbowy, TCO-focused)
+- **London positioning:** "7 months hiring pipeline, 2 weeks ours" (velocity story)
+- **Nordic framing:** "Zero arbetsgivaravgifter + 30-day exit" (risk reduction)
+
+Każdy z 4 agentów miał inny pomysł na start. Po 2 rundach osiągnęli konsensus — ceny, messaging i wybór kont były już spójne.
+
+To wszystko masz w `output/FINAL_PROPOSAL.md` — czyli ostateczny plan kampanii.
+
+---
+
+## Po co mi to?
+
+Jeśli pracujesz w Scalac i musisz:
+- Uruchomić nową kampanię sprzedażową (np. dla nowego segmentu),
+- Wycenić nową ofertę,
+- Zbudować funnel dla nowej geografii,
+- Wybrać Dream 100 kont i outreach sequence,
+
+...zamiast robić to sam lub prosić cztery różne osoby — robisz to wszystko **w 30-60 minut** przez czterech specjalistów agentów. Każdy może pracować równolegle, dyskusja jest natychmiast.
 
 ---
 
