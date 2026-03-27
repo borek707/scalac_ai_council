@@ -124,17 +124,45 @@ def check_consensus():
 # ─────────────────────────────────────────
 
 def load_context():
-    """Wczytaj wszystkie pliki kontekstowe."""
+    """Wczytaj wszystkie pliki kontekstowe — ZOPTYMALIZOWANE."""
     def read(path):
         return path.read_text() if path.exists() else "_Brak pliku_"
 
-    return {
+    ctx = {
         "brief": read(SHARED / "brief.md"),
         "battlecards": read(SHARED / "battlecards.md"),
         "content_plan": read(SHARED / "content_plan.md"),
         "target_accounts": read(SHARED / "target_accounts.md"),
         "discussion": get_discussion_content(),
     }
+
+    # OPTYMALIZACJA: Skróć długie sekcje do kluczowych fragmentów
+    if len(ctx["battlecards"]) > 3000:
+        # Zachowaj tylko kluczowe informacje o konkurentach i rynku
+        lines = ctx["battlecards"].split('\n')
+        key_sections = []
+        capture = False
+        for line in lines[:100]:  # Pierwsze 100 linii zwykle zawierają kluczowe info
+            if any(kw in line.lower() for kw in ['konkurent', 'competitor', 'pricing', 'market', 'kluczowe']):
+                capture = True
+            if capture and line.strip():
+                key_sections.append(line)
+                if len(key_sections) > 20:  # Max 20 linii kluczowych
+                    break
+        ctx["battlecards"] = '\n'.join(key_sections) + "\n\n_[...pełne battlecards w shared/battlecards.md]_"
+
+    if len(ctx["content_plan"]) > 2000:
+        # Zachowaj tylko nadchodzące kampanie i kluczowe metryki
+        lines = ctx["content_plan"].split('\n')
+        key_content = []
+        for line in lines[:50]:
+            if any(kw in line.lower() for kw in ['q2', 'q3', 'kampania', 'webinar', 'content', '2026']):
+                key_content.append(line)
+                if len(key_content) > 15:
+                    break
+        ctx["content_plan"] = '\n'.join(key_content) + "\n\n_[...pełny content plan w shared/content_plan.md]_"
+
+    return ctx
 
 
 def extract_system_prompt(agent_file: Path) -> str:
@@ -285,7 +313,7 @@ _Koniec promptu. Możesz zaczynać._
 
 
 def generate_prompts():
-    """Generuj samodzielne pliki promptów dla wszystkich agentów."""
+    """Generuj samodzielne pliki promptów dla wszystkich agentów — ZOPTYMALIZOWANE."""
     print("\n🔧 Generowanie promptów...")
     PROMPTS.mkdir(exist_ok=True)
     ctx = load_context()
@@ -306,7 +334,40 @@ def generate_prompts():
         print(f"   ✅ {path.name}  ({size:,} znaków)")
         generated.append((name, path))
 
+    print(f"\n⚡ OPTYMALIZACJA: Wszystkie prompty gotowe do RÓWNOLEGŁEGO uruchomienia!")
+    print("   💡 Wskazówka: Otwórz 4 karty w IDE jednocześnie i wklej prompty")
+
     return generated
+
+
+def quick_update():
+    """SZYBKA aktualizacja promptów — tylko nowa dyskusja, bez przebudowywania kontekstu."""
+    print("\n⚡ SZYBKA AKTUALIZACJA...")
+    if not PROMPTS.exists():
+        print("   ❌ Brak promptów do aktualizacji — uruchom najpierw python orchestrator.py")
+        return
+
+    # Aktualizuj tylko sekcję dyskusji w istniejących promptach
+    new_discussion = get_discussion_content()
+
+    updated = 0
+    for prompt_file in PROMPTS.glob("*_prompt.md"):
+        content = prompt_file.read_text()
+        # Znajdź sekcję dyskusji i zamień
+        start = content.find("## AKTUALNA DYSKUSJA RADY AI")
+        if start != -1:
+            end = content.find("---", start + 50)
+            if end != -1:
+                old_section = content[start:end]
+                new_content = content.replace(old_section, f"## AKTUALNA DYSKUSJA RADY AI\n\n{new_discussion}\n\n---")
+                prompt_file.write_text(new_content)
+                updated += 1
+                print(f"   ✅ Zaktualizowano {prompt_file.name}")
+
+    if updated > 0:
+        print(f"\n🚀 {updated} promptów gotowych — wklej do agentów!")
+    else:
+        print("   ℹ️  Brak promptów do aktualizacji")
 
 
 # ─────────────────────────────────────────
@@ -475,6 +536,161 @@ def main():
 
     if "--final" in args:
         aggregate_output()
+        return
+
+    if "--quick" in args:
+        quick_update()
+        return
+
+    print("\n🏗️  Setup workspace...")
+    setup_workspace()
+
+    if "--monitor" in args:
+        monitor_discussion()
+        has_consensus, reason = check_consensus()
+        if has_consensus:
+            print(f"\n✅ KONSENSUS: {reason}")
+            aggregate_output()
+        return
+
+    # Normalny flow: generuj prompty + ewentualny auto-spawn
+    if not check_brief():
+        print("\n❌ Nie można kontynuować bez briefu!")
+        return
+
+    status = monitor_discussion()
+    has_consensus, reason = check_consensus()
+    if has_consensus:
+        print(f"\n✅ KONSENSUS: {reason} — Agreguję outputy...")
+        aggregate_output()
+        return
+
+    print(f"\n⏳ Dyskusja: runda {status['round']}/3 — generuję zaktualizowane prompty...")
+
+    # Generuj pliki promptów (zawsze — z aktualną dyskusją)
+    generated = generate_prompts()
+
+    # Próbuj Kimi Code auto-spawn
+    spawned = try_kimi_spawn(generated)
+
+    if not spawned:
+        # Inne IDE — wypisz instrukcje
+        print_ide_instructions(generated)
+
+
+def quick_update():
+    """Fast update of discussion section only"""
+    print("\n⚡ QUICK UPDATE MODE")
+    print("Updating discussion section only...")
+
+    # Load current discussion
+    discussion_files = [
+        "shared/discussion/round_1_marcus.md",
+        "shared/discussion/round_1_elena.md",
+        "shared/discussion/round_1_kai.md",
+        "shared/discussion/round_1_david.md",
+        "shared/discussion/round_2_marcus.md",
+        "shared/discussion/round_2_elena.md",
+        "shared/discussion/round_2_kai.md",
+        "shared/discussion/round_2_david.md"
+    ]
+
+    discussion_content = ""
+    for file_path in discussion_files:
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                if content:
+                    discussion_content += f"\n## {os.path.basename(file_path).replace('.md', '').replace('_', ' ').title()}\n{content}\n"
+
+    # Update all prompts with new discussion
+    agent_names = ["marcus", "elena", "kai", "david"]
+    for agent in agent_names:
+        prompt_file = f"prompts/{agent}_prompt.md"
+        if os.path.exists(prompt_file):
+            with open(prompt_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # Find discussion section and replace
+            discussion_start = content.find("## AKTUALNA DYSKUSJA RADY AI")
+            if discussion_start != -1:
+                discussion_end = content.find("\n---", discussion_start + 1)
+                if discussion_end == -1:
+                    discussion_end = len(content)
+
+                new_content = content[:discussion_start] + "## AKTUALNA DYSKUSJA RADY AI\n\n" + discussion_content + "\n\n---" + content[discussion_end:]
+                with open(prompt_file, 'w', encoding='utf-8') as f:
+                    f.write(new_content)
+                print(f"✅ Updated {agent}_prompt.md")
+
+    print("\n🎯 Quick update completed!")
+    print("💡 Use: python orchestrator.py --quick")
+
+
+def main():
+    print("=" * 60)
+    print("🚀 RADA AI — UNIVERSAL MULTI-AGENT SYSTEM")
+    print("=" * 60)
+
+    args = sys.argv[1:]
+
+    if "--final" in args:
+        aggregate_output()
+        return
+
+    if "--quick" in args:
+        quick_update()
+        return
+
+    print("\n🏗️  Setup workspace...")
+    setup_workspace()
+
+    if "--monitor" in args:
+        monitor_discussion()
+        has_consensus, reason = check_consensus()
+        if has_consensus:
+            print(f"\n✅ KONSENSUS: {reason}")
+            aggregate_output()
+        return
+
+    # Normalny flow: generuj prompty + ewentualny auto-spawn
+    if not check_brief():
+        print("\n❌ Nie można kontynuować bez briefu!")
+        return
+
+    status = monitor_discussion()
+    has_consensus, reason = check_consensus()
+    if has_consensus:
+        print(f"\n✅ KONSENSUS: {reason} — Agreguję outputy...")
+        aggregate_output()
+        return
+
+    print(f"\n⏳ Dyskusja: runda {status['round']}/3 — generuję zaktualizowane prompty...")
+
+    # Generuj pliki promptów (zawsze — z aktualną dyskusją)
+    generated = generate_prompts()
+
+    # Próbuj Kimi Code auto-spawn
+    spawned = try_kimi_spawn(generated)
+
+    if not spawned:
+        # Inne IDE — wypisz instrukcje
+        print_ide_instructions(generated)
+
+
+def main():
+    print("=" * 60)
+    print("🚀 RADA AI — UNIVERSAL MULTI-AGENT SYSTEM")
+    print("=" * 60)
+
+    args = sys.argv[1:]
+
+    if "--final" in args:
+        aggregate_output()
+        return
+
+    if "--quick" in args:
+        quick_update()
         return
 
     print("\n🏗️  Setup workspace...")
