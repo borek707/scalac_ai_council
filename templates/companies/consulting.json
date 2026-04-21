@@ -1,0 +1,82 @@
+{
+  "name": "NexTech Advisors",
+  "product": "Technology strategy consulting and digital transformation execution for mid-market enterprises",
+  "pricing_tier": "Project-based: $25k-250k per engagement; retained advisory from $10k/month",
+  "value_proposition": "Bridge the gap between business strategy and technology execution — delivering measurable digital transformation 3x faster than traditional consultancies through our proprietary AI-assisted delivery model",
+  "competitors": [
+    {
+      "name": "McKinsey Digital",
+      "threat": "HIGH",
+      "pricing": "$500-1000/hour; projects typically $1M+",
+      "weakness": "Extremely high cost; slow delivery; junior-heavy teams; reports over working software",
+      "clients": ["Fortune 100", "Governments"]
+    },
+    {
+      "name": "Accenture",
+      "threat": "HIGH",
+      "pricing": "$150-400/hour; large multi-year contracts",
+      "weakness": "Bureaucratic processes; high staff turnover; vendor lock-in through proprietary frameworks",
+      "clients": ["Global 2000"]
+    },
+    {
+      "name": "Netguru",
+      "threat": "MEDIUM",
+      "pricing": "$60-120/hour; project-based",
+      "weakness": "Primarily development-focused; limited strategic consulting; smaller transformation track record",
+      "clients": ["SMEs and startups"]
+    }
+  ],
+  "target": {
+    "segment": "Mid-market enterprises (€50M-500M revenue) undergoing digital transformation",
+    "decision_maker": "CEO / CTO / Chief Digital Officer",
+    "pain_points": [
+      "Digital transformation projects take 18-24 months and often fail",
+      "Difficulty finding consultants who understand both business and technology",
+      "Traditional consultancies deliver reports but not working solutions",
+      "Lack of internal technical leadership to guide transformation",
+      "Previous consulting engagements produced no measurable ROI"
+    ],
+    "budget_range": "€50000-500000 per project",
+    "geo_focus": ["Poland", "Germany", "Austria", "Switzerland", "Nordics"]
+  },
+  "constraints": {
+    "timeline_days": 180,
+    "budget_pln": 150000,
+    "team_size": 3,
+    "focus_areas": [
+      "Executive content marketing",
+      "LinkedIn thought leadership",
+      "Industry conference speaking",
+      "Referral and partner network",
+      "Case study publishing"
+    ]
+  },
+  "differentiators": [
+    "AI-assisted delivery model cuts project timelines by 60%",
+    "Senior-only team — every client works with 10+ year veterans",
+    "Outcome-based pricing tied to measurable KPIs",
+    "Proprietary Digital Transformation Scorecard framework",
+    "Dual strength: strategic advisory + hands-on implementation",
+    "Deep expertise in manufacturing, retail, and financial services"
+  ],
+  "case_studies": [
+    {
+      "client": "AutoParts Europe (Manufacturing, €200M revenue)",
+      "result": "Digital transformation roadmap delivered in 8 weeks; first MVP shipped in month 4; 25% efficiency gain in supply chain",
+      "industry": "Manufacturing",
+      "duration": "6 months"
+    },
+    {
+      "client": "BankRegional (Banking, €800M assets)",
+      "result": "Modernized core banking integration layer; reduced time-to-market for new products from 12 months to 6 weeks",
+      "industry": "Banking",
+      "duration": "9 months"
+    },
+    {
+      "client": "RetailGroup (Retail, €150M revenue)",
+      "result": "Unified commerce strategy across 40 stores + e-commerce; 30% increase in customer lifetime value",
+      "industry": "Retail",
+      "duration": "8 months"
+    }
+  ]
+}
