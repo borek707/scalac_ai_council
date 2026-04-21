@@ -1,0 +1,79 @@
+{
+  "name": "CloudAPI Pro",
+  "product": "Unified API gateway and management platform for developers",
+  "pricing_tier": "Freemium: 10k req/month free; Pro $299/mo; Enterprise custom",
+  "value_proposition": "Deploy production-ready APIs in minutes with built-in authentication, rate limiting, and analytics — without managing infrastructure",
+  "competitors": [
+    {
+      "name": "Kong",
+      "threat": "HIGH",
+      "pricing": "Enterprise-focused, $500+/mo minimum",
+      "weakness": "Complex setup requiring DevOps expertise; steep learning curve",
+      "clients": ["NASA", "PayPal", "Verizon"]
+    },
+    {
+      "name": "Postman API Platform",
+      "threat": "MEDIUM",
+      "pricing": "Team $12/user/mo; Enterprise $36/user/mo",
+      "weakness": "Primarily testing-focused; limited runtime gateway capabilities",
+      "clients": ["Salesforce", "Cisco", "Uber"]
+    },
+    {
+      "name": "AWS API Gateway",
+      "threat": "HIGH",
+      "pricing": "Pay-per-request, $3.50/million; hidden data transfer costs",
+      "weakness": "Vendor lock-in; complex pricing; requires AWS ecosystem knowledge",
+      "clients": ["Netflix", "Airbnb", "Slack"]
+    }
+  ],
+  "target": {
+    "segment": "Series A-C SaaS startups and mid-market digital teams",
+    "decision_maker": "CTO / VP Engineering / Lead Developer",
+    "pain_points": [
+      "API infrastructure takes weeks to set up",
+      "Authentication and rate limiting are error-prone to build in-house",
+      "Lack of visibility into API usage and errors",
+      "Scaling API infrastructure under load is stressful"
+    ],
+    "budget_range": "$300-2000/month",
+    "geo_focus": ["USA", "Western Europe", "Poland", "Nordics"]
+  },
+  "constraints": {
+    "timeline_days": 90,
+    "budget_pln": 75000,
+    "team_size": 4,
+    "focus_areas": [
+      "Developer relations",
+      "Content marketing",
+      "Technical SEO",
+      "Community building"
+    ]
+  },
+  "differentiators": [
+    "5-minute setup with zero infrastructure management",
+    "Native integration with 50+ frameworks and languages",
+    "Real-time API analytics dashboard built-in",
+    "Polish-based support with EU data residency",
+    "Transparent, predictable pricing — no surprise bills"
+  ],
+  "case_studies": [
+    {
+      "client": "FinFlow (FinTech Startup)",
+      "result": "Reduced API deployment time from 3 weeks to 2 hours",
+      "industry": "FinTech",
+      "scale": "50k API requests/day"
+    },
+    {
+      "client": "HealthTrack (HealthTech)",
+      "result": "Passed SOC 2 audit in 4 weeks using built-in compliance features",
+      "industry": "HealthTech",
+      "scale": "120k API requests/day"
+    },
+    {
+      "client": "ShopBridge (E-commerce)",
+      "result": "99.99% API uptime during Black Friday with auto-scaling",
+      "industry": "E-commerce",
+      "scale": "2M API requests/day"
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+{
+  "name": "PayStream",
+  "product": "B2B payment orchestration platform with real-time settlement",
+  "pricing_tier": "Volume-based: 0.15% per transaction; Enterprise flat fee from $5000/mo",
+  "value_proposition": "Accept, route, and settle B2B payments across 30+ providers with a single API — reducing payment costs by 40% and settlement time from T+2 to real-time",
+  "competitors": [
+    {
+      "name": "Stripe",
+      "threat": "HIGH",
+      "pricing": "2.9% + $0.30 per transaction; custom for enterprise",
+      "weakness": "Consumer-focused; limited B2B payment method support; high fees for large transfers",
+      "clients": ["Amazon", "Google", "Shopify"]
+    },
+    {
+      "name": "Adyen",
+      "threat": "HIGH",
+      "pricing": "Interchange++ model; complex fee structure",
+      "weakness": "Long onboarding (3-6 months); requires high minimum volumes; enterprise-only support",
+      "clients": ["Microsoft", "Uber", "eBay"]
+    },
+    {
+      "name": "Traxpay",
+      "threat": "MEDIUM",
+      "pricing": "SaaS subscription + per-transaction fee",
+      "weakness": "Limited to European market; smaller integration ecosystem",
+      "clients": ["Siemens", "Bosch"]
+    }
+  ],
+  "target": {
+    "segment": "Mid-market B2B companies, marketplace platforms, and payment service providers",
+    "decision_maker": "CFO / Head of Payments / Finance Director",
+    "pain_points": [
+      "Managing multiple payment providers is operationally complex",
+      "High payment processing fees eating margins",
+      "Slow settlement cycles creating cash flow problems",
+      "Cross-border payments are expensive and opaque",
+      "Compliance with PSD2, PCI DSS, and local regulations"
+    ],
+    "budget_range": "$5000-50000/month",
+    "geo_focus": ["EU", "UK", "Poland", "Germany", "Nordics"]
+  },
+  "constraints": {
+    "timeline_days": 120,
+    "budget_pln": 200000,
+    "team_size": 6,
+    "focus_areas": [
+      "Account-based marketing",
+      "FinTech conference presence",
+      "Thought leadership content",
+      "Partner channel development",
+      "Regulatory compliance marketing"
+    ]
+  },
+  "differentiators": [
+    "Single API for 30+ payment providers — no vendor lock-in",
+    "Real-time settlement vs. industry standard T+2",
+    "40% lower fees through intelligent payment routing",
+    "Full PSD2 and PCI DSS Level 1 compliance built-in",
+    "Polish-founded with deep CEE market expertise",
+    "White-label solution for PSPs and banks"
+  ],
+  "case_studies": [
+    {
+      "client": "MarketHub (B2B Marketplace)",
+      "result": "Reduced payment processing costs by 42%; settlement time from 2 days to instant",
+      "industry": "Marketplace",
+      "scale": "$50M monthly GMV"
+    },
+    {
+      "client": "LogiChain (Supply Chain)",
+      "result": "Unified 8 payment providers into one platform; 60% reduction in payment ops workload",
+      "industry": "Supply Chain",
+      "scale": "12 European countries"
+    },
+    {
+      "client": "InsureTech Plus (Insurance)",
+      "result": "Achieved PCI DSS Level 1 compliance in 6 weeks; passed regulatory audit on first attempt",
+      "industry": "Insurance",
+      "scale": "200k transactions/month"
+    }
+  ]
+}

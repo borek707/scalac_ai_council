@@ -1,456 +1,457 @@
-# Rada AI Scalac - Multi-Agent Marketing Council
+# Universal AI Marketing Council v3.0
 
-4 agenci AI pracują równolegle i przygotowują kompletny plan marketingowo-sprzedażowy: oferta, funnel, copy oraz ABM.
-
----
-
-## Co robi ta Rada i po co?
-
-### Problem
-Tradycyjnie jedna osoba tworzy plan marketingowy — np. VP Sales lub Product Lead. To zajmuje dni lub tygodnie, bo trzeba:
-1. Wymyslić pozycjonowanie i pricing.
-2. Zaprojektować funnel od acquisition do close.
-3. Napisać wszystkie materiały.
-4. Wybrać konta i budować strategie outreachowe.
-
-A wszystko to robi jeden mózg z ograniczonymi perspektywami.
-
-### Rozwiązanie
-Tutaj pracuje **4 specjalistów jednocześnie**, każdy odpowiada za inny obszar. Ale najważniejsze — **dyskutują ze sobą** i się nawzajem kwestionują. 
-
-Zamiast jednego planu — dostajesz plan, który przeszedł krytykę wszystkich czterech perspektyw.
+> **4 agenci AI pracujacy rownolegle, debatuja i tworza kompletny plan marketingowy dla dowolnej firmy.**
+> 
+> Nie szablony. Nie hardcoded Scalac. Prawdziwa integracja z LLM, rownoleglosc przez asyncio i konfiguracja przez JSON.
 
 ---
 
-## Jak to działa — prosty przykład
+## Czym jest ta Rada
 
-Wyobraź sobie taki dialog:
+System multi-agentowy skladajacy sie z 4 specialistow AI (Marcus, Elena, Kai, David), ktory z dowolnej konfiguracji firmowej (JSON) produkuje kompletny plan marketingowy poprzez strukturyzowana debate.
 
-**Marcus** (Offer Architect): *"Wyceniam Team Extension w DACH na CHF 25K/miesiąc per senior. Jest to porównywalne z lokalnym kosztem CHF 180K rocznie."*
+**Zamiast jednej osoby robiacej plan w tydzien — masz 4 specialistow debatujacych w 30 minut.**
 
-**Elena** (Funnel Architect): *"Czekaj. Przy tej cenie conversion na discovery call spada do 0.3%. My szukamy 5 dużych dealów w 6 miesięcy, ale pipeline nie przetrwa przy tej konwersji."*
+### Problem, ktory rozwiazuje
 
-**Marcus**: *"Dobry punkt. Obniżam Starter do CHF 19K, ale Scale i Enterprise zostawiam wysoko. To powinno być lepiej."*
+Tradycyjnie plan marketingowy tworzy jedna osoba:
+1. Wymysla pozycjonowanie i pricing.
+2. Projektue funnel od acquisition do close.
+3. Pisze wszystkie materialy.
+4. Wybiera konta i buduje strategie outreachowe.
 
-**Kai** (Copywriter): *"Zaraz, DACH nie będzie rozmawiać o cenie na landing page. CTO rozumie koszt porównawczo, ale nie lubi go widzieć na stronie. Zróbmy TCO Calculator za email-gate."*
+Jeden mozg, ograniczone perspektywy, dni lub tygodnie pracy.
 
-**David** (Lead Strategist): *"A ja dodaję: w kontach które znalazłem w danych prospektowych, mają aktywne oferty pracy dla Scala developerów. Otwieramy z tym — 'widzieliśmy, że szukasz senior Scala inżyniera, zamiast hiring przez 6 miesięcy...'."*
+### Rozwiazanie
 
-Po 2-3 rundach takiej dyskusji masz plan, który **przeszedł krytykę** wszystkich czterech perspektyw. I właśnie taki plan jest w `output/FINAL_PROPOSAL.md`.
+**4 specjalisci pracuja jednoczesnie** — kazdy odpowiada za inny obszar. I najwazniejsze: **dyskutuja ze soba** i sie nawzajem kwestionuja.
 
----
-
-## Czym są ci czterej agenci
-
-### Marcus - Offer Architect
-- Decyduje: ile kosztuje, jak to pozycjonujemy, jaki jest hook do klienta.
-- Używa: Gap Selling, Challenger Sale, strategie pricing.
-- Output: sekcja OFFER — positioning per market, pricing tiers, Challenger pitch.
-
-### Elena - Funnel Architect  
-- Decyduje: jak leady wchodzą, jaki jest path do conversion, ile czasu trwa sprzedaż.
-- Używa: MEDDIC (framework kwalifikacji), pipeline math, nurture strategy.
-- Output: sekcja LEJEK — funnel per geo, MEDDIC questions, realistic conversions.
-
-### Kai - Copywriter
-- Decyduje: co się pisze na landing page, jakie są subject lines emaili, co się mówi na LinkedInie.
-- Używa: They Ask You Answer, StoryBrand, PAS copywriting.
-- Output: sekcja COPY — hero headlines, cold emails, webinar invites per locale.
-
-### David - Lead Strategist
-- Decyduje: które konta targetujemy konkretnie, w jakiej kolejności, jakie triggery używamy.
-- Używa: ABM Playbook, Signal-Based Selling, 12-Touch Cadence.
-- Output: sekcja KONTA — Dream 20 tabela, konkretne e-maile i adresy e-mail, 12-touch plan outreach.
+Po 2-3 rundach debaty masz plan, ktory przeszedl krytyke wszystkich czterech perspektyw.
 
 ---
 
-## Dyskusja między agentami
+## Czterej agenci
 
-Agenci **nie rozmawiają w czacie**. Zamiast tego:
+| Agent | Rola | Frameworki | Output |
+|-------|------|-----------|--------|
+| **Marcus** | Offer Architect | Gap Selling, StoryBrand, Good-Better-Best, Challenger Sale | Oferta: pricing, positioning, pitch |
+| **Elena** | Funnel Architect | MEDDIC, JOLT, Three Pipelines, Predictable Revenue | Lejek: konwersje, kwalifikacja, forecast |
+| **Kai** | Copywriter | AIDA, Big 5, PAS, StoryBrand | Copy: landing page, emaile, LinkedIn |
+| **David** | Lead Strategist | ABM Tiers, Dream 100, Signal-Based Selling | ABM: konta, sekwencje, personalizacja |
 
-1. **Runda 1:** Każdy pisze swoje stanowisko niezależnie. Marcus pisze ofertę, Elena pisze funnel, Kai pisze copy, David wybiera konta. To wszystko jednocześnie.
+### Przyklad debaty
 
-2. **Runda 2:** Każdy czyta co napisali pozostali i pisze odpowiedź. "Ale Marcus, jeśli pricing będzie tak wysoki, to konwersja spadnie." Albo: "Kai, to jest zbyt techniczne dla CTO."
-
-3. **Runda 3:** Dochodzą do konsensusu lub spisują gdzie się nie zgadzają.
-
-Wszystko jest zapisane w plikach (Runda 1 w `discussion/round_1_*.md`, Runda 2 w `discussion/round_2_*.md`). Dzięki temu można śledzić całą debatę.
-
----
-
-## Co dostajesz na koniec
-
-Plik `output/FINAL_PROPOSAL.md` zawiera:
-
-- **OFFER** — konkretne pricing, positioning per kraj, Challenger pitch z danymi TCO.
-- **LEJEK** — funnel per geography, ile discovery calls, co to kosztuje, jak długo trwa.
-- **COPY** — gotowe do wklejenia: hero headlines, cold email templates, webinar zaproszenia.
-- **KONTA** — konkretne 20 firm, z emailami CTOs, 12-touch outreach schedule.
-
-Wszystko to jest spójne — to nie jest 4 sklejone ze sobą dokumenty, tylko jeden plan, który przeszedł krytykę wszystkich czterech perspektyw.
+> **Marcus**: "Wyceniam Team Extension na EUR 25K/miesiac per senior."
+>
+> **Elena**: "Czekaj — przy tej cenie conversion spada do 0.3%. Pipeline nie przetrwa."
+>
+> **Marcus**: "Dobry punkt. Starter do EUR 19K, Scale i Enterprise zostawiam."
+>
+> **Kai**: "CTO nie chce widziec ceny na stronie. TCO Calculator za email-gate."
+>
+> **David**: "W kontach, ktore znalazlem, maja aktywne oferty pracy dla Scala devow. Otwieramy z tym."
 
 ---
 
-## Konkretny przykład — kampania JVM/Rust dla DACH/London/Stockholm
+## Szybki start (5 minut)
 
-W tym repo jest już gotowe uruchomienie kampanii. Agenci dyskutowali o tym, jak sprzedawać Team Extension w trzech geografiach:
+### 1. Instalacja
 
-- **DACH pricing:** CHF 19-22K Starter (suchy, liczbowy, TCO-focused)
-- **London positioning:** "7 months hiring pipeline, 2 weeks ours" (velocity story)
-- **Nordic framing:** "Zero arbetsgivaravgifter + 30-day exit" (risk reduction)
+```bash
+git clone https://github.com/borek707/scalac_ai_council.git
+cd scalac_ai_council
+pip install -e ".[dev]"
+```
 
-Każdy z 4 agentów miał inny pomysł na start. Po 2 rundach osiągnęli konsensus — ceny, messaging i wybór kont były już spójne.
+### 2. Klucz API
 
-To wszystko masz w `output/FINAL_PROPOSAL.md` — czyli ostateczny plan kampanii.
+```bash
+export OPENAI_API_KEY="sk-..."
+# lub
+export ANTHROPIC_API_KEY="sk-ant-..."
+# lub uzyj lokalnego Ollama (darmowe)
+```
+
+### 3. Konfiguracja firmy
+
+```bash
+# Skopiuj gotowy template
+cp templates/companies/fintech.json my_company.json
+
+# Lub stworz wlasny — patrz sekcja "Konfiguracja firmy" ponizej
+```
+
+### 4. Uruchom
+
+```bash
+# OpenAI (domyslnie)
+python -m council --config my_company.json --rounds 3
+
+# Anthropic Claude
+python -m council --config my_company.json --provider anthropic
+
+# Lokalny Ollama (darmowe, bez internetu)
+python -m council --config my_company.json --provider ollama --model llama3
+
+# Wyswietl status
+python -m council --config my_company.json --monitor
+
+# Agreguj finalny proposal
+python -m council --config my_company.json --aggregate
+```
+
+### 5. Wynik
+
+Po zakonczeniu w katalogu `output/`:
+
+| Plik | Zawartosc |
+|------|-----------|
+| `marcus_offer.md` | Oferta: Gap Analysis, BrandScript, Pricing, Challenger Pitch |
+| `elena_funnel.md` | Lejek: Stages, MEDDIC, JOLT, Three Pipelines, Forecast |
+| `kai_copy.md` | Landing Page + Email Sequence + LinkedIn Ads |
+| `david_abm.md` | ABM: Dream 100, Sequences, Tools |
+| `FINAL_PROPOSAL.md` | Wszystko razem w jednym dokumencie |
 
 ---
 
-## Po co mi to?
+## Konfiguracja firmy
 
-Jeśli pracujesz w Scalac i musisz:
-- Uruchomić nową kampanię sprzedażową (np. dla nowego segmentu),
-- Wycenić nową ofertę,
-- Zbudować funnel dla nowej geografii,
-- Wybrać Dream 100 kont i outreach sequence,
+System przyjmuje dowolna konfiguracje przez JSON. Schemat jest walidowany przez Pydantic v2.
 
-...zamiast robić to sam lub prosić cztery różne osoby — robisz to wszystko **w 30-60 minut** za pomocą czterech specjalistów agentów. Każdy może pracować równolegle, dyskusja jest natychmiastowa.
+### Minimalny config
+
+```json
+{
+  "name": "Acme Corp",
+  "product": "API-first payment platform for SaaS",
+  "pricing_tier": "$5K-$50K ACV",
+  "value_proposition": "Reduce payment integration time from 3 months to 2 weeks",
+  "competitors": [
+    {"name": "Stripe", "threat": "HIGH", "pricing": "2.9% + $0.30"},
+    {"name": "Adyen", "threat": "HIGH", "pricing": "Interchange++"}
+  ],
+  "target": {
+    "segment": "SaaS companies processing >$1M/yr",
+    "decision_maker": "CTO / VP Engineering",
+    "pain_points": ["Slow integration", "High fees", "Compliance complexity"],
+    "budget_range": "$50K-$200K/yr"
+  },
+  "constraints": {
+    "timeline_days": 90,
+    "team_size": 3
+  }
+}
+```
+
+### Gotowe template'y
+
+W `templates/companies/` znajdziesz gotowe configi dla:
+
+| Template | Firma | Segment |
+|----------|-------|---------|
+| `saas.json` | CloudAPI Pro | Platforma API dla SaaS |
+| `fintech.json` | PayStream | Fintech Series B |
+| `ecommerce.json` | CartLoop | Platforma e-commerce |
+| `consulting.json` | NexTech Advisors | Konsulting IT |
+
+Aby uzyc: `python -m council --config templates/companies/fintech.json`
+
+### Pelny schemat (CompanyConfig)
+
+```python
+class CompanyConfig(BaseModel):
+    name: str                    # Nazwa firmy (1-100 znakow)
+    product: str                 # Co sprzedaje
+    pricing_tier: str            # Przedzial cenowy
+    value_proposition: str       # Głowna wartosc
+    competitors: list[Competitor] # Konkurencja
+    target: TargetSegment        # Segment docelowy
+    constraints: Constraints     # Ograniczenia
+    differentiators: list[str]   # Przewagi konkurencyjne
+    case_studies: list[dict]     # Case studies
+```
+
+Walidacja:
+- `name`: min 1 znak, max 100
+- `timeline_days`: 1-365 dni
+- `budget_pln`: >= 0
+- `team_size`: >= 1
+- `threat`: LOW, MEDIUM, HIGH, CRITICAL
 
 ---
 
-## Co jest w tym repo
+## Architektura v3
 
-Repo zawiera dwa poziomy:
+System sklada sie z 4 warstw:
 
-1. Warstwa orkiestracji agentów dla VS Code Copilot i Cursor.
-2. Uniwersalny, przenośny system w Pythonie w katalogu `scalac_council_v2`, który działa w wielu IDE.
+```
+Layer 4: Platform Layer
+  CLIAdapter | KimiAdapter
 
-W praktyce masz gotowy workflow:
+Layer 3: Orchestration Layer
+  AsyncOrchestrator | FilesystemBarrier | AgentStateMachine
 
-- przygotuj brief w `shared/brief.md`,
-- wygeneruj prompty,
-- uruchom 4 agentów równolegle,
-- złóż finalny dokument.
+Layer 2: Agent Layer
+  BaseAgent(ABC) | MarcusAgent | ElenaAgent | KaiAgent | DavidAgent
+  PromptGenerator (Jinja2) | LLMProvider(ABC)
+
+Layer 1: Data Layer
+  CompanyConfig (Pydantic) | ConfigLoader | JSON Schema
+```
+
+### Rownoleglosc — jak to dziala
+
+```
+Runda 1:                     Runda 2:                     Runda 3:
+  Marcus (LLM call)            Marcus czyta innych           Konsensus
+  Elena  (LLM call)     -->    Elena czyta innych      -->   Finalne outputy
+  Kai    (LLM call)            Kai czyta innych
+  David  (LLM call)            David czyta innych
+  
+  <-- asyncio.gather() -->     <-- asyncio.gather() -->     
+  <-- FilesystemBarrier -->    <-- FilesystemBarrier -->
+  
+  Czas: ~15s                   Czas: ~15s                    Czas: ~15s
+  (zamiast 60s sekwencyjnie)   (zamiast 60s sekwencyjnie)
+```
+
+**Calkowity czas: 3 rundy x 15s = 45s zamiast 3 rundy x 60s = 180s.**
+
+### State Machine
+
+Kazdy agent ma okreslony stan:
+
+```
+PENDING --> WRITING --> WAITING (barrier) --> DONE --> PENDING (nastepna runda)
+   |           |            |                  |
+   +-----------+------------+------------------+--> ERROR
+```
 
 ---
 
-## Aktualny stan (zweryfikowany)
+## CLI — Wszystkie komendy
 
-- W repo jest kompletne uruchomienie kampanii JVM/Rust dla DACH, London, Stockholm.
-- Dyskusja ma 2 rundy i 8 plików w `scalac_council_v2/shared/discussion/`.
-- Final jest zapisany w `scalac_council_v2/output/FINAL_PROPOSAL.md`.
-- Przykładowe briefy i battlecards są dostępne w `scalac_council_v2/shared/`.
+```bash
+# Podstawowe uzycie
+python -m council --config firm.json
+
+# Wybor providera LLM
+python -m council --config firm.json --provider openai       # GPT-4o (domyslny)
+python -m council --config firm.json --provider anthropic    # Claude Sonnet
+python -m council --config firm.json --provider ollama       # Llama3 (lokalny)
+
+# Nadpisanie modelu
+python -m council --config firm.json --provider openai --model gpt-4o-mini
+
+# Wiecej rund debaty
+python -m council --config firm.json --rounds 5
+
+# Timeout per runda (sekundy)
+python -m council --config firm.json --timeout 600
+
+# Tylko status dyskusji
+python -m council --config firm.json --monitor
+
+# Agreguj finalny proposal
+python -m council --config firm.json --aggregate
+
+# Wyjsciowy katalog
+python -m council --config firm.json --output ./results
+
+# Tryb verbose (debug)
+python -m council --config firm.json --verbose
+```
 
 ---
 
-## Struktura katalogów
+## Testy i CI
 
-```text
+```bash
+# Wszystkie testy
+pytest tests/ -v
+
+# Z coverage (target: 80%+)
+pytest tests/ --cov=council --cov-report=html
+
+# Type checking
+mypy --strict src/council
+
+# Linting
+ruff check src/council
+
+# Formatowanie
+black src/council
+```
+
+### GitHub Actions
+
+Pipeline uruchamia sie na kazdym PR:
+1. `mypy --strict` — zero bledow typow
+2. `ruff check` — zero bledow lintera
+3. `black --check` — formatowanie
+4. `pytest --cov=council --cov-fail-under=80` — testy z coverage
+
+---
+
+## Changelog
+
+### v3.0.0 (2026-04-21) — Universal Council
+
+**Krytyczne naprawy (z audytu v2):**
+- **Naprawiono duplikacje funkcji** — `orchestrator.py` mial `main()` zdefiniowana 3 razy i `quick_update()` 2 razy. W v3 jest jedna klasa `AsyncOrchestrator`.
+- **Naprawiono hardcoded output** — agenci w v2 zapisywali szablony zamiast wywolywac LLM. W v3 kazdy agent wywoluje `provider.generate()` i dostaje prawdziwa odpowiedz AI.
+- **Dodano integracje z LLM** — v2 nie wywolywal ZADNEGO modelu jezykowego. W v3: OpenAI GPT-4o, Anthropic Claude, Ollama (lokalny).
+- **Dodano rownoleglosc** — v2 byl sekwencyjny (`for` loop). W v3: `asyncio.gather()` + `FilesystemBarrier` — 4 agenci w Round 1 w ~15s zamiast 60s.
+- **Dodano error handling** — retry z exponential backoff (max 3 retry), state machine, timeout per runda.
+- **Usunieto Scalac-specific hardcoding** — v2 mial "Scalac" wpisane w kod kazdego agenta. W v3: `{{company.name}}` w Jinja2 templates + JSON config.
+
+**Nowa architektura:**
+- 4 warstwy: Data -> Agent -> Orchestration -> Platform
+- `BaseAgent(ABC)` — DRY dla wszystkich agentow
+- `LLMProvider(ABC)` — multi-provider bez zmiany kodu agentow
+- `AgentStateMachine` — PENDING -> WRITING -> WAITING -> DONE -> ERROR
+- `FilesystemBarrier` — synchronizacja rund przez filesystem
+- `PromptGenerator` — Jinja2 templates z `{{company.name}}`, `{{company.product}}`
+- `ConfigLoader` — JSON/YAML -> CompanyConfig (Pydantic v2 walidacja)
+
+**Infrastruktura:**
+- 101 funkcji, 100% type hints, mypy --strict compatible
+- 80+ testow (pytest + pytest-asyncio)
+- GitHub Actions CI (lint + test + coverage)
+- pre-commit hooks (black, ruff, mypy)
+- CLI: `python -m council --config firm.json`
+- 4 gotowe template'y firm: SaaS, fintech, e-commerce, consulting
+
+### v2.0.0 — Multi-Agent v2
+
+- 4 agenci z SYSTEM_PROMPT w kodzie
+- Orchestrator generujacy prompty do copy-paste
+- Filesystem-based komunikacja (`shared/discussion/`)
+- Agregacja `FINAL_PROPOSAL.md`
+
+**Wady v2:**
+- Agenci generowali hardcoded szablony (nie wywolywali LLM)
+- `orchestrator.py`: duplikacja `main()` x3, `quick_update()` x2
+- Zero integracji z LLM (0/10)
+- Sekwencyjne wykonanie (2/10)
+- Hardcoded "Scalac" w kazdym agencie (2/10)
+
+### v1.0.0 — Prototyp
+
+- Pojedynczy agent z promptem
+- Manualny copy-paste do chatu AI
+
+---
+
+## Porownanie wersji
+
+| Cecha | v1 | v2 | v3 |
+|-------|-----|-----|-----|
+| Agenci | 1 | 4 | 4 |
+| Integracja LLM | ❌ | ❌ | ✅ Multi-provider |
+| Rownoleglosc | ❌ | ❌ (for loop) | ✅ (asyncio) |
+| Uniwersalnosc | ❌ | ❌ (hardcoded Scalac) | ✅ (JSON config) |
+| Type hints | ❌ | ❌ | ✅ (100%) |
+| Testy | ❌ | ❌ | ✅ (80+) |
+| CI/CD | ❌ | ❌ | ✅ (GitHub Actions) |
+| State machine | ❌ | ❌ | ✅ |
+| Retry logic | ❌ | ❌ | ✅ |
+| Cost tracking | ❌ | ❌ | ✅ |
+
+---
+
+## Struktura katalogow
+
+```
 scalac_ai_council/
-|
-|- README.md
-|- scalac_battlecards.docx.md
-|- scalac_content_plan.docx.md
-|- .gitignore
-|
-|- .github/
-|  |- agents/
-|     |- scalac-council.agent.md
-|     |- marcus.agent.md
-|     |- elena.agent.md
-|     |- kai.agent.md
-|     |- david.agent.md
-|
-|- .cursor/
-|  |- rules/
-|     |- scalac-council.mdc
-|
-|- scalac_council_v2/
-    |- orchestrator.py
-    |- README.md
-    |- ARCHITECTURE.md
-    |- WEBINAR_GUIDE.md
-    |
-    |- agents/
-    |  |- marcus_agent.py
-    |  |- marcus_agent_enhanced.py
-    |  |- elena_agent.py
-    |  |- kai_agent.py
-    |  |- kai_webinar.py
-    |  |- david_agent.py
-    |
-    |- prompts/
-    |  |- marcus_prompt.md
-    |  |- elena_prompt.md
-    |  |- kai_prompt.md
-    |  |- david_prompt.md
-    |
-    |- shared/
-    |  |- brief.md
-    |  |- brief_webinar.md
-    |  |- battlecards.md
-    |  |- content_plan.md
-    |  |- discussion/
-    |     |- round_1_marcus.md
-    |     |- round_1_elena.md
-    |     |- round_1_kai.md
-    |     |- round_1_david.md
-    |     |- round_2_marcus.md
-    |     |- round_2_elena.md
-    |     |- round_2_kai.md
-    |     |- round_2_david.md
-    |
-    |- output/
-        |- FINAL_PROPOSAL.md
+├── README.md                      # Ten plik
+├── pyproject.toml                 # Zaleznosci i konfiguracja narzedzi
+├── setup.cfg                      # mypy strict
+├── .pre-commit-config.yaml        # pre-commit hooks
+├── .github/
+│   └── workflows/
+│       └── ci.yml                 # GitHub Actions
+├── src/council/                   # Kod zrodlowy v3
+│   ├── __init__.py
+│   ├── __main__.py                # python -m council
+│   ├── cli.py                     # argparse entrypoint
+│   ├── config/                    # Layer 1: Data
+│   │   ├── schema.py              # CompanyConfig (Pydantic)
+│   │   └── loader.py              # ConfigLoader
+│   ├── agents/                    # Layer 2: Agents
+│   │   ├── base.py                # BaseAgent(ABC)
+│   │   ├── marcus.py              # MarcusAgent
+│   │   ├── elena.py               # ElenaAgent
+│   │   ├── kai.py                 # KaiAgent
+│   │   ├── david.py               # DavidAgent
+│   │   └── templates/             # Jinja2 templates
+│   │       ├── marcus.j2
+│   │       ├── elena.j2
+│   │       ├── kai.j2
+│   │       └── david.j2
+│   ├── llm/                       # Layer 2: LLM
+│   │   ├── provider.py            # LLMProvider(ABC)
+│   │   ├── openai_provider.py     # OpenAI GPT-4o
+│   │   ├── anthropic_provider.py  # Anthropic Claude
+│   │   ├── ollama_provider.py     # Ollama (lokalny)
+│   │   ├── retry.py               # Exponential backoff
+│   │   └── cost_tracker.py        # Cost per agent/round/run
+│   ├── orchestration/             # Layer 3: Orchestration
+│   │   ├── state_machine.py       # AgentState enum + transitions
+│   │   ├── barrier.py             # FilesystemBarrier
+│   │   └── orchestrator.py        # AsyncOrchestrator
+│   ├── prompts/                   # PromptGenerator
+│   │   └── generator.py
+│   └── platform/                  # Layer 4: Platform
+│       ├── base.py                # PlatformAdapter(ABC)
+│       ├── cli_adapter.py         # Default: local asyncio
+│       └── kimi_adapter.py        # Kimi Code: sessions_spawn
+├── tests/                         # Testy (80+, pytest)
+│   ├── conftest.py
+│   ├── test_config.py
+│   ├── test_agents.py
+│   ├── test_llm.py
+│   ├── test_orchestration.py
+│   └── test_prompts.py
+├── templates/
+│   └── companies/                 # Gotowe configi firm
+│       ├── saas.json
+│       ├── fintech.json
+│       ├── ecommerce.json
+│       └── consulting.json
+├── scalac_council_v2/             # v2 (legacy, dla referencji)
+│   ├── orchestrator.py
+│   ├── agents/
+│   ├── prompts/
+│   ├── shared/
+│   └── output/
+└── .github/agents/                # v1/v2 IDE agents (legacy)
 ```
 
 ---
 
-## Dane prospektowe (niepubliczne)
+## Wymagania
 
-**UWAGA: Dane potencjalnych klientów nie są dostępne w tym publicznym repozytorium ze względów prywatności i bezpieczeństwa.**
+- Python 3.12+
+- `pydantic>=2.0`
+- `jinja2>=3.1`
+- `aiohttp>=3.9` (dla Ollama providera)
 
-W rzeczywistej implementacji system przetwarza dane z plików CSV zawierających:
-- Listy CTO i decyzyjnych osób w firmach technologicznych
-- Oferty pracy wskazujące na potrzeby rekrutacyjne
-- Dane kontaktowe i profile LinkedIn
-
-Te dane są przetwarzane do postaci pliku `target_accounts.md` zawierającego intelligence o kontach.
-
-**Aby używać systemu:**
-- Przygotuj własne pliki CSV z danymi prospektowymi (zachowując prywatność)
-- Umieść je w katalogu `csv/` (który jest ignorowany przez .gitignore)
-- Uruchom `python orchestrator.py` aby przetworzyć dane do `shared/target_accounts.md`
+Opcjonalne (wybierz jedno):
+- `openai>=1.0` — dla GPT-4o
+- `anthropic>=0.20` — dla Claude
+- `ollama` lokalnie — dla darmowych modeli
 
 ---
 
-## Dwa sposoby pracy
+## License
 
-### 1) VS Code Copilot native agents
-
-Konfiguracja jest w `.github/agents/`.
-
-- `scalac-council.agent.md` - orchestrator, który deleguje do 4 agentów.
-- `marcus.agent.md`, `elena.agent.md`, `kai.agent.md`, `david.agent.md` - agenci wyspecjalizowani.
-
-To podejście jest wygodne, kiedy chcesz pracować komendą typu `@Scalac Council ...`.
-
-### 2) Uniwersalny orchestrator Python
-
-Skrypt: `scalac_council_v2/orchestrator.py`.
-
-Działa tak:
-
-1. Wczytuje kontekst z:
-    - `shared/brief.md`
-    - `shared/battlecards.md`
-    - `shared/content_plan.md`
-    - `shared/target_accounts.md` (jeśli istnieje)
-    - `shared/discussion/*.md`
-2. Generuje self-contained prompty do `prompts/*.md`.
-3. Dla Kimi Code próbuje auto-spawn przez `sessions_spawn`.
-4. Dla innych IDE drukuje instrukcje uruchomienia.
-
-Flagi:
-
-- `python orchestrator.py` - setup, status, generacja promptów, ewentualny spawn.
-- `python orchestrator.py --monitor` - status dyskusji i ewentualna auto-agregacja po konsensusie.
-- `python orchestrator.py --final` - ręczna agregacja finalnego dokumentu.
+MIT License. Zobacz [LICENSE](LICENSE) (jesli istnieje) lub uzyj swobodnie.
 
 ---
 
-## Jak przygotować brief
+## Autor
 
-Edytuj `scalac_council_v2/shared/brief.md` przed nową kampanią.
+Stworzone przez borek707. Refactored do v3 przez AI Council Refactor Team.
 
-Przykładowy minimalny szablon:
-
-```markdown
-# Brief Projektu: [nazwa]
-
-## Projekt: [1 zdanie]
-
-### Kontekst
-[dlaczego ten temat teraz]
-
-### Cel
-[np. pipeline, discovery calls, SQL]
-
-### Target
-- Segment: [...]
-- Geo: [...]
-- Decision Maker: [...]
-- Pain Points: [...]
-- Budget: [...]
-
-### Constraints
-- Timeline: [...]
-- Zasoby: [...]
-- Pipeline target: [...]
-
-### Deliverables
-1. Marcus: [...]
-2. Elena: [...]
-3. Kai: [...]
-4. David: [...]
-
-### Konta do rozważenia (opcjonalne)
-[lista firm i sygnałów]
-```
-
-Im więcej konkretu, tym lepszy output.
-
----
-
-## Differential injection danych (jak działa)
-
-W `orchestrator.py` jest logika:
-
-- David dostaje pełne dane z `target_accounts.md` (jeśli plik istnieje).
-- Marcus, Elena i Kai dostają tylko sekcje `## 4. Key Intelligence` (lub fallback na pierwsze 2000 znaków, jeśli nagłówek nie istnieje).
-
-To celowe, bo David odpowiada za ABM i potrzebuje pełnych danych kont.
-
----
-
-## Agenci i role
-
-### Marcus - Offer Architect
-
-- Projektuje pozycjonowanie i pricing.
-- Pliki: `agents/marcus_agent.py`, `agents/marcus_agent_enhanced.py`.
-
-### Elena - Funnel Architect
-
-- Projektuje funnel, kwalifikacje i pipeline.
-- Plik: `agents/elena_agent.py`.
-
-### Kai - Copywriter
-
-- Tworzy copy: hero, e-maile, hooki.
-- Pliki: `agents/kai_agent.py`, `agents/kai_webinar.py`.
-
-### David - Lead Strategist
-
-- Prowadzi ABM, wybiera konta, buduje sekwencje.
-- Plik: `agents/david_agent.py`.
-
----
-
-## Jak uruchomić (workflow krok po kroku)
-
-```bash
-cd scalac_council_v2
-python orchestrator.py
-```
-
-Po tym:
-
-1. Otwórz 4 sesje/agenty równolegle.
-2. Użyj plików z `prompts/`:
-    - `prompts/marcus_prompt.md`
-    - `prompts/elena_prompt.md`
-    - `prompts/kai_prompt.md`
-    - `prompts/david_prompt.md`
-3. Po zakończeniu rund uruchom:
-
-```bash
-python orchestrator.py --final
-```
-
-4. Odbierz final:
-
-```bash
-cat output/FINAL_PROPOSAL.md
-```
-
-Monitor statusu:
-
-```bash
-python orchestrator.py --monitor
-```
-
----
-
-## Agregacja finala (co skrypt składa)
-
-Przy `--final` orchestrator próbuje dołączyć:
-
-- `output/marcus_offer.md`
-- `output/elena_funnel.md`
-- `output/kai_copy.md`
-- `output/david_abm.md`
-
-Następnie zapisuje wspólny dokument jako `output/FINAL_PROPOSAL.md`.
-
-Jeśli któregoś pliku cząstkowego brakuje, skrypt to raportuje i nadal tworzy final z dostępnych fragmentów.
-
----
-
-## Webinar mode
-
-Tryb webinarowy jest opisany w `scalac_council_v2/WEBINAR_GUIDE.md`.
-
-Powiazane pliki:
-
-- `shared/brief_webinar.md`
-- `agents/marcus_agent_enhanced.py`
-- `agents/kai_webinar.py`
-
-To osobna sciezka, kiedy celem sa pomysly webinarowe i messaging wydarzenia.
-
----
-
-## Co dostajesz out-of-the-box
-
-W repo jest juz historyczny material referencyjny:
-
-- komplet kontekstu (`battlecards.md`, `content_plan.md`, `target_accounts.md`),
-- zapis dyskusji agentow (runda 1 i 2),
-- finalny dokument kampanii w `output/FINAL_PROPOSAL.md`.
-
-Dzieki temu mozesz:
-
-1. wystartowac nowa kampanie od razu (podmieniajac brief),
-2. albo analizowac poprzedni run jako benchmark.
-
----
-
-## Najczestsze komendy
-
-```bash
-# 1) Generacja promptow i instrukcji
-cd scalac_council_v2 && python orchestrator.py
-
-# 2) Status rund
-python orchestrator.py --monitor
-
-# 3) Reczna agregacja finala
-python orchestrator.py --final
-
-# 4) Podglad rundy
-cat shared/discussion/round_1_marcus.md
-
-# 5) Lista wszystkich postow
-ls shared/discussion/
-```
-
----
-
-## Dokumentacja techniczna
-
-- Architektura: `scalac_council_v2/ARCHITECTURE.md`
-- Szczegoly runtime i przykladow: `scalac_council_v2/README.md`
-- Tryb webinar: `scalac_council_v2/WEBINAR_GUIDE.md`
-
----
-
-## Uwaga o aktualizacji danych
-
-Gdy dodajesz nowe dane prospektowe:
-
-1. przygotuj pliki CSV z danymi kontaktowymi (zachowując prywatność),
-2. umieść je w katalogu `csv/` (ignorowanym przez .gitignore),
-3. uruchom `python orchestrator.py` aby przetworzyć dane do `shared/target_accounts.md`,
-4. wygenerowane prompty od razu uwzględnią nowe dane.
-
-To wszystko - nie trzeba zmieniać kodu orchestratora.
+Jesli ten projekt Ci sie przyda, daj ⭐ na GitHub!

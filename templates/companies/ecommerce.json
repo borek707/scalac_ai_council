@@ -1,0 +1,82 @@
+{
+  "name": "CartLoop",
+  "product": "Headless e-commerce platform with AI-powered personalization engine",
+  "pricing_tier": "Starter $499/mo; Growth $1499/mo; Enterprise custom from $5000/mo",
+  "value_proposition": "Launch omnichannel e-commerce experiences 10x faster with a composable, API-first platform that adapts to each customer in real-time using AI",
+  "competitors": [
+    {
+      "name": "Shopify Plus",
+      "threat": "HIGH",
+      "pricing": "$2000+/mo; 0.25% transaction fee; app add-ons extra",
+      "weakness": "Monolithic architecture limiting customization; expensive at scale; vendor lock-in",
+      "clients": ["Allbirds", "Gymshark", "Heinz"]
+    },
+    {
+      "name": "commercetools",
+      "threat": "MEDIUM",
+      "pricing": "Revenue-based pricing; enterprise-only contracts",
+      "weakness": "Requires large development team; high total cost of ownership; complex implementation",
+      "clients": ["Audi", "Nike", "Universal Music"]
+    },
+    {
+      "name": "BigCommerce Enterprise",
+      "threat": "MEDIUM",
+      "pricing": "Custom enterprise pricing; $1000+/mo",
+      "weakness": "Limited headless capabilities; smaller app ecosystem; weaker B2B features",
+      "clients": ["Skullcandy", "Ben & Jerry's", "Woolrich"]
+    }
+  ],
+  "target": {
+    "segment": "D2C brands, mid-market retailers, and B2B distributors transitioning to digital commerce",
+    "decision_maker": "CMO / E-commerce Director / Head of Digital",
+    "pain_points": [
+      "Current platform limits omnichannel expansion",
+      "Slow page load times hurting conversion rates",
+      "Personalization requires expensive third-party tools",
+      "Integrating with existing ERP, PIM, and CRM systems is painful",
+      "Scaling during peak seasons (Black Friday) causes downtime"
+    ],
+    "budget_range": "$1000-10000/month",
+    "geo_focus": ["Poland", "Germany", "UK", "Nordics", "Benelux"]
+  },
+  "constraints": {
+    "timeline_days": 90,
+    "budget_pln": 100000,
+    "team_size": 5,
+    "focus_areas": [
+      "Performance marketing",
+      "E-commerce SEO",
+      "Partner ecosystem",
+      "Demo webinars",
+      "Case study development"
+    ]
+  },
+  "differentiators": [
+    "True headless architecture — use any frontend, any channel",
+    "Built-in AI personalization — no third-party tools needed",
+    "Sub-100ms page loads with edge caching and CDN",
+    "Pre-built connectors for 100+ ERP, PIM, and CRM systems",
+    "Auto-scaling handles 10x traffic spikes without manual intervention",
+    "Polish team with fast implementation (go-live in 4-8 weeks)"
+  ],
+  "case_studies": [
+    {
+      "client": "ModaPolska (Fashion D2C)",
+      "result": "Omnichannel launch (web + mobile + 3 retail locations) in 6 weeks; 35% increase in conversion",
+      "industry": "Fashion",
+      "scale": "€5M annual revenue"
+    },
+    {
+      "client": "PartsDirect (B2B Distribution)",
+      "result": "Digital catalog with 50k SKUs; B2B ordering portal reduced phone orders by 80%",
+      "industry": "Industrial Distribution",
+      "scale": "50k SKUs, 2000 B2B customers"
+    },
+    {
+      "client": "GreenMarket (Grocery Delivery)",
+      "result": "99.95% uptime during Black Friday (5x normal traffic); AI recommendations drove 28% uplift in AOV",
+      "industry": "Food & Grocery",
+      "scale": "10k orders/day peak"
+    }
+  ]
+}
