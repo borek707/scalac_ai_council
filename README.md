@@ -1,32 +1,32 @@
-# Universal AI Marketing Council v3.0
+# Universal AI Marketing Council v3.1
 
-> **4 agenci AI pracujacy rownolegle, debatuja i tworza kompletny plan marketingowy dla dowolnej firmy.**
+> **4 agenci AI pracujący równolegle, debatują i tworzą kompletny plan marketingowy dla dowolnej firmy.**
 > 
-> Nie szablony. Nie hardcoded Scalac. Prawdziwa integracja z LLM, rownoleglosc przez asyncio i konfiguracja przez JSON.
+> Nie szablony. Nie hardcoded Scalac. Prawdziwa integracja z LLM, równoległość przez asyncio i konfiguracja przez JSON.
 
 ---
 
 ## Czym jest ta Rada
 
-System multi-agentowy skladajacy sie z 4 specialistow AI (Marcus, Elena, Kai, David), ktory z dowolnej konfiguracji firmowej (JSON) produkuje kompletny plan marketingowy poprzez strukturyzowana debate.
+System multi-agentowy składający się z 4 specjalistów AI (Marcus, Elena, Kai, David), który z dowolnej konfiguracji firmowej (JSON) produkuje kompletny plan marketingowy poprzez strukturyzowaną debatę.
 
-**Zamiast jednej osoby robiacej plan w tydzien — masz 4 specialistow debatujacych w 30 minut.**
+**Zamiast jednej osoby robiącej plan w tydzień — masz 4 specjalistów debatujących w 30 minut.**
 
-### Problem, ktory rozwiazuje
+### Problem, który rozwiązuje
 
 Tradycyjnie plan marketingowy tworzy jedna osoba:
-1. Wymysla pozycjonowanie i pricing.
-2. Projektue funnel od acquisition do close.
-3. Pisze wszystkie materialy.
-4. Wybiera konta i buduje strategie outreachowe.
+1. Wymyśla pozycjonowanie i pricing.
+2. Projektuje funnel od acquisition do close.
+3. Pisze wszystkie materiały.
+4. Wybiera konta i buduje strategię outreachową.
 
-Jeden mozg, ograniczone perspektywy, dni lub tygodnie pracy.
+Jeden mózg, ograniczone perspektywy, dni lub tygodnie pracy.
 
-### Rozwiazanie
+### Rozwiązanie
 
-**4 specjalisci pracuja jednoczesnie** — kazdy odpowiada za inny obszar. I najwazniejsze: **dyskutuja ze soba** i sie nawzajem kwestionuja.
+**4 specjaliści pracują jednocześnie** — każdy odpowiada za inny obszar. I najważniejsze: **dyskutują ze sobą** i się nawzajem kwestionują.
 
-Po 2-3 rundach debaty masz plan, ktory przeszedl krytyke wszystkich czterech perspektyw.
+Po 2-3 rundach debaty masz plan, który przeszedł krytykę wszystkich czterech perspektyw.
 
 ---
 
@@ -39,17 +39,17 @@ Po 2-3 rundach debaty masz plan, ktory przeszedl krytyke wszystkich czterech per
 | **Kai** | Copywriter | AIDA, Big 5, PAS, StoryBrand | Copy: landing page, emaile, LinkedIn |
 | **David** | Lead Strategist | ABM Tiers, Dream 100, Signal-Based Selling | ABM: konta, sekwencje, personalizacja |
 
-### Przyklad debaty
+### Przykład debaty
 
-> **Marcus**: "Wyceniam Team Extension na EUR 25K/miesiac per senior."
+> **Marcus**: "Wyceniam Team Extension na EUR 25K/miesiąc per senior."
 >
 > **Elena**: "Czekaj — przy tej cenie conversion spada do 0.3%. Pipeline nie przetrwa."
 >
 > **Marcus**: "Dobry punkt. Starter do EUR 19K, Scale i Enterprise zostawiam."
 >
-> **Kai**: "CTO nie chce widziec ceny na stronie. TCO Calculator za email-gate."
+> **Kai**: "CTO nie chce widzieć ceny na stronie. TCO Calculator za email-gate."
 >
-> **David**: "W kontach, ktore znalazlem, maja aktywne oferty pracy dla Scala devow. Otwieramy z tym."
+> **David**: "W kontach, które znalazłem, mają aktywne oferty pracy dla Scala devów. Otwieramy z tym."
 
 ---
 
@@ -63,13 +63,14 @@ cd scalac_ai_council
 pip install -e ".[dev]"
 ```
 
-### 2. Klucz API
+### 2. Klucz API (lub lokalny model)
 
 ```bash
 export OPENAI_API_KEY="sk-..."
 # lub
 export ANTHROPIC_API_KEY="sk-ant-..."
-# lub uzyj lokalnego Ollama (darmowe)
+# lub użyj lokalnego Ollama (darmowe)
+# lub użyj Kimi Code CLI (działa natywnie w IDE Kimi)
 ```
 
 ### 3. Konfiguracja firmy
@@ -78,13 +79,13 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 # Skopiuj gotowy template
 cp templates/companies/fintech.json my_company.json
 
-# Lub stworz wlasny — patrz sekcja "Konfiguracja firmy" ponizej
+# Lub stwórz własny — patrz sekcja "Konfiguracja firmy" poniżej
 ```
 
 ### 4. Uruchom
 
 ```bash
-# OpenAI (domyslnie)
+# OpenAI (domyślnie)
 python -m council --config my_company.json --rounds 3
 
 # Anthropic Claude
@@ -93,7 +94,10 @@ python -m council --config my_company.json --provider anthropic
 # Lokalny Ollama (darmowe, bez internetu)
 python -m council --config my_company.json --provider ollama --model llama3
 
-# Wyswietl status
+# Kimi Code CLI (w środowisku Kimi Code IDE)
+python -m council --config my_company.json --provider kimi-code
+
+# Wyświetl status
 python -m council --config my_company.json --monitor
 
 # Agreguj finalny proposal
@@ -102,9 +106,9 @@ python -m council --config my_company.json --aggregate
 
 ### 5. Wynik
 
-Po zakonczeniu w katalogu `output/`:
+Po zakończeniu w katalogu `output/`:
 
-| Plik | Zawartosc |
+| Plik | Zawartość |
 |------|-----------|
 | `marcus_offer.md` | Oferta: Gap Analysis, BrandScript, Pricing, Challenger Pitch |
 | `elena_funnel.md` | Lejek: Stages, MEDDIC, JOLT, Three Pipelines, Forecast |
@@ -116,7 +120,7 @@ Po zakonczeniu w katalogu `output/`:
 
 ## Konfiguracja firmy
 
-System przyjmuje dowolna konfiguracje przez JSON. Schemat jest walidowany przez Pydantic v2.
+System przyjmuje dowolną konfigurację przez JSON. Schemat jest walidowany przez Pydantic v2.
 
 ### Minimalny config
 
@@ -154,16 +158,16 @@ W `templates/companies/` znajdziesz gotowe configi dla:
 | `ecommerce.json` | CartLoop | Platforma e-commerce |
 | `consulting.json` | NexTech Advisors | Konsulting IT |
 
-Aby uzyc: `python -m council --config templates/companies/fintech.json`
+Aby użyć: `python -m council --config templates/companies/fintech.json`
 
-### Pelny schemat (CompanyConfig)
+### Pełny schemat (CompanyConfig)
 
 ```python
 class CompanyConfig(BaseModel):
-    name: str                    # Nazwa firmy (1-100 znakow)
+    name: str                    # Nazwa firmy (1-100 znaków)
     product: str                 # Co sprzedaje
-    pricing_tier: str            # Przedzial cenowy
-    value_proposition: str       # Głowna wartosc
+    pricing_tier: str            # Przedział cenowy
+    value_proposition: str       # Główna wartość
     competitors: list[Competitor] # Konkurencja
     target: TargetSegment        # Segment docelowy
     constraints: Constraints     # Ograniczenia
@@ -182,7 +186,7 @@ Walidacja:
 
 ## Architektura v3
 
-System sklada sie z 4 warstw:
+System składa się z 4 warstw:
 
 ```
 Layer 4: Platform Layer
@@ -199,7 +203,7 @@ Layer 1: Data Layer
   CompanyConfig (Pydantic) | ConfigLoader | JSON Schema
 ```
 
-### Rownoleglosc — jak to dziala
+### Równoległość — jak to działa
 
 ```
 Runda 1:                     Runda 2:                     Runda 3:
@@ -215,14 +219,14 @@ Runda 1:                     Runda 2:                     Runda 3:
   (zamiast 60s sekwencyjnie)   (zamiast 60s sekwencyjnie)
 ```
 
-**Calkowity czas: 3 rundy x 15s = 45s zamiast 3 rundy x 60s = 180s.**
+**Całkowity czas: 3 rundy x 15s = 45s zamiast 3 rundy x 60s = 180s.**
 
 ### State Machine
 
-Kazdy agent ma okreslony stan:
+Każdy agent ma określony stan:
 
 ```
-PENDING --> WRITING --> WAITING (barrier) --> DONE --> PENDING (nastepna runda)
+PENDING --> WRITING --> WAITING (barrier) --> DONE --> PENDING (następna runda)
    |           |            |                  |
    +-----------+------------+------------------+--> ERROR
 ```
@@ -232,18 +236,19 @@ PENDING --> WRITING --> WAITING (barrier) --> DONE --> PENDING (nastepna runda)
 ## CLI — Wszystkie komendy
 
 ```bash
-# Podstawowe uzycie
+# Podstawowe użycie
 python -m council --config firm.json
 
-# Wybor providera LLM
-python -m council --config firm.json --provider openai       # GPT-4o (domyslny)
+# Wybór providera LLM
+python -m council --config firm.json --provider openai       # GPT-4o (domyślny)
 python -m council --config firm.json --provider anthropic    # Claude Sonnet
 python -m council --config firm.json --provider ollama       # Llama3 (lokalny)
+python -m council --config firm.json --provider kimi-code    # Kimi Code CLI
 
 # Nadpisanie modelu
 python -m council --config firm.json --provider openai --model gpt-4o-mini
 
-# Wiecej rund debaty
+# Więcej rund debaty
 python -m council --config firm.json --rounds 5
 
 # Timeout per runda (sekundy)
@@ -255,12 +260,38 @@ python -m council --config firm.json --monitor
 # Agreguj finalny proposal
 python -m council --config firm.json --aggregate
 
-# Wyjsciowy katalog
+# Wyjściowy katalog
 python -m council --config firm.json --output ./results
 
 # Tryb verbose (debug)
 python -m council --config firm.json --verbose
 ```
+
+---
+
+## Providerzy LLM
+
+| Provider | Flaga | Domyślny model | Wymagania |
+|----------|-------|----------------|-----------|
+| **OpenAI** | `--provider openai` | `gpt-4o` | `OPENAI_API_KEY` |
+| **Anthropic** | `--provider anthropic` | `claude-sonnet-4-6` | `ANTHROPIC_API_KEY` |
+| **Ollama** | `--provider ollama` | `llama3` | Lokalny Ollama |
+| **Kimi Code** | `--provider kimi-code` | `kimi-for-coding` | Zainstalowane Kimi Code CLI |
+
+### Kimi Code Provider
+
+Provider `kimi-code` uruchamia lokalny **Kimi Code CLI** w trybie non-interactive:
+
+```bash
+kimi --quiet --yolo --prompt "Twój prompt"
+```
+
+**Auto-detekcja binarki** (w tej kolejności):
+1. `KIMI_CLI_PATH` — zmienna środowiskowa
+2. `shutil.which("kimi")` — PATH
+3. Domyślna ścieżka instalacji VS Code extension
+
+**Uwaga:** Kimi Code to pełny agent AI, nie surowy endpoint LLM. W trybie `--yolo` automatycznie zatwierdza akcje (czytanie plików, komendy terminala). Używaj świadomie.
 
 ---
 
@@ -285,9 +316,9 @@ black src/council
 
 ### GitHub Actions
 
-Pipeline uruchamia sie na kazdym PR:
-1. `mypy --strict` — zero bledow typow
-2. `ruff check` — zero bledow lintera
+Pipeline uruchamia się na każdym PR:
+1. `mypy --strict` — zero błędów typów
+2. `ruff check` — zero błędów lintera
 3. `black --check` — formatowanie
 4. `pytest --cov=council --cov-fail-under=80` — testy z coverage
 
@@ -295,20 +326,34 @@ Pipeline uruchamia sie na kazdym PR:
 
 ## Changelog
 
+### v3.1.0 (2026-04-22) — Kimi Code Provider
+
+**Nowości:**
+- **Kimi Code CLI jako provider LLM** — nowy `KimiCodeProvider` uruchamiający `kimi --quiet --yolo` jako subprocess
+- Auto-detekcja binarki Kimi CLI w środowisku VS Code / Kimi Code IDE
+- Pełna obsługa `system` promptu (przekazywanego jako część promptu użytkownika)
+- Czyszczenie outputu (usuwanie linii "To resume this session: ...")
+- Retry z exponential backoff dla wywołań subprocess
+
+**Infrastruktura:**
+- 7 nowych testów jednostkowych dla `KimiCodeProvider`
+- Naprawione pre-existing test failures w `conftest.py` i `test_agents.py`
+- Zaktualizowany `KimiAdapter` do przekazywania `KIMI_CLI_PATH` w spawned sessions
+
 ### v3.0.0 (2026-04-21) — Universal Council
 
 **Krytyczne naprawy (z audytu v2):**
-- **Naprawiono duplikacje funkcji** — `orchestrator.py` mial `main()` zdefiniowana 3 razy i `quick_update()` 2 razy. W v3 jest jedna klasa `AsyncOrchestrator`.
-- **Naprawiono hardcoded output** — agenci w v2 zapisywali szablony zamiast wywolywac LLM. W v3 kazdy agent wywoluje `provider.generate()` i dostaje prawdziwa odpowiedz AI.
-- **Dodano integracje z LLM** — v2 nie wywolywal ZADNEGO modelu jezykowego. W v3: OpenAI GPT-4o, Anthropic Claude, Ollama (lokalny).
-- **Dodano rownoleglosc** — v2 byl sekwencyjny (`for` loop). W v3: `asyncio.gather()` + `FilesystemBarrier` — 4 agenci w Round 1 w ~15s zamiast 60s.
+- **Naprawiono duplikację funkcji** — `orchestrator.py` miał `main()` zdefiniowaną 3 razy i `quick_update()` 2 razy. W v3 jest jedna klasa `AsyncOrchestrator`.
+- **Naprawiono hardcoded output** — agenci w v2 zapisywali szablony zamiast wywoływać LLM. W v3 każdy agent wywołuje `provider.generate()` i dostaje prawdziwą odpowiedź AI.
+- **Dodano integrację z LLM** — v2 nie wywoływał ŻADNEGO modelu językowego. W v3: OpenAI GPT-4o, Anthropic Claude, Ollama (lokalny).
+- **Dodano równoległość** — v2 był sekwencyjny (`for` loop). W v3: `asyncio.gather()` + `FilesystemBarrier` — 4 agenci w Round 1 w ~15s zamiast 60s.
 - **Dodano error handling** — retry z exponential backoff (max 3 retry), state machine, timeout per runda.
-- **Usunieto Scalac-specific hardcoding** — v2 mial "Scalac" wpisane w kod kazdego agenta. W v3: `{{company.name}}` w Jinja2 templates + JSON config.
+- **Usunięto Scalac-specific hardcoding** — v2 miał "Scalac" wpisane w kod każdego agenta. W v3: `{{company.name}}` w Jinja2 templates + JSON config.
 
 **Nowa architektura:**
 - 4 warstwy: Data -> Agent -> Orchestration -> Platform
-- `BaseAgent(ABC)` — DRY dla wszystkich agentow
-- `LLMProvider(ABC)` — multi-provider bez zmiany kodu agentow
+- `BaseAgent(ABC)` — DRY dla wszystkich agentów
+- `LLMProvider(ABC)` — multi-provider bez zmiany kodu agentów
 - `AgentStateMachine` — PENDING -> WRITING -> WAITING -> DONE -> ERROR
 - `FilesystemBarrier` — synchronizacja rund przez filesystem
 - `PromptGenerator` — Jinja2 templates z `{{company.name}}`, `{{company.product}}`
@@ -316,7 +361,7 @@ Pipeline uruchamia sie na kazdym PR:
 
 **Infrastruktura:**
 - 101 funkcji, 100% type hints, mypy --strict compatible
-- 80+ testow (pytest + pytest-asyncio)
+- 80+ testów (pytest + pytest-asyncio)
 - GitHub Actions CI (lint + test + coverage)
 - pre-commit hooks (black, ruff, mypy)
 - CLI: `python -m council --config firm.json`
@@ -325,16 +370,16 @@ Pipeline uruchamia sie na kazdym PR:
 ### v2.0.0 — Multi-Agent v2
 
 - 4 agenci z SYSTEM_PROMPT w kodzie
-- Orchestrator generujacy prompty do copy-paste
+- Orchestrator generujący prompty do copy-paste
 - Filesystem-based komunikacja (`shared/discussion/`)
 - Agregacja `FINAL_PROPOSAL.md`
 
 **Wady v2:**
-- Agenci generowali hardcoded szablony (nie wywolywali LLM)
+- Agenci generowali hardcoded szablony (nie wywoływali LLM)
 - `orchestrator.py`: duplikacja `main()` x3, `quick_update()` x2
 - Zero integracji z LLM (0/10)
 - Sekwencyjne wykonanie (2/10)
-- Hardcoded "Scalac" w kazdym agencie (2/10)
+- Hardcoded "Scalac" w każdym agencie (2/10)
 
 ### v1.0.0 — Prototyp
 
@@ -343,35 +388,36 @@ Pipeline uruchamia sie na kazdym PR:
 
 ---
 
-## Porownanie wersji
+## Porównanie wersji
 
-| Cecha | v1 | v2 | v3 |
-|-------|-----|-----|-----|
-| Agenci | 1 | 4 | 4 |
-| Integracja LLM | ❌ | ❌ | ✅ Multi-provider |
-| Rownoleglosc | ❌ | ❌ (for loop) | ✅ (asyncio) |
-| Uniwersalnosc | ❌ | ❌ (hardcoded Scalac) | ✅ (JSON config) |
-| Type hints | ❌ | ❌ | ✅ (100%) |
-| Testy | ❌ | ❌ | ✅ (80+) |
-| CI/CD | ❌ | ❌ | ✅ (GitHub Actions) |
-| State machine | ❌ | ❌ | ✅ |
-| Retry logic | ❌ | ❌ | ✅ |
-| Cost tracking | ❌ | ❌ | ✅ |
+| Cecha | v1 | v2 | v3.0 | v3.1 |
+|-------|-----|-----|------|------|
+| Agenci | 1 | 4 | 4 | 4 |
+| Integracja LLM | ❌ | ❌ | ✅ Multi-provider | ✅ + Kimi Code CLI |
+| Równoległość | ❌ | ❌ (for loop) | ✅ (asyncio) | ✅ (asyncio) |
+| Uniwersalność | ❌ | ❌ (hardcoded Scalac) | ✅ (JSON config) | ✅ (JSON config) |
+| Type hints | ❌ | ❌ | ✅ (100%) | ✅ (100%) |
+| Testy | ❌ | ❌ | ✅ (80+) | ✅ (80+) |
+| CI/CD | ❌ | ❌ | ✅ (GitHub Actions) | ✅ (GitHub Actions) |
+| State machine | ❌ | ❌ | ✅ | ✅ |
+| Retry logic | ❌ | ❌ | ✅ | ✅ |
+| Cost tracking | ❌ | ❌ | ✅ | ✅ |
 
 ---
 
-## Struktura katalogow
+## Struktura katalogów
 
 ```
 scalac_ai_council/
 ├── README.md                      # Ten plik
-├── pyproject.toml                 # Zaleznosci i konfiguracja narzedzi
+├── PLATFORM_ADAPTERS.md           # Przewodnik po platformach IDE
+├── pyproject.toml                 # Zależności i konfiguracja narzędzi
 ├── setup.cfg                      # mypy strict
 ├── .pre-commit-config.yaml        # pre-commit hooks
 ├── .github/
 │   └── workflows/
 │       └── ci.yml                 # GitHub Actions
-├── src/council/                   # Kod zrodlowy v3
+├── src/council/                   # Kod źródłowy v3
 │   ├── __init__.py
 │   ├── __main__.py                # python -m council
 │   ├── cli.py                     # argparse entrypoint
@@ -394,6 +440,7 @@ scalac_ai_council/
 │   │   ├── openai_provider.py     # OpenAI GPT-4o
 │   │   ├── anthropic_provider.py  # Anthropic Claude
 │   │   ├── ollama_provider.py     # Ollama (lokalny)
+│   │   ├── kimi_code_provider.py  # Kimi Code CLI
 │   │   ├── retry.py               # Exponential backoff
 │   │   └── cost_tracker.py        # Cost per agent/round/run
 │   ├── orchestration/             # Layer 3: Orchestration
@@ -437,16 +484,17 @@ scalac_ai_council/
 - `jinja2>=3.1`
 - `aiohttp>=3.9` (dla Ollama providera)
 
-Opcjonalne (wybierz jedno):
+Opcjonalne (wybierz jedno lub więcej):
 - `openai>=1.0` — dla GPT-4o
 - `anthropic>=0.20` — dla Claude
 - `ollama` lokalnie — dla darmowych modeli
+- `kimi` CLI — dla Kimi Code providera (auto-detect w IDE)
 
 ---
 
 ## License
 
-MIT License. Zobacz [LICENSE](LICENSE) (jesli istnieje) lub uzyj swobodnie.
+MIT License. Zobacz [LICENSE](LICENSE) (jeśli istnieje) lub użyj swobodnie.
 
 ---
 
@@ -454,4 +502,4 @@ MIT License. Zobacz [LICENSE](LICENSE) (jesli istnieje) lub uzyj swobodnie.
 
 Stworzone przez borek707. Refactored do v3 przez AI Council Refactor Team.
 
-Jesli ten projekt Ci sie przyda, daj ⭐ na GitHub!
+Jeśli ten projekt Ci się przyda, daj ⭐ na GitHub!
