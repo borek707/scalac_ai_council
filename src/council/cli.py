@@ -84,7 +84,7 @@ Supported platforms:
     parser.add_argument(
         "--provider",
         default="openai",
-        choices=["openai", "anthropic", "ollama"],
+        choices=["openai", "anthropic", "ollama", "kimi-code"],
         help="LLM provider to use (default: openai)",
     )
     parser.add_argument(
@@ -344,6 +344,9 @@ def _create_provider(provider_name: str, model: Optional[str]) -> LLMProvider:
                 "aiohttp not installed. Install with: pip install aiohttp"
             ) from exc
         return OllamaProvider(model=model or "llama3")
+    elif provider_name == "kimi-code":
+        from council.llm.kimi_code_provider import KimiCodeProvider
+        return KimiCodeProvider(model=model or "kimi-for-coding")
     else:
         raise ValueError(f"Unknown provider: {provider_name}")
 

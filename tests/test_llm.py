@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -267,3 +268,134 @@ class TestRetryWithBackoff:
         assert config.max_retries == 5
         assert config.base_delay == 2.0
         assert config.max_delay == 30.0
+
+
+class TestKimiCodeProvider:
+    """Tests for KimiCodeProvider."""
+
+    def test_clean_output_removes_session_trailer(self) -> None:
+        from council.llm.kimi_code_provider import KimiCodeProvider
+
+        raw = "Hello world\n\nTo resume this session: kimi -r abc-123"
+        assert KimiCodeProvider._clean_output(raw) == "Hello world"
+
+    def test_clean_output_no_trailer(self) -> None:
+        from council.llm.kimi_code_provider import KimiCodeProvider
+
+        assert KimiCodeProvider._clean_output("Just text") == "Just text"
+
+    @pytest.fixture
+    def fake_kimi(self, tmp_path: Path) -> Path:
+        """Create a fake kimi executable for testing."""
+        fake = tmp_path / "kimi"
+        fake.write_text("#!/bin/bash\necho 'fake'", encoding="utf-8")
+        fake.chmod(0o755)
+        return fake
+
+    def test_build_cmd_basic(self, fake_kimi: Path) -> None:
+        from council.llm.kimi_code_provider import KimiCodeProvider
+
+        provider = KimiCodeProvider(executable_path=str(fake_kimi))
+        cmd = provider._build_cmd("Say hi")
+        assert cmd[0] == str(fake_kimi)
+        assert "--quiet" in cmd
+        assert "--yolo" in cmd
+        assert "--prompt" in cmd
+        idx = cmd.index("--prompt")
+        assert cmd[idx + 1] == "Say hi"
+
+    def test_build_cmd_with_system(self, fake_kimi: Path) -> None:
+        from council.llm.kimi_code_provider import KimiCodeProvider
+
+        provider = KimiCodeProvider(executable_path=str(fake_kimi))
+        cmd = provider._build_cmd("Say hi", system="Be polite")
+        idx = cmd.index("--prompt")
+        prompt = cmd[idx + 1]
+        assert "[System Instruction]" in prompt
+        assert "Be polite" in prompt
+        assert "Say hi" in prompt
+
+    def test_build_cmd_with_work_dir(self, fake_kimi: Path) -> None:
+        from council.llm.kimi_code_provider import KimiCodeProvider
+
+        provider = KimiCodeProvider(executable_path=str(fake_kimi), work_dir="/tmp")
+        cmd = provider._build_cmd("test")
+        assert "--work-dir" in cmd
+        assert cmd[cmd.index("--work-dir") + 1] == "/tmp"
+
+    @pytest.mark.asyncio
+    async def test_generate_success(self, monkeypatch: Any, fake_kimi: Path) -> None:
+        from council.llm.kimi_code_provider import KimiCodeProvider
+
+        provider = KimiCodeProvider(executable_path=str(fake_kimi))
+
+        class FakeProc:
+            returncode = 0
+
+            async def communicate(self) -> tuple[bytes, bytes]:
+                return (
+                    b"Hello from Kimi\n\nTo resume this session: kimi -r x",
+                    b"",
+                )
+
+        async def fake_exec(*args: Any, **kwargs: Any) -> FakeProc:
+            return FakeProc()
+
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+
+        resp = await provider.generate("Say hi")
+        assert resp.content == "Hello from Kimi"
+        assert resp.model == "kimi-for-coding"
+
+    @pytest.mark.asyncio
+    async def test_generate_failure(self, monkeypatch: Any, fake_kimi: Path) -> None:
+        from council.llm.kimi_code_provider import KimiCodeProvider
+
+        provider = KimiCodeProvider(executable_path=str(fake_kimi))
+
+        class FakeProc:
+            returncode = 1
+
+            async def communicate(self) -> tuple[bytes, bytes]:
+                return (b"", b"CLI error")
+
+        async def fake_exec(*args: Any, **kwargs: Any) -> FakeProc:
+            return FakeProc()
+
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+
+        with pytest.raises(RuntimeError, match="Kimi CLI failed"):
+            await provider.generate("Say hi")
+
+    @pytest.mark.asyncio
+    async def test_stream_yields_content(self, monkeypatch: Any, fake_kimi: Path) -> None:
+        from council.llm.kimi_code_provider import KimiCodeProvider
+
+        provider = KimiCodeProvider(executable_path=str(fake_kimi))
+
+        class FakeProc:
+            returncode = 0
+
+            async def communicate(self) -> tuple[bytes, bytes]:
+                return (b"Streamed text\nTo resume this session: kimi -r y", b"")
+
+        async def fake_exec(*args: Any, **kwargs: Any) -> FakeProc:
+            return FakeProc()
+
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+
+        chunks: list[str] = []
+        async for chunk in provider.stream("Say hi"):
+            chunks.append(chunk)
+        assert chunks == ["Streamed text"]
+
+    def test_missing_executable_raises(self, monkeypatch: Any) -> None:
+        from council.llm.kimi_code_provider import KimiCodeProvider
+
+        monkeypatch.setattr(
+            KimiCodeProvider, "_detect_executable", staticmethod(lambda: None)
+        )
+        monkeypatch.delenv("KIMI_CLI_PATH", raising=False)
+
+        with pytest.raises(RuntimeError, match="Kimi Code CLI binary not found"):
+            KimiCodeProvider()

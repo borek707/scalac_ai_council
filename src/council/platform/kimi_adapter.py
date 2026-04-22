@@ -124,6 +124,11 @@ class KimiAdapter(PlatformAdapter):
                 value = os.environ.get(key)
                 if value:
                     env[key] = value
+        elif provider_name == "kimi-code":
+            for key in ["KIMI_CLI_PATH", "KIMI_WORKSPACE"]:
+                value = os.environ.get(key)
+                if value:
+                    env[key] = value
         return env
 
     async def _spawn_via_sessions(self, orchestrator: AsyncOrchestrator) -> None:

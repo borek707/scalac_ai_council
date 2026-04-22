@@ -7,7 +7,8 @@ from typing import Any, AsyncGenerator, Optional
 
 import pytest
 
-from council.agents.base import BaseAgent, Brief, RoundContext
+from council.agents.base import BaseAgent
+from council.config.schema import RoundContext
 from council.config.schema import (
     CompanyConfig,
     Competitor,
@@ -152,7 +153,7 @@ class DummyAgent(BaseAgent):
     def __init__(
         self,
         name: str,
-        brief: Brief,
+        workspace: Path,
         config: CompanyConfig,
         provider: Optional[MockLLMProvider] = None,
         delay: float = 0.0,
@@ -160,10 +161,10 @@ class DummyAgent(BaseAgent):
         super().__init__(
             name=name,
             role="Test Agent",
-            brief=brief,
+            workspace=workspace,
             config=config,
+            provider=provider or MockLLMProvider(),
         )
-        self.provider = provider
         self.delay = delay
 
     def get_system_prompt(self) -> str:
@@ -191,12 +192,11 @@ def dummy_agents(
     mock_provider: MockLLMProvider,
 ) -> list[DummyAgent]:
     """Return a list of 4 dummy agents for testing."""
-    brief = Brief(workspace=temp_workspace)
     return [
-        DummyAgent("marcus", brief, sample_config, mock_provider),
-        DummyAgent("elena", brief, sample_config, mock_provider),
-        DummyAgent("kai", brief, sample_config, mock_provider),
-        DummyAgent("david", brief, sample_config, mock_provider),
+        DummyAgent("marcus", temp_workspace, sample_config, mock_provider),
+        DummyAgent("elena", temp_workspace, sample_config, mock_provider),
+        DummyAgent("kai", temp_workspace, sample_config, mock_provider),
+        DummyAgent("david", temp_workspace, sample_config, mock_provider),
     ]
 
 
