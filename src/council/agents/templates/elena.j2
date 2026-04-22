@@ -64,6 +64,10 @@ Deliver:
 4. **Risk Mitigation** — top 3 failure modes and contingency plans
 {% endif %}
 
+{% if documents %}
+{{ documents }}
+{% endif %}
+
 {% if ctx.discussion_history %}
 ## Discussion History
 {{ ctx.discussion_history }}
