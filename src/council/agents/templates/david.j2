@@ -60,6 +60,10 @@ Deliver:
 4. **Revenue Model** — expected pipeline, ACV, and close rates by tier
 {% endif %}
 
+{% if documents %}
+{{ documents }}
+{% endif %}
+
 {% if ctx.discussion_history %}
 ## Discussion History
 {{ ctx.discussion_history }}
