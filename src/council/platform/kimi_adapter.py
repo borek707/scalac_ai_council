@@ -106,12 +106,34 @@ class KimiAdapter(PlatformAdapter):
         except ImportError:
             return False
 
+    def _session_provider_env(self, provider_name: str) -> dict[str, str]:
+        """Collect provider-specific environment variables for Kimi sessions."""
+        env: dict[str, str] = {}
+        if provider_name == "openai":
+            for key in ["OPENAI_API_KEY", "OPENAI_API_BASE", "OPENAI_ORGANIZATION"]:
+                value = os.environ.get(key)
+                if value:
+                    env[key] = value
+        elif provider_name == "anthropic":
+            for key in ["ANTHROPIC_API_KEY", "ANTHROPIC_API_BASE"]:
+                value = os.environ.get(key)
+                if value:
+                    env[key] = value
+        elif provider_name == "ollama":
+            for key in ["OLLAMA_API_KEY", "OLLAMA_SERVER_URL"]:
+                value = os.environ.get(key)
+                if value:
+                    env[key] = value
+        return env
+
     async def _spawn_via_sessions(self, orchestrator: AsyncOrchestrator) -> None:
         """Spawn each agent in its own Kimi session."""
         from council.agents.base import BaseAgent
 
         agents: list[BaseAgent] = orchestrator.agents
         workspace = orchestrator.workspace
+
+        provider_env = self._session_provider_env(orchestrator.provider_name)
 
         # Build spawn commands for each agent
         spawn_commands = []
@@ -122,14 +144,18 @@ class KimiAdapter(PlatformAdapter):
                 f"--workspace {workspace} "
                 f"--rounds {orchestrator.max_rounds}"
             )
+            env = {
+                "COUNCIL_AGENT_NAME": agent.name,
+                "COUNCIL_WORKSPACE": str(workspace),
+                "COUNCIL_MAX_ROUNDS": str(orchestrator.max_rounds),
+                "COUNCIL_PROVIDER": orchestrator.provider_name,
+                "COUNCIL_PROVIDER_MODEL": orchestrator.provider_model or "",
+            }
+            env.update(provider_env)
             spawn_commands.append({
                 "name": f"council-{agent.name.lower()}",
                 "command": cmd,
-                "env": {
-                    "COUNCIL_AGENT_NAME": agent.name,
-                    "COUNCIL_WORKSPACE": str(workspace),
-                    "COUNCIL_MAX_ROUNDS": str(orchestrator.max_rounds),
-                },
+                "env": env,
             })
 
         logger.info(
@@ -199,10 +225,13 @@ class KimiAdapter(PlatformAdapter):
             return None
 
         from council.config.loader import ConfigLoader
-        from council.llm.openai_provider import OpenAIProvider
+        from council.cli import _create_provider
+
+        provider_name = os.environ.get("COUNCIL_PROVIDER", "openai")
+        provider_model = os.environ.get("COUNCIL_PROVIDER_MODEL") or None
 
         company_config = ConfigLoader.from_json(config_path)
-        provider = OpenAIProvider()
+        provider = _create_provider(provider_name, provider_model)
 
         # Import agent classes dynamically
         agent_class_name = f"{agent_name}Agent"

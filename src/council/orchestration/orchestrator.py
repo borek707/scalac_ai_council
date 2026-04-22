@@ -29,6 +29,8 @@ class AsyncOrchestrator:
         agents: list[BaseAgent],
         config: CompanyConfig,
         provider: LLMProvider,
+        provider_name: str = "openai",
+        provider_model: Optional[str] = None,
         max_rounds: int = 3,
         round_timeout: float = 300.0,
         workspace: Optional[Path] = None,
@@ -36,6 +38,8 @@ class AsyncOrchestrator:
         self.agents = agents
         self.config = config
         self.provider = provider
+        self.provider_name = provider_name
+        self.provider_model = provider_model
         self.max_rounds = max_rounds
         self.round_timeout = round_timeout
         self.workspace = workspace or Path("./output")

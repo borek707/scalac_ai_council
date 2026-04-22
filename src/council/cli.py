@@ -193,6 +193,13 @@ async def _run_council(args: argparse.Namespace) -> None:
     workspace = Path(args.output)
     workspace.mkdir(parents=True, exist_ok=True)
 
+    config_save_path = workspace / "config.json"
+    config_save_path.write_text(
+        company_config.model_dump_json(indent=2),
+        encoding="utf-8",
+    )
+    logger.info("Saved runtime company config to %s", config_save_path)
+
     if args.monitor:
         _show_status(workspace)
         return
@@ -293,6 +300,8 @@ async def _run_council(args: argparse.Namespace) -> None:
         agents=agents,
         config=company_config,
         provider=provider,
+        provider_name=args.provider,
+        provider_model=args.model,
         max_rounds=args.rounds,
         round_timeout=args.timeout,
         workspace=workspace,
