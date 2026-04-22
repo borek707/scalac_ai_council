@@ -3,11 +3,12 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from jinja2 import Environment, FileSystemLoader, Template
 
 if TYPE_CHECKING:
+    from council.config.documents import AgentContext, Document
     from council.config.schema import AgentState, CompanyConfig, LLMProvider, RoundContext
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -29,12 +30,14 @@ class BaseAgent(ABC):
         workspace: Path,
         config: CompanyConfig,
         provider: LLMProvider,
+        documents: Optional[List[Document]] = None,
     ) -> None:
         self.name: str = name
         self.role: str = role
         self.workspace: Path = workspace
         self.config: CompanyConfig = config
         self.provider: LLMProvider = provider
+        self.documents: List[Document] = documents or []
 
         self.discussion_dir: Path = self.workspace / "shared" / "discussion"
         self.output_dir: Path = self.workspace / "output"
@@ -127,7 +130,8 @@ class BaseAgent(ABC):
         """Render the agent prompt from its Jinja2 template.
 
         The template receives a ``company`` variable built from
-        :attr:`config` and a ``ctx`` variable with full round context.
+        :attr:`config`, a ``ctx`` variable with full round context,
+        and ``documents`` with any loaded markdown files.
         """
         template: Template = self._load_template()
         company_dict: dict[str, object] = self.config.model_dump()
@@ -139,7 +143,19 @@ class BaseAgent(ABC):
             "content_plan": ctx.content_plan,
             "target_accounts": ctx.target_accounts,
         }
-        return template.render(company=company_dict, ctx=ctx_dict, agent_name=self.name, agent_role=self.role)
+        # Build document context
+        doc_fragment: str = ""
+        if self.documents:
+            from council.config.documents import AgentContext
+            agent_ctx = AgentContext(company=self.config, documents=self.documents)
+            doc_fragment = agent_ctx.to_prompt_fragment()
+        return template.render(
+            company=company_dict,
+            ctx=ctx_dict,
+            agent_name=self.name,
+            agent_role=self.role,
+            documents=doc_fragment,
+        )
 
     # ── LLM-powered generation ────────────────────────────────────────────
 
