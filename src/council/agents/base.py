@@ -232,7 +232,7 @@ class BaseAgent(ABC):
             path: Path = self.write_round(round_num, content)
             self.state = _AgentState.DONE
             if self.progress_callback:
-                self.progress_callback(self.name, "done")
+                self.progress_callback(self.name, "done", content=content)
             return path
         except Exception as exc:
             self.state = _AgentState.ERROR
