@@ -2,19 +2,27 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Optional
 
 from council.config.loader import ConfigLoader
-from council.config.schema import CompanyConfig
 from council.llm.provider import LLMProvider
-from council.orchestration.orchestrator import AsyncOrchestrator
-from council.platform.cli_adapter import CLIAdapter
+from council.platform.base import PlatformAdapter
 
 logger = logging.getLogger(__name__)
+
+# Supported platforms with their display names and env detection
+PLATFORM_REGISTRY: dict[str, tuple[str, list[str]]] = {
+    "cli": ("CLI (local)", []),
+    "kimi": ("Kimi Code", ["KIMI_SESSION_ID", "KIMI_API_KEY"]),
+    "idx": ("Google IDX", ["GOOGLE_CLOUD_WORKSTATIONS", "IDX_ENVIRONMENT"]),
+    "cursor": ("Cursor", ["CURSOR_TRACE_ID", "CURSOR_PID"]),
+    "copilot": ("GitHub Copilot / Codespaces", ["CODESPACES", "GITHUB_COPILOT"]),
+    "web": ("Web Platform (Bolt/Lovable/Replit)", ["BOLT_ENV", "LOVABLE_ENV", "REPL_ID"]),
+}
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -27,16 +35,45 @@ def setup_logging(verbose: bool = False) -> None:
     )
 
 
+def auto_detect_platform() -> str:
+    """Auto-detect the current AI IDE / platform environment.
+
+    Checks environment variables specific to each platform and
+    returns the best matching platform key.
+    """
+    for key, (_, env_vars) in PLATFORM_REGISTRY.items():
+        if key == "cli":
+            continue
+        for env_var in env_vars:
+            if os.environ.get(env_var):
+                return key
+    return "cli"
+
+
 def parse_args(args: Optional[list[str]] = None) -> argparse.Namespace:
     """Parse command line arguments."""
+    auto_platform = auto_detect_platform()
+    auto_msg = f"auto-detected: {auto_platform}" if auto_platform != "cli" else "default"
+
     parser = argparse.ArgumentParser(
         description="Universal AI Marketing Council v3.0",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
+        epilog=f"""
+Platform auto-detection: {{ {auto_msg} }}
+
 Examples:
   python -m council --config firm.json
+  python -m council --config firm.json --platform kimi
   python -m council --config firm.json --provider anthropic --rounds 5
   python -m council --config firm.json --output ./results --monitor
+
+Supported platforms:
+  cli       Local terminal (default)
+  kimi      Kimi Code IDE (sessions_spawn)
+  idx       Google IDX / Project IDX
+  cursor    Cursor AI IDE
+  copilot   GitHub Copilot / Codespaces
+  web       Bolt.new / Lovable.dev / Replit
         """,
     )
     parser.add_argument(
@@ -54,6 +91,12 @@ Examples:
         "--model",
         default=None,
         help="Model name override",
+    )
+    parser.add_argument(
+        "--platform",
+        default=auto_platform,
+        choices=list(PLATFORM_REGISTRY.keys()),
+        help=f"Target platform/IDE (default: {auto_platform})",
     )
     parser.add_argument(
         "--rounds",
@@ -90,6 +133,29 @@ Examples:
     return parser.parse_args(args)
 
 
+def _create_platform_adapter(platform: str) -> PlatformAdapter:
+    """Create the appropriate platform adapter."""
+    from council.platform.cli_adapter import CLIAdapter
+
+    if platform == "kimi":
+        from council.platform.kimi_adapter import KimiAdapter
+        return KimiAdapter()
+    elif platform == "idx":
+        from council.platform.idx_adapter import GoogleIDXAdapter
+        return GoogleIDXAdapter()
+    elif platform == "cursor":
+        from council.platform.cursor_adapter import CursorAdapter
+        return CursorAdapter()
+    elif platform == "copilot":
+        from council.platform.copilot_adapter import GitHubCopilotAdapter
+        return GitHubCopilotAdapter()
+    elif platform == "web":
+        from council.platform.web_adapter import WebPlatformAdapter
+        return WebPlatformAdapter()
+    else:
+        return CLIAdapter()
+
+
 async def _run_council(args: argparse.Namespace) -> None:
     """Execute the council with parsed arguments."""
     setup_logging(args.verbose)
@@ -114,7 +180,11 @@ async def _run_council(args: argparse.Namespace) -> None:
         _show_status(workspace)
         return
 
-    # Initialize provider based on selection
+    # Platform adapter (auto-detected or explicit)
+    adapter = _create_platform_adapter(args.platform)
+    logger.info("Platform adapter: %s", adapter.get_name())
+
+    # Initialize LLM provider
     provider = _create_provider(args.provider, args.model)
 
     # Create agents
@@ -140,7 +210,6 @@ async def _run_council(args: argparse.Namespace) -> None:
         workspace=workspace,
     )
 
-    adapter = CLIAdapter()
     await adapter.spawn_agents(orchestrator)
 
     if args.aggregate:
