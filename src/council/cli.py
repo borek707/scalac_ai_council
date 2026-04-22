@@ -147,6 +147,11 @@ Supported platforms:
         action="store_true",
         help="Load built-in Scalac context bundle (no config needed)",
     )
+    parser.add_argument(
+        "--dashboard",
+        action="store_true",
+        help="Show real-time live dashboard with agent panels (requires 'rich')",
+    )
     return parser.parse_args(args)
 
 
@@ -296,18 +301,47 @@ async def _run_council(args: argparse.Namespace) -> None:
         DavidAgent(workspace=workspace, config=company_config, provider=provider),
     ]
 
-    orchestrator = AsyncOrchestrator(
-        agents=agents,
-        config=company_config,
-        provider=provider,
-        provider_name=args.provider,
-        provider_model=args.model,
-        max_rounds=args.rounds,
-        round_timeout=args.timeout,
-        workspace=workspace,
-    )
+    # Optional live dashboard
+    dashboard = None
+    if args.dashboard:
+        try:
+            from council.vis.dashboard import CouncilDashboard
+        except ImportError as exc:
+            logger.warning(
+                "Dashboard requires 'rich'. Install: pip install rich (%s)", exc
+            )
+        else:
+            dashboard = CouncilDashboard(
+                agent_names=[a.name for a in agents],
+                max_rounds=args.rounds,
+            )
 
-    await adapter.spawn_agents(orchestrator)
+    if dashboard:
+        with dashboard:
+            orchestrator = AsyncOrchestrator(
+                agents=agents,
+                config=company_config,
+                provider=provider,
+                provider_name=args.provider,
+                provider_model=args.model,
+                max_rounds=args.rounds,
+                round_timeout=args.timeout,
+                workspace=workspace,
+                progress_callback=dashboard.make_callback(),
+            )
+            await adapter.spawn_agents(orchestrator)
+    else:
+        orchestrator = AsyncOrchestrator(
+            agents=agents,
+            config=company_config,
+            provider=provider,
+            provider_name=args.provider,
+            provider_model=args.model,
+            max_rounds=args.rounds,
+            round_timeout=args.timeout,
+            workspace=workspace,
+        )
+        await adapter.spawn_agents(orchestrator)
 
     if args.aggregate:
         proposal = orchestrator.aggregate_proposal()

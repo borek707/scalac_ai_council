@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Callable, List, Optional
 
 from jinja2 import Environment, FileSystemLoader, Template
 
@@ -31,6 +31,7 @@ class BaseAgent(ABC):
         config: CompanyConfig,
         provider: LLMProvider,
         documents: Optional[List[Document]] = None,
+        progress_callback: Optional[Callable[..., None]] = None,
     ) -> None:
         self.name: str = name
         self.role: str = role
@@ -38,6 +39,7 @@ class BaseAgent(ABC):
         self.config: CompanyConfig = config
         self.provider: LLMProvider = provider
         self.documents: List[Document] = documents or []
+        self.progress_callback: Optional[Callable[..., None]] = progress_callback
 
         self.discussion_dir: Path = self.workspace / "shared" / "discussion"
         self.output_dir: Path = self.workspace / "output"
@@ -167,6 +169,8 @@ class BaseAgent(ABC):
         """
         prompt: str = self.render_prompt(ctx)
         system_prompt: str = self.get_system_prompt()
+        if self.progress_callback:
+            self.progress_callback(self.name, "generating")
         response = await self.provider.generate(
             prompt=prompt,
             system=system_prompt,
@@ -218,14 +222,22 @@ class BaseAgent(ABC):
         from council.config.schema import AgentState as _AgentState
 
         self.state = _AgentState.WRITING
+        if self.progress_callback:
+            self.progress_callback(self.name, "round_start", round_num=round_num)
         try:
             ctx: RoundContext = await self._load_context(round_num)
             content: str = await self.generate_round(ctx)
+            if self.progress_callback:
+                self.progress_callback(self.name, "writing")
             path: Path = self.write_round(round_num, content)
             self.state = _AgentState.DONE
+            if self.progress_callback:
+                self.progress_callback(self.name, "done")
             return path
-        except Exception:
+        except Exception as exc:
             self.state = _AgentState.ERROR
+            if self.progress_callback:
+                self.progress_callback(self.name, "error", message=str(exc))
             raise
 
     async def run_final(self) -> Path:

@@ -45,6 +45,9 @@ dev = [
 ollama = [
     "aiohttp>=3.9.0",
 ]
+dashboard = [
+    "rich>=13.0",
+]
 
 [project.scripts]
 council = "council.cli:main"

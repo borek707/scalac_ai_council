@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 
 if TYPE_CHECKING:
     from council.agents.base import BaseAgent
@@ -34,6 +34,7 @@ class AsyncOrchestrator:
         max_rounds: int = 3,
         round_timeout: float = 300.0,
         workspace: Optional[Path] = None,
+        progress_callback: Optional[Callable[..., None]] = None,
     ) -> None:
         self.agents = agents
         self.config = config
@@ -43,6 +44,12 @@ class AsyncOrchestrator:
         self.max_rounds = max_rounds
         self.round_timeout = round_timeout
         self.workspace = workspace or Path("./output")
+        self.progress_callback = progress_callback
+
+        # Inject callback into every agent so they can report live progress
+        if progress_callback:
+            for agent in agents:
+                agent.progress_callback = progress_callback
 
         discussion_dir = self.workspace / "shared" / "discussion"
         discussion_dir.mkdir(parents=True, exist_ok=True)
