@@ -29,7 +29,7 @@ class FilesystemBarrier:
 
     def _round_file(self, round_num: int, agent: str) -> Path:
         """Get the expected file path for an agent's round output."""
-        return self.discussion_dir / f"round_{round_num}_{agent}.md"
+        return self.discussion_dir / f"{agent.lower()}_round_{round_num}.md"
 
     def is_complete(self, round_num: int) -> bool:
         """Check if all agents have written their round file."""

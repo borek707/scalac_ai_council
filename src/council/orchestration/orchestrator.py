@@ -75,15 +75,17 @@ class AsyncOrchestrator:
                 AgentState.WRITING,
             )
 
-        tasks = [agent.run_round(round_num) for agent in self.agents]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        for agent, result in zip(self.agents, results):
-            if isinstance(result, Exception):
-                logger.error("Agent %s failed in round %d: %s", agent.name, round_num, result)
-                self.state_machine.force_state(agent.name, AgentState.ERROR)
-            else:
+        results: list[object] = []
+        for agent in self.agents:
+            try:
+                result = await agent.run_round(round_num)
+                results.append(result)
                 self.state_machine.force_state(agent.name, AgentState.DONE)
+                await asyncio.sleep(15)
+            except Exception as exc:
+                logger.error("Agent %s failed in round %d: %s", agent.name, round_num, exc)
+                results.append(exc)
+                self.state_machine.force_state(agent.name, AgentState.ERROR)
 
         barrier_results = await self.barrier.wait(round_num)
 

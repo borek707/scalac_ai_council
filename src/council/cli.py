@@ -280,12 +280,13 @@ async def _run_council(args: argparse.Namespace) -> None:
     from council.agents.elena import ElenaAgent
     from council.agents.kai import KaiAgent
     from council.agents.david import DavidAgent
+    from council.orchestration.orchestrator import AsyncOrchestrator
 
     agents: list[BaseAgent] = [
-        MarcusAgent(workspace=workspace, config=company_config, provider=provider, documents=documents),
-        ElenaAgent(workspace=workspace, config=company_config, provider=provider, documents=documents),
-        KaiAgent(workspace=workspace, config=company_config, provider=provider, documents=documents),
-        DavidAgent(workspace=workspace, config=company_config, provider=provider, documents=documents),
+        MarcusAgent(workspace=workspace, config=company_config, provider=provider),
+        ElenaAgent(workspace=workspace, config=company_config, provider=provider),
+        KaiAgent(workspace=workspace, config=company_config, provider=provider),
+        DavidAgent(workspace=workspace, config=company_config, provider=provider),
     ]
 
     orchestrator = AsyncOrchestrator(
@@ -325,7 +326,7 @@ def _create_provider(provider_name: str, model: Optional[str]) -> LLMProvider:
             raise ImportError(
                 "Anthropic package not installed. Install with: pip install anthropic"
             ) from exc
-        return AnthropicProvider(model=model or "claude-3-sonnet-20240229")
+        return AnthropicProvider(model=model or "claude-sonnet-4-6")
     elif provider_name == "ollama":
         try:
             from council.llm.ollama_provider import OllamaProvider
