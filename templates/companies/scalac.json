@@ -1,0 +1,104 @@
+{
+  "name": "Scalac",
+  "product": "Software development — Scala, Blockchain, Machine Learning, Data Engineering",
+  "pricing_tier": "Team Extension EUR 6-8K/engineer/month | Projects: fixed + T&M | Consulting: EUR 1.5-2K/day",
+  "value_proposition": "Europe's largest Scala team (150+ engineers) delivering production-grade blockchain, ML and data systems — without the 6-month hiring cycle",
+  "competitors": [
+    {
+      "name": "VirtusLab",
+      "threat": "HIGH",
+      "pricing": "PLN 800-1200/day",
+      "weakness": "Smaller blockchain practice; limited ML/data offerings",
+      "clients": ["Comcast", "Hazelcast", "CocoaPods"]
+    },
+    {
+      "name": "SoftwareMill",
+      "threat": "MEDIUM",
+      "pricing": "PLN 700-1000/day",
+      "weakness": "No dedicated blockchain or ML division; smaller scale",
+      "clients": ["Virgin", "Ycombinator"]
+    },
+    {
+      "name": "EPAM",
+      "threat": "HIGH",
+      "pricing": "$50-80/hour",
+      "weakness": "Generalist outsourcing — not Scala-specialised; higher turnover",
+      "clients": ["Google", "Microsoft", "SAP"]
+    },
+    {
+      "name": "BairesDev",
+      "threat": "MEDIUM",
+      "pricing": "$35-55/hour",
+      "weakness": "LatAm timezone mismatch for EU clients; no Scala/blockchain depth",
+      "clients": ["Google", "Salesforce"]
+    },
+    {
+      "name": "10Clouds",
+      "threat": "LOW",
+      "pricing": "PLN 600-900/day",
+      "weakness": "Design-first agency — weaker engineering depth; no FP/blockchain",
+      "clients": ["ASOS", "FinGenius"]
+    }
+  ],
+  "target": {
+    "segment": "Series A-C startups & enterprises adopting Scala, blockchain or data-intensive architectures",
+    "decision_maker": "CTO / VP Engineering / Head of Product",
+    "pain_points": [
+      "Cannot hire senior Scala engineers — 6+ month lead time",
+      "Blockchain project stalled — no internal Substrate/EVM expertise",
+      "ML models work in Jupyter but fail in production",
+      "Need to scale engineering 3x in 90 days for Series B/C",
+      "Legacy data pipeline breaking under load — need real-time streaming"
+    ],
+    "budget_range": "EUR 50-500K/year",
+    "geo_focus": ["EU (DACH, Nordics, UK)", "US East Coast", "APAC (Singapore, Australia)"]
+  },
+  "constraints": {
+    "timeline_days": 90,
+    "budget_pln": 0,
+    "team_size": 4,
+    "focus_areas": ["lead generation", "case study development", "brand awareness in Scala/blockchain communities"]
+  },
+  "differentiators": [
+    "Largest pure-play Scala team in Europe — 150+ engineers, average 5 years Scala experience",
+    "Deep blockchain practice: Substrate (Polkadot), EVM (Solidity), Cosmos SDK — 40+ engineers",
+    "Machine Learning & Data Engineering: 30+ engineers, Spark/Flink/Kafka production experience",
+    "Functional programming pedigree since 2014 — contributors to Cats, Akka, ZIO ecosystems",
+    "Time-to-productivity: senior engineers productive in 2 weeks (vs 3+ months industry average)",
+    "Retention rate 92% (industry average 70%) — teams stay together for multi-year engagements"
+  ],
+  "case_studies": [
+    {
+      "client": "SwissBorg",
+      "industry": "Crypto Wealth Management",
+      "scope": "30+ engineers, 3+ years ongoing",
+      "result": "Built exchange handling $4.5B AUM, 99.99% uptime, sub-100ms order execution",
+      "technologies": ["Scala", "Akka", "Kafka", "PostgreSQL", "Solidity", "Substrate"],
+      "quote": "Scalac engineers understood both the trading domain and blockchain infrastructure from day one."
+    },
+    {
+      "client": "Colossus",
+      "industry": "NFT Marketplace",
+      "scope": "20 engineers, 18 months",
+      "result": "Launched marketplace processing 50K+ daily transactions, $12M GMV in first quarter",
+      "technologies": ["Scala", "TypeScript", "IPFS", "Ethereum", "The Graph"],
+      "quote": "From architecture to production in 4 months — Scalac moved faster than our in-house team."
+    },
+    {
+      "client": "Iterators",
+      "industry": "Logistics / ML Platform",
+      "scope": "15 engineers, 2 years",
+      "result": "Real-time route optimisation reducing delivery costs by 23% across 12 markets",
+      "technologies": ["Scala", "Spark", "Kafka", "TensorFlow", "Kubernetes"],
+      "quote": "The data pipeline Scalac built processes 2M+ events per minute without breaking a sweat."
+    },
+    {
+      "client": "Billie",
+      "industry": "Fintech / BNPL",
+      "scope": "10 engineers, 12 months",
+      "result": "Migrated monolith to microservices — deployment frequency 1x/month to 15x/day",
+      "technologies": ["Scala", "Cats Effect", "http4s", "Doobie", "PostgreSQL"],
+      "quote": "Scala migration was riskiest decision we made. Scalac de-risked it completely."
+    }
+  ]
+}
