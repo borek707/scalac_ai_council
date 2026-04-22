@@ -130,6 +130,23 @@ Supported platforms:
         action="store_true",
         help="Enable verbose logging",
     )
+    parser.add_argument(
+        "--documents", "-d",
+        nargs="+",
+        default=None,
+        help="Markdown/text files to inject as agent context "
+             "(e.g. -d brief.md research.md)",
+    )
+    parser.add_argument(
+        "--documents-dir",
+        default=None,
+        help="Directory with .md/.txt files to load as context",
+    )
+    parser.add_argument(
+        "--scalac-mode",
+        action="store_true",
+        help="Load built-in Scalac context bundle (no config needed)",
+    )
     return parser.parse_args(args)
 
 
@@ -180,6 +197,76 @@ async def _run_council(args: argparse.Namespace) -> None:
         _show_status(workspace)
         return
 
+    # Load documents (markdown context for agents)
+    from council.config.documents import DocumentLoader
+    doc_loader = DocumentLoader()
+    documents: list = []
+
+    if args.scalac_mode:
+        logger.info("Scalac mode: loading built-in context bundle")
+        documents = doc_loader.load_scalac_bundle()
+        # Auto-generate Scalac config if no --config provided
+        if args.config == "scalac.json" or not Path(args.config).exists():
+            from council.config.schema import (
+                CompanyConfig, Competitor, Constraints, TargetSegment,
+            )
+            company_config = CompanyConfig(
+                name="Scalac",
+                product="Software development (Scala, Blockchain, ML, Data)",
+                pricing_tier="Team Extension EUR 6-8K/engineer/month",
+                value_proposition="Europe's largest Scala team (150+ engineers) with blockchain & ML expertise",
+                competitors=[
+                    Competitor(name="VirtusLab", threat="HIGH", pricing="PLN 800-1200/day", weakness="Smaller blockchain practice", clients=["Comcast", "Hazelcast"]),
+                    Competitor(name="SoftwareMill", threat="MEDIUM", pricing="PLN 700-1000/day", weakness="No ML/blockchain focus", clients=["Virgin"]),
+                    Competitor(name="EPAM", threat="HIGH", pricing="$50-80/h", weakness="Generalist, not Scala-focused", clients=["Google", "Microsoft"]),
+                ],
+                target=TargetSegment(
+                    segment="Series A-C startups & enterprises adopting Scala/blockchain",
+                    decision_maker="CTO / VP Engineering",
+                    pain_points=["Can't hire Scala talent", "Blockchain projects stall", "Need to scale engineering fast"],
+                    budget_range="EUR 50-500K/year",
+                    geo_focus=["EU", "UK", "US East Coast"],
+                ),
+                constraints=Constraints(
+                    timeline_days=90,
+                    team_size=4,
+                    focus_areas=["lead generation", "brand awareness", "case studies"],
+                ),
+                differentiators=[
+                    "Largest Scala team in Europe (150+)",
+                    "Deep blockchain expertise (Substrate, EVM)",
+                    "ML & Data Engineering practice",
+                    "Functional programming pedigree since 2014",
+                ],
+                case_studies=[
+                    {"client": "SwissBorg", "result": "30+ engineers, 3 years, $4.5B AUM"},
+                    {"client": "Colossus", "result": "NFT marketplace, 20 engineers, 18 months"},
+                    {"client": "Billie", "result": "BNPL fintech migration, 10 engineers, 12 months"},
+                ],
+            )
+            logger.info("Generated Scalac company config from built-in bundle")
+            args.config = str(workspace / "scalac_config.json")
+            # Save config for agents to reference
+            config_save_path = Path(args.config)
+            config_save_path.write_text(
+                company_config.model_dump_json(indent=2), encoding="utf-8"
+            )
+
+    if args.documents:
+        loaded = doc_loader.load_files([Path(f) for f in args.documents])
+        documents.extend(loaded)
+        logger.info("Loaded %d explicit documents", len(loaded))
+
+    if args.documents_dir:
+        loaded = doc_loader.load_directory(Path(args.documents_dir))
+        documents.extend(loaded)
+        logger.info("Loaded %d documents from %s", len(loaded), args.documents_dir)
+
+    if documents:
+        logger.info("Total context documents: %d", len(documents))
+        for d in documents:
+            logger.debug("  - %s (%s, %d chars)", d.name, d.doc_type, len(d.content))
+    
     # Platform adapter (auto-detected or explicit)
     adapter = _create_platform_adapter(args.platform)
     logger.info("Platform adapter: %s", adapter.get_name())
@@ -187,7 +274,7 @@ async def _run_council(args: argparse.Namespace) -> None:
     # Initialize LLM provider
     provider = _create_provider(args.provider, args.model)
 
-    # Create agents
+    # Create agents with optional document context
     from council.agents.base import BaseAgent
     from council.agents.marcus import MarcusAgent
     from council.agents.elena import ElenaAgent
@@ -195,10 +282,10 @@ async def _run_council(args: argparse.Namespace) -> None:
     from council.agents.david import DavidAgent
 
     agents: list[BaseAgent] = [
-        MarcusAgent(workspace=workspace, config=company_config, provider=provider),
-        ElenaAgent(workspace=workspace, config=company_config, provider=provider),
-        KaiAgent(workspace=workspace, config=company_config, provider=provider),
-        DavidAgent(workspace=workspace, config=company_config, provider=provider),
+        MarcusAgent(workspace=workspace, config=company_config, provider=provider, documents=documents),
+        ElenaAgent(workspace=workspace, config=company_config, provider=provider, documents=documents),
+        KaiAgent(workspace=workspace, config=company_config, provider=provider, documents=documents),
+        DavidAgent(workspace=workspace, config=company_config, provider=provider, documents=documents),
     ]
 
     orchestrator = AsyncOrchestrator(
