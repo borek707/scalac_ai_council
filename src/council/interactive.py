@@ -222,6 +222,7 @@ def _real_menu() -> argparse.Namespace:
         "2": ("anthropic", "Anthropic (Claude)"),
         "3": ("ollama", "Ollama (local)"),
         "4": ("kimi-code", "Kimi Code CLI"),
+        "5": ("claude-code", "Claude Code CLI / IDE"),
     }
     table = Table(show_header=False, box=None)
     table.add_column(style="bold")
@@ -245,6 +246,8 @@ def _real_menu() -> argparse.Namespace:
         model = Prompt.ask("Model", default="llama3")
     elif provider == "kimi-code":
         model = Prompt.ask("Model", default="kimi-for-coding")
+    elif provider == "claude-code":
+        model = Prompt.ask("Model", default="claude-sonnet-4-6")
 
     rounds = IntPrompt.ask("How many rounds", default=3)
     dashboard = Confirm.ask("Enable live dashboard", default=True)

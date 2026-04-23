@@ -113,6 +113,9 @@ python -m council --config my_company.json --provider ollama --model llama3
 # Kimi Code CLI (w środowisku Kimi Code IDE)
 python -m council --config my_company.json --provider kimi-code
 
+# Claude Code CLI / IDE (automatycznie wykrywa credentials)
+python -m council --config my_company.json --provider claude-code
+
 # Live dashboard (działa z demo i real run)
 python -m council --config my_company.json --dashboard
 
@@ -403,6 +406,7 @@ python -m council --config firm.json --verbose
 | **Anthropic** | `--provider anthropic` | `claude-sonnet-4-6` | `ANTHROPIC_API_KEY` |
 | **Ollama** | `--provider ollama` | `llama3` | Lokalny Ollama |
 | **Kimi Code** | `--provider kimi-code` | `kimi-for-coding` | Zainstalowane Kimi Code CLI |
+| **Claude Code** | `--provider claude-code` | `claude-sonnet-4-6` | Zainstalowane Claude Code CLI lub IDE |
 
 ### Kimi Code Provider
 
@@ -418,6 +422,22 @@ kimi --quiet --yolo --prompt "Twój prompt"
 3. Domyślna ścieżka instalacji VS Code extension
 
 **Uwaga:** Kimi Code to pełny agent AI, nie surowy endpoint LLM. W trybie `--yolo` automatycznie zatwierdza akcje (czytanie plików, komendy terminala). Używaj świadomie.
+
+### Claude Code Provider
+
+Provider `claude-code` działa na dwa sposoby (próbuje w tej kolejności):
+
+1. **Subprocess** — jeśli masz zainstalowany `claude` CLI (`npm install -g @anthropic-ai/claude-code`):
+   ```bash
+   claude -p "Twój prompt"
+   ```
+
+2. **HTTP fallback** — jeśli CLI nie jest zainstalowane, ale używasz Claude Code IDE:
+   - Odczytuje OAuth token z `~/.claude/.credentials.json`
+   - Woła API Anthropic bezpośrednio przez `anthropic` SDK
+   - Nie wymaga `ANTHROPIC_API_KEY`
+
+Dzięki temu w środowisku Claude Code IDE nie musisz podawać żadnego klucza API — provider automatycznie używa credentials zalogowanej sesji.
 
 ---
 

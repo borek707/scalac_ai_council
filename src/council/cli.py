@@ -84,7 +84,7 @@ Supported platforms:
     parser.add_argument(
         "--provider",
         default="openai",
-        choices=["openai", "anthropic", "ollama", "kimi-code"],
+        choices=["openai", "anthropic", "ollama", "kimi-code", "claude-code"],
         help="LLM provider to use (default: openai)",
     )
     parser.add_argument(
@@ -452,6 +452,9 @@ def _create_provider(provider_name: str, model: Optional[str]) -> LLMProvider:
     elif provider_name == "kimi-code":
         from council.llm.kimi_code_provider import KimiCodeProvider
         return KimiCodeProvider(model=model or "kimi-for-coding")
+    elif provider_name == "claude-code":
+        from council.llm.claude_code_provider import ClaudeCodeProvider
+        return ClaudeCodeProvider(model=model or "claude-sonnet-4-6")
     else:
         raise ValueError(f"Unknown provider: {provider_name}")
 
