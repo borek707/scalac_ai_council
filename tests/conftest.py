@@ -173,6 +173,9 @@ class DummyAgent(BaseAgent):
     def get_output_filename(self) -> str:
         return f"{self.name}_output.md"
 
+    def get_template_name(self) -> str:
+        return f"{self.name.lower()}.j2"
+
     async def generate_round(self, ctx: RoundContext) -> str:
         if self.delay:
             await asyncio.sleep(self.delay)

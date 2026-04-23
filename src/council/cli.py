@@ -78,8 +78,8 @@ Supported platforms:
     )
     parser.add_argument(
         "--config", "-c",
-        required=True,
-        help="Path to company JSON config file",
+        default=None,
+        help="Path to company JSON config file (not needed in --demo mode)",
     )
     parser.add_argument(
         "--provider",
@@ -152,6 +152,17 @@ Supported platforms:
         action="store_true",
         help="Show real-time live dashboard with agent panels (requires 'rich')",
     )
+    parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Run in demo mode with pre-built scenarios (no LLM keys needed)",
+    )
+    parser.add_argument(
+        "--scenario",
+        default="saas-launch",
+        choices=["saas-launch", "ecommerce-rebrand", "fintech-scale", "healthcare-app"],
+        help="Demo scenario to run (default: saas-launch)",
+    )
     return parser.parse_args(args)
 
 
@@ -178,9 +189,59 @@ def _create_platform_adapter(platform: str) -> PlatformAdapter:
         return CLIAdapter()
 
 
+async def _run_demo(args: argparse.Namespace) -> None:
+    """Run a pre-built demo scenario without LLM keys."""
+    from council.demo import get_scenario, run_demo
+
+    workspace = Path(args.output)
+    workspace.mkdir(parents=True, exist_ok=True)
+
+    scenario = get_scenario(args.scenario)
+    logger.info("Demo mode: scenario='%s' (%s), rounds=%d", scenario.key, scenario.name, args.rounds)
+
+    dashboard = None
+    if args.dashboard:
+        try:
+            from council.vis.dashboard import CouncilDashboard
+        except ImportError as exc:
+            logger.warning(
+                "Dashboard requires 'rich'. Install: pip install rich (%s)", exc
+            )
+        else:
+            dashboard = CouncilDashboard(
+                agent_names=["Marcus", "Elena", "Kai", "David"],
+                max_rounds=args.rounds,
+            )
+
+    if dashboard:
+        with dashboard:
+            await run_demo(
+                scenario_key=args.scenario,
+                rounds=args.rounds,
+                workspace=workspace,
+                progress_callback=dashboard.make_callback(),
+            )
+    else:
+        await run_demo(
+            scenario_key=args.scenario,
+            rounds=args.rounds,
+            workspace=workspace,
+        )
+
+    logger.info("Demo run complete. Output: %s", workspace)
+
+
 async def _run_council(args: argparse.Namespace) -> None:
     """Execute the council with parsed arguments."""
     setup_logging(args.verbose)
+
+    if args.demo:
+        await _run_demo(args)
+        return
+
+    if not args.config:
+        logger.error("--config is required unless --demo is used")
+        sys.exit(1)
 
     config_path = Path(args.config)
     if not config_path.exists():

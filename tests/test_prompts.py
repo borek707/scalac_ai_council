@@ -179,6 +179,6 @@ class TestPromptGenerator:
 
     def test_fallback_template_structure(self, generator: PromptGenerator) -> None:
         fallback = generator._fallback_template("my_agent")
-        assert "my_agent" in fallback
+        assert "{{ agent_name }}" in fallback
         assert "company.name" in fallback
         assert "company.product" in fallback

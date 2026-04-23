@@ -136,7 +136,7 @@ class TestFilesystemBarrier:
         barrier = FilesystemBarrier(discussion_dir, agents, timeout=5.0)
 
         for agent in agents:
-            (discussion_dir / f"round_1_{agent}.md").write_text("done", encoding="utf-8")
+            (discussion_dir / f"{agent}_round_1.md").write_text("done", encoding="utf-8")
 
         assert barrier.is_complete(1) is True
 
@@ -145,7 +145,7 @@ class TestFilesystemBarrier:
         agents = ["marcus", "elena", "kai"]
         barrier = FilesystemBarrier(discussion_dir, agents, timeout=5.0)
 
-        (discussion_dir / "round_1_marcus.md").write_text("done", encoding="utf-8")
+        (discussion_dir / "marcus_round_1.md").write_text("done", encoding="utf-8")
 
         assert barrier.is_complete(1) is False
 
@@ -154,7 +154,7 @@ class TestFilesystemBarrier:
         agents = ["marcus", "elena"]
         barrier = FilesystemBarrier(discussion_dir, agents, timeout=5.0)
 
-        (discussion_dir / "round_1_marcus.md").write_text("done", encoding="utf-8")
+        (discussion_dir / "marcus_round_1.md").write_text("done", encoding="utf-8")
 
         status = barrier.get_status(1)
         assert status == {"marcus": True, "elena": False}
@@ -166,7 +166,7 @@ class TestFilesystemBarrier:
         barrier = FilesystemBarrier(discussion_dir, agents, timeout=5.0)
 
         for agent in agents:
-            (discussion_dir / f"round_1_{agent}.md").write_text("done", encoding="utf-8")
+            (discussion_dir / f"{agent}_round_1.md").write_text("done", encoding="utf-8")
 
         result = await barrier.wait(1)
         assert len(result) == 2
@@ -192,11 +192,11 @@ class TestFilesystemBarrier:
             discussion_dir, agents, timeout=5.0, poll_interval=0.1
         )
 
-        (discussion_dir / "round_1_marcus.md").write_text("done", encoding="utf-8")
+        (discussion_dir / "marcus_round_1.md").write_text("done", encoding="utf-8")
 
         async def delayed_write() -> None:
             await asyncio.sleep(0.2)
-            (discussion_dir / "round_1_elena.md").write_text("done", encoding="utf-8")
+            (discussion_dir / "elena_round_1.md").write_text("done", encoding="utf-8")
 
         asyncio.create_task(delayed_write())
         result = await barrier.wait(1)
@@ -207,8 +207,8 @@ class TestFilesystemBarrier:
         agents = ["marcus", "elena"]
         barrier = FilesystemBarrier(discussion_dir, agents, timeout=5.0)
 
-        (discussion_dir / "round_1_marcus.md").write_text("a", encoding="utf-8")
-        (discussion_dir / "round_1_elena.md").write_text("b", encoding="utf-8")
+        (discussion_dir / "marcus_round_1.md").write_text("a", encoding="utf-8")
+        (discussion_dir / "elena_round_1.md").write_text("b", encoding="utf-8")
 
         files = barrier._collect_files(1)
         assert len(files) == 2
@@ -229,7 +229,7 @@ class TestAsyncOrchestrator:
         assert len(results) == 4
         for agent_name, path in results.items():
             assert path.exists()
-            assert path.name == f"round_1_{agent_name}.md"
+            assert path.name == f"{agent_name}_round_1.md"
 
     @pytest.mark.asyncio
     async def test_run_multiple_rounds(
@@ -240,7 +240,7 @@ class TestAsyncOrchestrator:
         assert len(results) >= 0
         # After run, discussion files should exist for round 1
         discussion_dir = orchestrator.workspace / "shared" / "discussion"
-        files = list(discussion_dir.glob("round_1_*.md"))
+        files = list(discussion_dir.glob("*_round_1.md"))
         assert len(files) == 4
 
     @pytest.mark.asyncio
@@ -262,13 +262,13 @@ class TestAsyncOrchestrator:
         # Manually set round results for testing aggregation
         discussion_dir = temp_workspace / "shared" / "discussion"
         orchestrator._round_results[1] = {
-            "marcus": discussion_dir / "round_1_marcus.md",
-            "elena": discussion_dir / "round_1_elena.md",
+            "marcus": discussion_dir / "marcus_round_1.md",
+            "elena": discussion_dir / "elena_round_1.md",
         }
-        (discussion_dir / "round_1_marcus.md").write_text(
+        (discussion_dir / "marcus_round_1.md").write_text(
             "# Marcus Strategy\n\nTest content.", encoding="utf-8"
         )
-        (discussion_dir / "round_1_elena.md").write_text(
+        (discussion_dir / "elena_round_1.md").write_text(
             "# Elena Content\n\nMore content.", encoding="utf-8"
         )
 
@@ -307,7 +307,7 @@ class TestAsyncOrchestrator:
         await orchestrator.run()
         # Only round 1 files should exist
         discussion_dir = orchestrator.workspace / "shared" / "discussion"
-        files = list(discussion_dir.glob("round_1_*.md"))
+        files = list(discussion_dir.glob("*_round_1.md"))
         assert len(files) == 4
-        files_r2 = list(discussion_dir.glob("round_2_*.md"))
+        files_r2 = list(discussion_dir.glob("*_round_2.md"))
         assert len(files_r2) == 0

@@ -77,7 +77,7 @@ class BaseAgent(ABC):
             return ""
 
         lines: list[str] = []
-        for round_file in sorted(self.discussion_dir.glob("round_*.md")):
+        for round_file in sorted(self.discussion_dir.glob("*_round_*.md")):
             try:
                 lines.append(round_file.read_text(encoding="utf-8"))
             except OSError:

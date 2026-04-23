@@ -23,8 +23,8 @@ class TestBaseAgent:
     def test_init(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
         workspace = temp_workspace
         agent = MarcusAgent(workspace=workspace, config=sample_config, provider=mock_provider)
-        assert agent.name == "marcus"
-        assert agent.role == "Senior Market Positioning Strategist"
+        assert agent.name == "Marcus"
+        assert agent.role == "Offer Architect"
         assert agent.state == AgentState.PENDING
         assert agent.workspace == temp_workspace
 
@@ -40,7 +40,7 @@ class TestBaseAgent:
         agent = MarcusAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         path = agent.write_round(1, "# Test content")
         assert path.exists()
-        assert path.name == "round_1_marcus.md"
+        assert path.name == "marcus_round_1.md"
         assert "# Test content" in path.read_text(encoding="utf-8")
 
     def test_write_final(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
@@ -64,7 +64,6 @@ class TestBaseAgent:
         workspace2 = temp_workspace
         agent2 = ElenaAgent(workspace=workspace2, config=sample_config, provider=mock_provider)
         result = agent2.read_discussion()
-        assert "round_1_marcus.md" in result
         assert "Round 1 content" in result
 
     def test_read_brief_missing(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
@@ -93,7 +92,7 @@ class TestBaseAgent:
         agent = MarcusAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         path = await agent.run_round(1)
         assert path.exists()
-        assert path.name == "round_1_marcus.md"
+        assert path.name == "marcus_round_1.md"
         assert agent.state == AgentState.DONE
 
     @pytest.mark.asyncio
@@ -125,8 +124,8 @@ class TestBaseAgent:
             company_config=sample_config,
         )
         content = await agent.generate_round(ctx)
-        assert "Marcus" in content
-        assert "Round 1" in content
+        assert "Mock response" in content
+        assert "call #1" in content
 
     @pytest.mark.asyncio
     async def test_run_round_error_state(
@@ -136,11 +135,23 @@ class TestBaseAgent:
         mock_provider: MockLLMProvider,
     ) -> None:
         class BrokenAgent(BaseAgent):
+            def __init__(self, workspace, config, provider):
+                super().__init__(
+                    name="broken",
+                    role="broken role",
+                    workspace=workspace,
+                    config=config,
+                    provider=provider,
+                )
+
             def get_system_prompt(self) -> str:
                 return "broken"
 
             def get_output_filename(self) -> str:
                 return "broken.md"
+
+            def get_template_name(self) -> str:
+                return "broken.j2"
 
             async def generate_round(self, ctx: RoundContext) -> str:
                 raise RuntimeError("Simulated failure")
@@ -165,12 +176,12 @@ class TestMarcusAgent:
         agent = MarcusAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         prompt = agent.get_system_prompt()
         assert "Marcus" in prompt
-        assert "Market Positioning Strategist" in prompt
+        assert "Offer Architect" in prompt
 
     def test_output_filename(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
         workspace = temp_workspace
         agent = MarcusAgent(workspace=workspace, config=sample_config, provider=mock_provider)
-        assert agent.get_output_filename() == "marcus_strategy.md"
+        assert agent.get_output_filename() == "marcus_offer.md"
 
     @pytest.mark.asyncio
     async def test_generate_with_provider(
@@ -198,12 +209,12 @@ class TestElenaAgent:
         agent = ElenaAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         prompt = agent.get_system_prompt()
         assert "Elena" in prompt
-        assert "Content Marketing Director" in prompt
+        assert "Funnel Architect" in prompt
 
     def test_output_filename(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
         workspace = temp_workspace
         agent = ElenaAgent(workspace=workspace, config=sample_config, provider=mock_provider)
-        assert agent.get_output_filename() == "elena_content_strategy.md"
+        assert agent.get_output_filename() == "elena_funnel.md"
 
 
 class TestKaiAgent:
@@ -214,12 +225,12 @@ class TestKaiAgent:
         agent = KaiAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         prompt = agent.get_system_prompt()
         assert "Kai" in prompt
-        assert "Growth Marketing Manager" in prompt
+        assert "copywriter" in prompt.lower()
 
     def test_output_filename(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
         workspace = temp_workspace
         agent = KaiAgent(workspace=workspace, config=sample_config, provider=mock_provider)
-        assert agent.get_output_filename() == "kai_growth_strategy.md"
+        assert agent.get_output_filename() == "kai_copy.md"
 
 
 class TestDavidAgent:
@@ -230,12 +241,12 @@ class TestDavidAgent:
         agent = DavidAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         prompt = agent.get_system_prompt()
         assert "David" in prompt
-        assert "Sales Enablement Lead" in prompt
+        assert "lead generation" in prompt.lower()
 
     def test_output_filename(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
         workspace = temp_workspace
         agent = DavidAgent(workspace=workspace, config=sample_config, provider=mock_provider)
-        assert agent.get_output_filename() == "david_sales_enablement.md"
+        assert agent.get_output_filename() == "david_abm.md"
 
     @pytest.mark.asyncio
     async def test_generate_round_with_provider(

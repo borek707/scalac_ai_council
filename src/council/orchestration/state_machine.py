@@ -1,20 +1,11 @@
 from __future__ import annotations
 
 import logging
-from enum import Enum, auto
 from typing import Optional
 
+from council.config.schema import AgentState
+
 logger = logging.getLogger(__name__)
-
-
-class AgentState(Enum):
-    """States in the agent lifecycle state machine."""
-
-    PENDING = auto()  # Agent created, not started
-    WRITING = auto()  # Currently generating output
-    WAITING = auto()  # Waiting at barrier for other agents
-    DONE = auto()     # Round completed successfully
-    ERROR = auto()    # Error occurred
 
 
 # Valid state transitions: from_state -> {allowed to_states}
