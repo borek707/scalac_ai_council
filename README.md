@@ -1,8 +1,8 @@
-# Universal AI Marketing Council v3.1
+# Universal AI Marketing Council v3.2
 
 > **4 agenci AI pracujący równolegle, debatują i tworzą kompletny plan marketingowy dla dowolnej firmy.**
 > 
-> Nie szablony. Nie hardcoded Scalac. Prawdziwa integracja z LLM, równoległość przez asyncio i konfiguracja przez JSON.
+> Nie szablony. Nie hardcoded Scalac. Prawdziwa integracja z LLM, równoległość przez asyncio i konfiguracja przez JSON. Teraz z trybem demo, interaktywnym menu i live dashboardem w terminalu.
 
 ---
 
@@ -55,6 +55,16 @@ Po 2-3 rundach debaty masz plan, który przeszedł krytykę wszystkich czterech 
 
 ## Szybki start (5 minut)
 
+### 🎮 Tryb Demo — zero konfiguracji, zero kluczy API
+
+```bash
+# Interaktywne menu (wybierz scenariusz, rundy, dashboard)
+python -m council
+
+# Szybki demo z konkretnym scenariuszem
+python -m council --demo --scenario saas-launch --rounds 2 --dashboard
+```
+
 ### 1. Instalacja
 
 ```bash
@@ -63,7 +73,7 @@ cd scalac_ai_council
 pip install -e ".[dev]"
 ```
 
-### 2. Klucz API (lub lokalny model)
+### 2. Klucz API (lub lokalny model) — tylko dla real run
 
 ```bash
 export OPENAI_API_KEY="sk-..."
@@ -73,7 +83,7 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 # lub użyj Kimi Code CLI (działa natywnie w IDE Kimi)
 ```
 
-### 3. Konfiguracja firmy
+### 3. Konfiguracja firmy — tylko dla real run
 
 ```bash
 # Skopiuj gotowy template
@@ -85,6 +95,12 @@ cp templates/companies/fintech.json my_company.json
 ### 4. Uruchom
 
 ```bash
+# Interaktywne menu (bez flag)
+python -m council
+
+# Demo mode — pre-built scenariusze, bez API
+python -m council --demo --scenario fintech-scale --rounds 3 --dashboard
+
 # OpenAI (domyślnie)
 python -m council --config my_company.json --rounds 3
 
@@ -96,6 +112,9 @@ python -m council --config my_company.json --provider ollama --model llama3
 
 # Kimi Code CLI (w środowisku Kimi Code IDE)
 python -m council --config my_company.json --provider kimi-code
+
+# Live dashboard (działa z demo i real run)
+python -m council --config my_company.json --dashboard
 
 # Wyświetl status
 python -m council --config my_company.json --monitor
@@ -117,6 +136,76 @@ Po zakończeniu w katalogu `output/`:
 | `FINAL_PROPOSAL.md` | Wszystko razem w jednym dokumencie |
 
 ---
+
+## Tryb Demo
+
+Demo mode pozwala uruchomić pełną Radę bez konfiguracji firmy i bez kluczy API. Agenci "odgrywają" predefiniowany scenariusz z gotowymi odpowiedziami — idealne na prezentacje, smoke-testy CI i onboarding.
+
+### 4 wbudowane scenariusze
+
+| Scenariusz | Opis | Klucz CLI |
+|-----------|------|-----------|
+| **SaaS Launch** | Launch AI project-management tool | `saas-launch` |
+| **E-commerce Rebrand** | Rebrand sustainable fashion store | `ecommerce-rebrand` |
+| **Fintech Scale** | Scale payment API to enterprise banks | `fintech-scale` |
+| **Healthcare App** | Telehealth app go-to-market | `healthcare-app` |
+
+### Przykłady
+
+```bash
+# Interaktywny wybór scenariusza
+python -m council --demo
+
+# Bezpośredni wybór scenariusza
+python -m council --demo --scenario fintech-scale --rounds 2 --dashboard
+
+# Tylko rundy, bez dashboardu
+python -m council --demo --scenario healthcare-app --rounds 1
+```
+
+## Interaktywne Menu
+
+Uruchomienie bez flag otwiera interaktywne menu w terminalu (wymaga `rich`):
+
+```bash
+python -m council
+```
+
+Menu prowadzi krok po kroku:
+1. **Wybór trybu**: Demo Mode 🎮 lub Real Council Run ▶️
+2. **Demo**: wybór scenariusza, liczby rund, dashboard on/off
+3. **Real Run**: ścieżka do configu, provider LLM, model, rounds, dashboard
+
+Możesz też wymusić menu flagą:
+
+```bash
+python -m council --interactive
+python -m council -i
+```
+
+## Live Dashboard
+
+Dashboard w terminalu pokazuje w czasie rzeczywistym:
+- 4 panele agentów z awatarami, stanami i paskami postępu
+- Logi zdarzeń z kolorowymi poziomami
+- Mini-timeline debaty
+- Statystyki per agent (czas, tokeny, koszt)
+- ASCII bar chart porównawczy
+- Podgląd treści markdown w czasie rzeczywistym
+
+```bash
+# Dashboard z demo
+python -m council --demo --dashboard
+
+# Dashboard z real run
+python -m council --config firm.json --dashboard
+```
+
+Funkcje dashboardu:
+- 🏗️ **Marcus** (cyan), 🎯 **Elena** (magenta), ✍️ **Kai** (green), 🎣 **David** (yellow)
+- Animowane stany (`WRITING...` z kropkami)
+- Alert dźwiękowy + flash przy błędzie agenta
+- Export do JSON i HTML po zakończeniu
 
 ## Konfiguracja firmy
 
@@ -236,7 +325,16 @@ PENDING --> WRITING --> WAITING (barrier) --> DONE --> PENDING (następna runda)
 ## CLI — Wszystkie komendy
 
 ```bash
-# Podstawowe użycie
+# Interaktywne menu (bez flag)
+python -m council
+python -m council --interactive
+python -m council -i
+
+# Demo mode — pre-built scenariusze, bez API
+python -m council --demo
+python -m council --demo --scenario healthcare-app --rounds 2 --dashboard
+
+# Podstawowe użycie (real run)
 python -m council --config firm.json
 
 # Wybór providera LLM
@@ -253,6 +351,9 @@ python -m council --config firm.json --rounds 5
 
 # Timeout per runda (sekundy)
 python -m council --config firm.json --timeout 600
+
+# Live dashboard (działa z demo i real run)
+python -m council --config firm.json --dashboard
 
 # Tylko status dyskusji
 python -m council --config firm.json --monitor
@@ -298,7 +399,7 @@ kimi --quiet --yolo --prompt "Twój prompt"
 ## Testy i CI
 
 ```bash
-# Wszystkie testy
+# Wszystkie testy (162 testów)
 pytest tests/ -v
 
 # Z coverage (target: 80%+)
@@ -325,6 +426,21 @@ Pipeline uruchamia się na każdym PR:
 ---
 
 ## Changelog
+
+### v3.2.0 (2026-04-22) — Demo Mode, Interactive Menu & Dashboard
+
+**Nowości:**
+- **Tryb Demo** — 4 pre-built scenariusze (SaaS, e-commerce, fintech, healthcare) z deterministycznymi odpowiedziami. Zero kluczy API, zero configu.
+- **Interaktywne menu TUI** — uruchom `python -m council` i wybieraj scenariusz / provider / opcje z rich-text menu
+- **Live Dashboard** — real-time terminal dashboard z 4 panelami agentów, logami, timeline, statystykami, ASCII bar chart i exportem JSON/HTML
+- **DemoProvider** — mock LLM provider z scripted responses per agent / round
+- **9 nowych funkcji dashboardu**: emoji avatars, colored logs, markdown preview, animated states, mini-timeline, per-agent stats, bar chart, alert flash + bell, JSON/HTML export
+
+**Naprawy:**
+- Naprawiono wszystkie broken testy (21 fail + 8 error → 162/162 ✅)
+- Usunięto duplikat `AgentState` enuma (jeden source of truth w `config.schema`)
+- Usunięto blokujący `asyncio.sleep(15)` w orchestratorze (przywrócono równoległość przez `asyncio.gather`)
+- Zsynchronizowano nazewnictwo plików rund (`marcus_round_1.md`) między kodem a testami
 
 ### v3.1.0 (2026-04-22) — Kimi Code Provider
 
@@ -390,18 +506,21 @@ Pipeline uruchamia się na każdym PR:
 
 ## Porównanie wersji
 
-| Cecha | v1 | v2 | v3.0 | v3.1 |
-|-------|-----|-----|------|------|
-| Agenci | 1 | 4 | 4 | 4 |
-| Integracja LLM | ❌ | ❌ | ✅ Multi-provider | ✅ + Kimi Code CLI |
-| Równoległość | ❌ | ❌ (for loop) | ✅ (asyncio) | ✅ (asyncio) |
-| Uniwersalność | ❌ | ❌ (hardcoded Scalac) | ✅ (JSON config) | ✅ (JSON config) |
-| Type hints | ❌ | ❌ | ✅ (100%) | ✅ (100%) |
-| Testy | ❌ | ❌ | ✅ (80+) | ✅ (80+) |
-| CI/CD | ❌ | ❌ | ✅ (GitHub Actions) | ✅ (GitHub Actions) |
-| State machine | ❌ | ❌ | ✅ | ✅ |
-| Retry logic | ❌ | ❌ | ✅ | ✅ |
-| Cost tracking | ❌ | ❌ | ✅ | ✅ |
+| Cecha | v1 | v2 | v3.0 | v3.1 | v3.2 |
+|-------|-----|-----|------|------|------|
+| Agenci | 1 | 4 | 4 | 4 | 4 |
+| Integracja LLM | ❌ | ❌ | ✅ Multi-provider | ✅ + Kimi Code CLI | ✅ + Demo Provider |
+| Równoległość | ❌ | ❌ (for loop) | ✅ (asyncio) | ✅ (asyncio) | ✅ (asyncio) |
+| Uniwersalność | ❌ | ❌ (hardcoded Scalac) | ✅ (JSON config) | ✅ (JSON config) | ✅ (JSON config) |
+| Demo Mode | ❌ | ❌ | ❌ | ❌ | ✅ (4 scenariusze) |
+| Interactive Menu | ❌ | ❌ | ❌ | ❌ | ✅ (rich TUI) |
+| Live Dashboard | ❌ | ❌ | ❌ | ❌ | ✅ (real-time) |
+| Type hints | ❌ | ❌ | ✅ (100%) | ✅ (100%) | ✅ (100%) |
+| Testy | ❌ | ❌ | ✅ (80+) | ✅ (80+) | ✅ (162+) |
+| CI/CD | ❌ | ❌ | ✅ (GitHub Actions) | ✅ (GitHub Actions) | ✅ (GitHub Actions) |
+| State machine | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Retry logic | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Cost tracking | ❌ | ❌ | ✅ | ✅ | ✅ |
 
 ---
 
@@ -412,7 +531,6 @@ scalac_ai_council/
 ├── README.md                      # Ten plik
 ├── PLATFORM_ADAPTERS.md           # Przewodnik po platformach IDE
 ├── pyproject.toml                 # Zależności i konfiguracja narzędzi
-├── setup.cfg                      # mypy strict
 ├── .pre-commit-config.yaml        # pre-commit hooks
 ├── .github/
 │   └── workflows/
@@ -421,6 +539,8 @@ scalac_ai_council/
 │   ├── __init__.py
 │   ├── __main__.py                # python -m council
 │   ├── cli.py                     # argparse entrypoint
+│   ├── demo.py                    # Demo mode + 4 scenarios
+│   ├── interactive.py             # Interactive TUI menu
 │   ├── config/                    # Layer 1: Data
 │   │   ├── schema.py              # CompanyConfig (Pydantic)
 │   │   └── loader.py              # ConfigLoader
@@ -449,14 +569,18 @@ scalac_ai_council/
 │   │   └── orchestrator.py        # AsyncOrchestrator
 │   ├── prompts/                   # PromptGenerator
 │   │   └── generator.py
+│   ├── vis/                       # Visualization
+│   │   └── dashboard.py           # Live terminal dashboard (rich)
 │   └── platform/                  # Layer 4: Platform
 │       ├── base.py                # PlatformAdapter(ABC)
 │       ├── cli_adapter.py         # Default: local asyncio
 │       └── kimi_adapter.py        # Kimi Code: sessions_spawn
-├── tests/                         # Testy (80+, pytest)
+├── tests/                         # Testy (162+, pytest)
 │   ├── conftest.py
 │   ├── test_config.py
 │   ├── test_agents.py
+│   ├── test_dashboard.py          # 26 tests
+│   ├── test_demo.py               # 19 tests
 │   ├── test_llm.py
 │   ├── test_orchestration.py
 │   └── test_prompts.py
@@ -489,6 +613,7 @@ Opcjonalne (wybierz jedno lub więcej):
 - `anthropic>=0.20` — dla Claude
 - `ollama` lokalnie — dla darmowych modeli
 - `kimi` CLI — dla Kimi Code providera (auto-detect w IDE)
+- `rich>=13` — dla dashboardu i interaktywnego menu (zalecane)
 
 ---
 
