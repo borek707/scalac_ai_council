@@ -184,3 +184,15 @@ class TestDemoCLI:
 
         with pytest.raises(SystemExit):
             parse_args(["--demo", "--scenario", "invalid"])
+
+    def test_parse_interactive_flag(self) -> None:
+        from council.cli import parse_args
+
+        args = parse_args(["--interactive"])
+        assert args.interactive is True
+
+    def test_parse_short_interactive_flag(self) -> None:
+        from council.cli import parse_args
+
+        args = parse_args(["-i"])
+        assert args.interactive is True

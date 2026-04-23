@@ -163,6 +163,11 @@ Supported platforms:
         choices=["saas-launch", "ecommerce-rebrand", "fintech-scale", "healthcare-app"],
         help="Demo scenario to run (default: saas-launch)",
     )
+    parser.add_argument(
+        "--interactive", "-i",
+        action="store_true",
+        help="Launch interactive menu (no flags needed)",
+    )
     return parser.parse_args(args)
 
 
@@ -467,7 +472,17 @@ def _show_status(workspace: Path) -> None:
 
 def main() -> None:
     """CLI entry point for the Universal AI Marketing Council."""
-    args = parse_args()
+    argv = sys.argv[1:]
+    interactive_requested = "--interactive" in argv or "-i" in argv
+    wants_help = "--help" in argv or "-h" in argv
+
+    if (not argv or interactive_requested) and not wants_help:
+        from council.interactive import prompt_for_args
+
+        args = prompt_for_args()
+    else:
+        args = parse_args()
+
     try:
         asyncio.run(_run_council(args))
     except KeyboardInterrupt:
