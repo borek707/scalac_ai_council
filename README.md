@@ -171,17 +171,41 @@ Uruchomienie bez flag otwiera interaktywne menu w terminalu (wymaga `rich`):
 python -m council
 ```
 
-Menu prowadzi krok po kroku:
+### Onboarding (pierwsze uruchomienie)
+
+Przy pierwszym uruchomieniu (`python -m council`) zobaczysz **onboarding wizard**:
+
+```
+👋 Welcome! This tool runs 4 AI marketing specialists who debate in rounds
+   and produce a complete marketing plan for your company.
+
+The Four Agents:
+  🏗️  Marcus — Offer Architect
+  🎯  Elena  — Funnel Architect
+  ✍️  Kai    — Copywriter
+  🎣  David  — Lead Strategist
+
+What would you like to do first?
+  [1] 🎮  Quick Demo — see it in action, no setup needed
+  [2] ⚙️   Real Run — I have a company JSON config
+  [3] 📊  Dashboard Demo — watch the live terminal dashboard
+  [4] 📖  Help — how the debate works
+  [s] ⏭️   Skip — go to main menu
+```
+
+Wizard wykrywa pierwsze uruchomienie przez plik `~/.config/council/onboarding_done`. Możesz wymusić ponowny onboarding:
+
+```bash
+python -m council --onboarding
+```
+
+### Główne menu
+
+Po onboardingu (lub przy `--interactive` / `-i`):
+
 1. **Wybór trybu**: Demo Mode 🎮 lub Real Council Run ▶️
 2. **Demo**: wybór scenariusza, liczby rund, dashboard on/off
 3. **Real Run**: ścieżka do configu, provider LLM, model, rounds, dashboard
-
-Możesz też wymusić menu flagą:
-
-```bash
-python -m council --interactive
-python -m council -i
-```
 
 ## Live Dashboard
 
@@ -325,10 +349,11 @@ PENDING --> WRITING --> WAITING (barrier) --> DONE --> PENDING (następna runda)
 ## CLI — Wszystkie komendy
 
 ```bash
-# Interaktywne menu (bez flag)
+# Interaktywne menu / onboarding
 python -m council
 python -m council --interactive
 python -m council -i
+python -m council --onboarding
 
 # Demo mode — pre-built scenariusze, bez API
 python -m council --demo

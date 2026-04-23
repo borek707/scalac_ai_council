@@ -168,6 +168,11 @@ Supported platforms:
         action="store_true",
         help="Launch interactive menu (no flags needed)",
     )
+    parser.add_argument(
+        "--onboarding",
+        action="store_true",
+        help="Force the first-run onboarding wizard",
+    )
     return parser.parse_args(args)
 
 
@@ -474,12 +479,13 @@ def main() -> None:
     """CLI entry point for the Universal AI Marketing Council."""
     argv = sys.argv[1:]
     interactive_requested = "--interactive" in argv or "-i" in argv
+    onboarding_requested = "--onboarding" in argv
     wants_help = "--help" in argv or "-h" in argv
 
-    if (not argv or interactive_requested) and not wants_help:
+    if (not argv or interactive_requested or onboarding_requested) and not wants_help:
         from council.interactive import prompt_for_args
 
-        args = prompt_for_args()
+        args = prompt_for_args(force_onboarding=onboarding_requested)
     else:
         args = parse_args()
 
