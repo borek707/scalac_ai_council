@@ -56,16 +56,23 @@ def parse_args(args: Optional[list[str]] = None) -> argparse.Namespace:
     auto_msg = f"auto-detected: {auto_platform}" if auto_platform != "cli" else "default"
 
     parser = argparse.ArgumentParser(
-        description="Universal AI Marketing Council v3.0",
+        description="Universal AI Marketing Council v3.2 — 4 AI agents debate and create a marketing plan for your company.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""
 Platform auto-detection: {{ {auto_msg} }}
 
-Examples:
-  python -m council --config firm.json
-  python -m council --config firm.json --platform kimi
-  python -m council --config firm.json --provider anthropic --rounds 5
-  python -m council --config firm.json --output ./results --monitor
+Quick start (pick one):
+  First time here?          python -m council
+  See it in action (no keys) python -m council --demo --dashboard
+  Run with your company      python -m council --config firm.json
+  Use Claude Code IDE        python -m council --config firm.json --provider claude-code
+  Use Kimi Code IDE          python -m council --config firm.json --provider kimi-code
+
+Common operations:
+  More debate rounds         python -m council --config firm.json --rounds 5
+  Live terminal dashboard    python -m council --config firm.json --dashboard
+  Aggregate final proposal   python -m council --config firm.json --aggregate
+  Only check status          python -m council --config firm.json --monitor
 
 Supported platforms:
   cli       Local terminal (default)
@@ -74,6 +81,8 @@ Supported platforms:
   cursor    Cursor AI IDE
   copilot   GitHub Copilot / Codespaces
   web       Bolt.new / Lovable.dev / Replit
+
+Need more help? Read README.md or run: python -m council --interactive
         """,
     )
     parser.add_argument(
@@ -239,6 +248,7 @@ async def _run_demo(args: argparse.Namespace) -> None:
         )
 
     logger.info("Demo run complete. Output: %s", workspace)
+    _print_success_summary(workspace, args.rounds, False)
 
 
 async def _run_council(args: argparse.Namespace) -> None:
@@ -250,13 +260,23 @@ async def _run_council(args: argparse.Namespace) -> None:
         return
 
     if not args.config:
-        logger.error("--config is required unless --demo is used")
+        logger.error(
+            "Missing --config. You have three options:\n"
+            "  1. Run demo (no config needed):  python -m council --demo\n"
+            "  2. Create a config from template: cp templates/companies/saas.json my.json\n"
+            "  3. Run interactive menu:          python -m council --interactive"
+        )
         sys.exit(1)
 
     config_path = Path(args.config)
     if not config_path.exists():
-        logger.error("Config file not found: %s", config_path)
-        sys.exit(1)
+        raise FileNotFoundError(
+            f"{config_path}\n\n"
+            "What to do:\n"
+            f"  • Check the path is correct: ls -la {config_path.parent}\n"
+            f"  • Copy a template: cp templates/companies/saas.json {config_path}\n"
+            "  • Or run demo instead: python -m council --demo"
+        )
 
     logger.info("Loading configuration from %s", config_path)
     company_config = ConfigLoader.from_json(config_path)
@@ -267,6 +287,14 @@ async def _run_council(args: argparse.Namespace) -> None:
     )
 
     workspace = Path(args.output)
+    # Confirmation if output directory already has content
+    if workspace.exists() and any(workspace.iterdir()):
+        logger.warning(
+            "Output directory %s already exists and contains files.\n"
+            "New outputs may overwrite previous results.",
+            workspace,
+        )
+
     workspace.mkdir(parents=True, exist_ok=True)
 
     config_save_path = workspace / "config.json"
@@ -275,6 +303,16 @@ async def _run_council(args: argparse.Namespace) -> None:
         encoding="utf-8",
     )
     logger.info("Saved runtime company config to %s", config_save_path)
+
+    # Explicit defaults logging (Principle 7)
+    logger.info(
+        "Settings: provider=%s, model=%s, rounds=%d, platform=%s, timeout=%.0fs",
+        args.provider,
+        args.model or "default",
+        args.rounds,
+        args.platform,
+        args.timeout,
+    )
 
     if args.monitor:
         _show_status(workspace)
@@ -402,6 +440,23 @@ async def _run_council(args: argparse.Namespace) -> None:
             )
             await adapter.spawn_agents(orchestrator)
     else:
+        # Simple console progress when dashboard is off
+        def _console_progress(agent_name: str, state: str, **kwargs) -> None:
+            if state == "generating":
+                print(f"  {agent_name} is thinking …")
+            elif state == "writing":
+                progress = kwargs.get("progress_pct")
+                pct = f" {progress:.0f}%" if progress is not None else ""
+                print(f"  {agent_name} drafting{pct}")
+            elif state == "done":
+                print(f"  ✓ {agent_name} done")
+            elif state == "error":
+                err = kwargs.get("message", kwargs.get("error", "unknown error"))
+                print(f"  ✗ {agent_name} error: {err}")
+            elif state == "round_start":
+                round_num = kwargs.get("round_num", "?")
+                print(f"\n── Round {round_num}/{args.rounds} ──")
+
         orchestrator = AsyncOrchestrator(
             agents=agents,
             config=company_config,
@@ -411,6 +466,7 @@ async def _run_council(args: argparse.Namespace) -> None:
             max_rounds=args.rounds,
             round_timeout=args.timeout,
             workspace=workspace,
+            progress_callback=_console_progress,
         )
         await adapter.spawn_agents(orchestrator)
 
@@ -420,7 +476,8 @@ async def _run_council(args: argparse.Namespace) -> None:
         proposal_path.write_text(proposal, encoding="utf-8")
         logger.info("Aggregated proposal written to %s", proposal_path)
 
-    logger.info("Council run complete.")
+    # Success summary (Principle 5)
+    _print_success_summary(workspace, args.rounds, args.aggregate)
 
 
 def _create_provider(provider_name: str, model: Optional[str]) -> LLMProvider:
@@ -430,33 +487,103 @@ def _create_provider(provider_name: str, model: Optional[str]) -> LLMProvider:
             from council.llm.openai_provider import OpenAIProvider
         except ImportError as exc:
             raise ImportError(
-                "OpenAI package not installed. Install with: pip install openai"
+                "OpenAI package not installed.\n"
+                "  Fix: pip install openai\n"
+                "  Then: export OPENAI_API_KEY=sk-..."
             ) from exc
-        return OpenAIProvider(model=model or "gpt-4o")
+        try:
+            return OpenAIProvider(model=model or "gpt-4o")
+        except RuntimeError as exc:
+            raise RuntimeError(
+                f"Failed to initialize OpenAI provider: {exc}\n"
+                "  Check that OPENAI_API_KEY is set and valid."
+            ) from exc
     elif provider_name == "anthropic":
         try:
             from council.llm.anthropic_provider import AnthropicProvider
         except ImportError as exc:
             raise ImportError(
-                "Anthropic package not installed. Install with: pip install anthropic"
+                "Anthropic package not installed.\n"
+                "  Fix: pip install anthropic\n"
+                "  Then: export ANTHROPIC_API_KEY=sk-ant-..."
             ) from exc
-        return AnthropicProvider(model=model or "claude-sonnet-4-6")
+        try:
+            return AnthropicProvider(model=model or "claude-sonnet-4-6")
+        except RuntimeError as exc:
+            raise RuntimeError(
+                f"Failed to initialize Anthropic provider: {exc}\n"
+                "  Check that ANTHROPIC_API_KEY is set and valid."
+            ) from exc
     elif provider_name == "ollama":
         try:
             from council.llm.ollama_provider import OllamaProvider
         except ImportError as exc:
             raise ImportError(
-                "aiohttp not installed. Install with: pip install aiohttp"
+                "aiohttp not installed (needed for Ollama).\n"
+                "  Fix: pip install aiohttp\n"
+                "  Also ensure Ollama is running: ollama serve"
             ) from exc
-        return OllamaProvider(model=model or "llama3")
+        try:
+            return OllamaProvider(model=model or "llama3")
+        except RuntimeError as exc:
+            raise RuntimeError(
+                f"Failed to initialize Ollama provider: {exc}\n"
+                "  Check that Ollama is running (ollama serve) and the model is pulled."
+            ) from exc
     elif provider_name == "kimi-code":
         from council.llm.kimi_code_provider import KimiCodeProvider
-        return KimiCodeProvider(model=model or "kimi-for-coding")
+        try:
+            return KimiCodeProvider(model=model or "kimi-for-coding")
+        except RuntimeError as exc:
+            raise RuntimeError(
+                f"Failed to initialize Kimi Code provider: {exc}\n"
+                "  Make sure you are running inside the Kimi Code IDE,\n"
+                "  or that ~/.kimi/credentials/kimi-code.json exists."
+            ) from exc
     elif provider_name == "claude-code":
         from council.llm.claude_code_provider import ClaudeCodeProvider
-        return ClaudeCodeProvider(model=model or "claude-sonnet-4-6")
+        try:
+            return ClaudeCodeProvider(model=model or "claude-sonnet-4-6")
+        except RuntimeError as exc:
+            raise RuntimeError(
+                f"Failed to initialize Claude Code provider: {exc}\n"
+                "  Make sure you are running inside Claude Code IDE,\n"
+                "  or that the 'claude' CLI is installed (npm install -g @anthropic-ai/claude-code),\n"
+                "  or that ~/.claude/.credentials.json exists."
+            ) from exc
     else:
         raise ValueError(f"Unknown provider: {provider_name}")
+
+
+def _print_success_summary(workspace: Path, rounds: int, aggregated: bool) -> None:
+    """Print a human-friendly summary of what was generated."""
+    output_dir = workspace / "output"
+    discussion_dir = workspace / "shared" / "discussion"
+
+    output_files = list(output_dir.glob("*.md")) if output_dir.exists() else []
+    round_files = list(discussion_dir.glob("*_round_*.md")) if discussion_dir.exists() else []
+
+    print()
+    print("=" * 50)
+    print("✓  Council run complete")
+    print("=" * 50)
+    print(f"  Rounds:        {rounds}")
+    print(f"  Output dir:    {workspace}")
+    print(f"  Agent outputs: {len(output_files)} files")
+    print(f"  Round files:   {len(round_files)} files")
+
+    if aggregated and (workspace / "FINAL_PROPOSAL.md").exists():
+        print(f"  Proposal:      {workspace / 'FINAL_PROPOSAL.md'}")
+
+    print()
+    print("What to do next:")
+    if output_files:
+        print(f"  • Read agent outputs:  ls {output_dir}")
+    if (workspace / "FINAL_PROPOSAL.md").exists():
+        print(f"  • View proposal:       cat {workspace / 'FINAL_PROPOSAL.md'}")
+    print(f"  • Check discussion:    ls {discussion_dir}")
+    print(f"  • Run again:           python -m council --config ...")
+    print("=" * 50)
 
 
 def _show_status(workspace: Path) -> None:
@@ -466,7 +593,7 @@ def _show_status(workspace: Path) -> None:
         print("No discussion found.")
         return
 
-    files = sorted(discussion_dir.glob("round_*_*.md"))
+    files = sorted(discussion_dir.glob("*_round_*.md"))
     if not files:
         print("No round files found.")
         return
@@ -495,10 +622,30 @@ def main() -> None:
     try:
         asyncio.run(_run_council(args))
     except KeyboardInterrupt:
-        logger.info("Interrupted by user.")
+        print("\n\nInterrupted by user. Partial results may be in the workspace.")
         sys.exit(130)
+    except FileNotFoundError as exc:
+        print()
+        print(f"✗  File not found: {exc}")
+        sys.exit(1)
+    except ImportError as exc:
+        print()
+        print(f"✗  Missing dependency\n\n{exc}")
+        sys.exit(1)
+    except RuntimeError as exc:
+        print()
+        print(f"✗  {exc}")
+        print()
+        print("Need help?")
+        print("  • Demo mode (no API keys):  python -m council --demo")
+        print("  • Interactive menu:         python -m council")
+        print("  • Full help:                python -m council --help")
+        sys.exit(1)
     except Exception as exc:
-        logger.error("Council execution failed: %s", exc)
+        print()
+        print(f"✗  Council execution failed: {exc}")
+        print()
+        print("If this looks like a bug, run with --verbose and file an issue.")
         sys.exit(1)
 
 
