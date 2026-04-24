@@ -83,19 +83,20 @@ def _onboarding_flow() -> argparse.Namespace:
     table.add_row("[1]", "🎮  Quick Demo — see it in action, no setup needed")
     table.add_row("[2]", "⚙️   Real Run — I have a company JSON config")
     table.add_row("[3]", "📊  Dashboard Demo — watch the live terminal dashboard")
-    table.add_row("[4]", "📖  Help — how the debate works")
+    table.add_row("[4]", "💻  How to use in my IDE — VS Code, Cursor, Kimi, Claude")
+    table.add_row("[5]", "📖  Help — how the debate works")
     table.add_row("[s]", "⏭️   Skip — go to main menu")
     console.print(table)
     console.print()
 
     choice = Prompt.ask(
         "What would you like to do first",
-        choices=["1", "2", "3", "4", "s"],
+        choices=["1", "2", "3", "4", "5", "s"],
         show_choices=False,
         default="1",
     )
 
-    if choice == "4":
+    if choice == "5":
         console.print()
         console.print(
             Panel(
@@ -117,6 +118,11 @@ def _onboarding_flow() -> argparse.Namespace:
             _mark_onboarding_done()
             return _choose_mode_and_run()
 
+    if choice == "4":
+        _show_ide_help()
+        _mark_onboarding_done()
+        return _choose_mode_and_run()
+
     if choice == "3":
         _mark_onboarding_done()
         return _demo_menu(dashboard_default=True)
@@ -132,6 +138,71 @@ def _onboarding_flow() -> argparse.Namespace:
     # "s" skip
     _mark_onboarding_done()
     return _choose_mode_and_run()
+
+
+def _show_ide_help() -> None:
+    """Display help for running in various IDEs."""
+    console.print()
+    console.print(
+        Panel(
+            "[bold]💻 Using the Council in your IDE[/bold]\n\n"
+            "[cyan]VS Code / Cursor / Windsurf:[/cyan]\n"
+            "  1. Open the integrated terminal (Ctrl+`)\n"
+            "  2. Run: [bold]python -m council[/bold]\n"
+            "  3. Files appear in the output/ folder — refresh explorer to see them\n\n"
+            "[cyan]Kimi Code IDE:[/cyan]\n"
+            "  1. Open terminal in Kimi Code\n"
+            "  2. Run: [bold]python -m council --provider kimi-code[/bold]\n"
+            "  3. No API key needed — uses your logged-in Kimi session\n\n"
+            "[cyan]Claude Code IDE:[/cyan]\n"
+            "  1. Open terminal in Claude Code\n"
+            "  2. Run: [bold]python -m council --provider claude-code[/bold]\n"
+            "  3. No API key needed — reads OAuth from ~/.claude/.credentials.json\n\n"
+            "[cyan]GitHub Codespaces:[/cyan]\n"
+            "  1. Open terminal in Codespaces\n"
+            "  2. Run: [bold]python -m council --platform copilot[/bold]\n\n"
+            "[dim]All platforms auto-detect. Just run 'python -m council' and it figures it out.[/dim]",
+            border_style="magenta",
+        )
+    )
+    console.print()
+
+
+def _show_auth_hint(provider: str) -> None:
+    """Show authentication hint for the selected provider."""
+    hints = {
+        "openai": (
+            "[yellow]Authentication:[/yellow] Set your OpenAI key\n"
+            "  export OPENAI_API_KEY='sk-...'\n"
+            "  Get one at: https://platform.openai.com/api-keys"
+        ),
+        "anthropic": (
+            "[yellow]Authentication:[/yellow] Set your Anthropic key\n"
+            "  export ANTHROPIC_API_KEY='sk-ant-...'\n"
+            "  Get one at: https://console.anthropic.com/settings/keys"
+        ),
+        "ollama": (
+            "[green]Authentication:[/green] No key needed!\n"
+            "  Just ensure Ollama is running:\n"
+            "  ollama run llama3"
+        ),
+        "kimi-code": (
+            "[green]Authentication:[/green] No key needed!\n"
+            "  Kimi Code provider auto-detects your IDE session.\n"
+            "  It runs 'kimi --quiet --yolo --prompt ...' as a subprocess."
+        ),
+        "claude-code": (
+            "[green]Authentication:[/green] No key needed!\n"
+            "  Claude Code provider reads OAuth token from:\n"
+            "  ~/.claude/.credentials.json\n"
+            "  Or uses the 'claude -p' CLI if installed."
+        ),
+    }
+    hint = hints.get(provider, "")
+    if hint:
+        console.print()
+        console.print(Panel(hint, border_style="yellow"))
+        console.print()
 
 
 def _choose_mode_and_run() -> argparse.Namespace:
@@ -236,6 +307,8 @@ def _real_menu() -> argparse.Namespace:
         default="1",
     )
     provider, _ = providers[provider_choice]
+
+    _show_auth_hint(provider)
 
     model: Optional[str] = None
     if provider == "openai":

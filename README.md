@@ -210,6 +210,61 @@ Po onboardingu (lub przy `--interactive` / `-i`):
 2. **Demo**: wybór scenariusza, liczby rund, dashboard on/off
 3. **Real Run**: ścieżka do configu, provider LLM, model, rounds, dashboard
 
+## Autentykacja per Provider
+
+| Provider | Wymagane | Jak |
+|----------|----------|-----|
+| **OpenAI** | `OPENAI_API_KEY` | `export OPENAI_API_KEY='sk-...'` |
+| **Anthropic** | `ANTHROPIC_API_KEY` | `export ANTHROPIC_API_KEY='sk-ant-...'` |
+| **Ollama** | Brak | Po prostu uruchom `ollama run llama3` |
+| **Kimi Code** | Brak | Auto-detekcja sesji IDE / CLI (`~/.kimi/credentials/`) |
+| **Claude Code** | Brak | Auto-detect OAuth z `~/.claude/.credentials.json` lub `claude -p` CLI |
+
+### Kimi Code — bez klucza API
+
+Jeśli pracujesz w **Kimi Code IDE** (VS Code extension):
+
+```bash
+python -m council --config firm.json --provider kimi-code
+```
+
+Provider uruchamia lokalny `kimi` CLI jako subprocess (`kimi --quiet --yolo --prompt`).
+Nie potrzebujesz żadnego klucza API — używa zalogowanej sesji IDE.
+
+### Claude Code — bez klucza API
+
+Jeśli pracujesz w **Claude Code IDE** lub masz zainstalowany `claude` CLI:
+
+```bash
+python -m council --config firm.json --provider claude-code
+```
+
+Provider działa na dwa sposoby (próbuje kolejno):
+1. **Subprocess** — `claude -p "prompt"` (jeśli masz CLI)
+2. **HTTP fallback** — odczytuje OAuth token z `~/.claude/.credentials.json` i woła API Anthropic
+
+W obu przypadkach **nie potrzebujesz `ANTHROPIC_API_KEY`**.
+
+## VS Code / Cursor / IDE
+
+Rada działa w każdym IDE z terminalem:
+
+```bash
+# VS Code / Cursor — otwórz terminal (Ctrl+`) i uruchom:
+python -m council --config firm.json --dashboard
+
+# Pliki generują się w output/ — odśwież eksplorator żeby je zobaczyć
+```
+
+Wbudowana auto-detekcja platformy rozpoznaje:
+- **VS Code / Cursor** — zwykły terminal
+- **Kimi Code** — `KIMI_SESSION_ID`
+- **Claude Code** — brak specyficznych zmiennych, ale `--provider claude-code` działa
+- **GitHub Codespaces** — `CODESPACES`
+- **Google IDX** — `GOOGLE_CLOUD_WORKSTATIONS`
+
+Szczegóły: [PLATFORM_ADAPTERS.md](PLATFORM_ADAPTERS.md)
+
 ## Live Dashboard
 
 Dashboard w terminalu pokazuje w czasie rzeczywistym:
