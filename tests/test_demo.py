@@ -94,7 +94,7 @@ class TestRunDemo:
     async def test_run_demo_creates_round_files(self, tmp_path: Path) -> None:
         ws = tmp_path / "workspace"
         ws.mkdir()
-        await run_demo("saas-launch", rounds=2, workspace=ws)
+        await run_demo("saas-launch", rounds=2, workspace=ws, delay=0, breath=0)
 
         discussion = ws / "shared" / "discussion"
         for agent in ("marcus", "elena", "kai", "david"):
@@ -105,7 +105,7 @@ class TestRunDemo:
     async def test_run_demo_creates_final_outputs(self, tmp_path: Path) -> None:
         ws = tmp_path / "workspace"
         ws.mkdir()
-        results = await run_demo("ecommerce-rebrand", rounds=1, workspace=ws)
+        results = await run_demo("ecommerce-rebrand", rounds=1, workspace=ws, delay=0, breath=0)
 
         assert "Marcus" in results
         assert "Elena" in results
@@ -122,7 +122,7 @@ class TestRunDemo:
     async def test_run_demo_content_has_markdown(self, tmp_path: Path) -> None:
         ws = tmp_path / "workspace"
         ws.mkdir()
-        await run_demo("fintech-scale", rounds=1, workspace=ws)
+        await run_demo("fintech-scale", rounds=1, workspace=ws, delay=0, breath=0)
 
         for agent in ("marcus", "elena", "kai", "david"):
             path = ws / "shared" / "discussion" / f"{agent}_round_1.md"
@@ -138,7 +138,7 @@ class TestRunDemo:
         def callback(name: str, event: str, **kwargs: object) -> None:
             events.append((name, event))
 
-        await run_demo("healthcare-app", rounds=1, workspace=ws, progress_callback=callback)
+        await run_demo("healthcare-app", rounds=1, workspace=ws, progress_callback=callback, delay=0, breath=0)
 
         # Should see at least generating/done events for each agent
         names = {n for n, _ in events}
@@ -151,8 +151,8 @@ class TestRunDemo:
         ws2 = tmp_path / "ws2"
         ws2.mkdir()
 
-        await run_demo("saas-launch", rounds=1, workspace=ws1)
-        await run_demo("saas-launch", rounds=1, workspace=ws2)
+        await run_demo("saas-launch", rounds=1, workspace=ws1, delay=0, breath=0)
+        await run_demo("saas-launch", rounds=1, workspace=ws2, delay=0, breath=0)
 
         for agent in ("marcus", "elena", "kai", "david"):
             p1 = ws1 / "shared" / "discussion" / f"{agent}_round_1.md"

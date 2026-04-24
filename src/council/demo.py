@@ -18,7 +18,7 @@ from council.agents.kai import KaiAgent
 from council.agents.marcus import MarcusAgent
 from council.config.schema import CompanyConfig, Competitor, Constraints, TargetSegment
 from council.llm.provider import LLMProvider, LLMResponse
-from council.orchestration.orchestrator import AsyncOrchestrator
+
 
 
 @dataclass
@@ -33,12 +33,26 @@ class Scenario:
 
 
 class DemoProvider(LLMProvider):
-    """Mock LLM provider that serves scripted responses per agent/round."""
+    """Mock LLM provider that serves scripted responses per agent/round.
 
-    def __init__(self, responses: dict[str, list[str]]) -> None:
+    In demo mode the provider *simulates typing* — it yields the response
+    character-by-character with a small delay so the live dashboard shows
+    progress bars growing, content preview updating, and agents taking turns.
+    """
+
+    def __init__(
+        self,
+        responses: dict[str, list[str]],
+        progress_callback: Optional[Callable[..., None]] = None,
+        delay: float = 0.18,
+        chunk_size: int = 28,
+    ) -> None:
         self._responses = responses
         self._counters: dict[str, int] = {}
         self.calls: list[dict[str, Any]] = []
+        self.progress_callback = progress_callback
+        self.delay = delay
+        self.chunk_size = chunk_size
 
     async def generate(
         self,
@@ -54,6 +68,27 @@ class DemoProvider(LLMProvider):
         self._counters[agent] = idx + 1
         texts = self._responses.get(agent, ["Demo response"])
         content = texts[idx] if idx < len(texts) else texts[-1]
+
+        # Simulate live typing with progress updates
+        if self.delay > 0:
+            accumulated = ""
+            total_len = len(content)
+            for i in range(0, total_len, self.chunk_size):
+                chunk = content[i : i + self.chunk_size]
+                accumulated += chunk
+                progress = min(100, int((len(accumulated) / total_len) * 100))
+
+                if self.progress_callback:
+                    self.progress_callback(
+                        agent,
+                        "writing",
+                        progress_pct=progress,
+                        content=accumulated,
+                        activity=f"Writing round output… ({progress}%)",
+                    )
+
+                await asyncio.sleep(self.delay)
+
         return LLMResponse(
             content=content,
             model="demo",
@@ -521,6 +556,8 @@ async def run_demo(
     rounds: int,
     workspace: Path,
     progress_callback: Optional[Callable[..., None]] = None,
+    delay: float = 0.18,
+    breath: float = 0.4,
 ) -> dict[str, Path]:
     """Run a complete demo scenario.
 
@@ -529,12 +566,13 @@ async def run_demo(
         rounds: Number of debate rounds.
         workspace: Output directory.
         progress_callback: Optional dashboard callback.
+        delay: Seconds between typed chunks (lower = faster). Use 0 for tests.
 
     Returns:
         Mapping of agent_name -> final_output_path.
     """
     scenario = get_scenario(scenario_key)
-    provider = DemoProvider(scenario.responses)
+    provider = DemoProvider(scenario.responses, progress_callback=progress_callback, delay=delay)
 
     agents = [
         MarcusAgent(workspace=workspace, config=scenario.config, provider=provider),
@@ -547,21 +585,55 @@ async def run_demo(
         for agent in agents:
             agent.progress_callback = progress_callback
 
-    orchestrator = AsyncOrchestrator(
-        agents=agents,
-        config=scenario.config,
-        provider=provider,
-        provider_name="demo",
-        max_rounds=rounds,
-        round_timeout=60.0,
-        workspace=workspace,
-        progress_callback=progress_callback,
-    )
+    # Sequential, animated demo run — one agent at a time so the dashboard
+    # shows WRITING → DONE transitions in a lively, theatrical way.
+    for round_num in range(1, rounds + 1):
+        for agent in agents:
+            if progress_callback:
+                progress_callback(
+                    agent.name,
+                    "round_start",
+                    round_num=round_num,
+                    progress_pct=0,
+                    activity="Loading context…",
+                )
+                if breath > 0:
+                    await asyncio.sleep(min(breath, 0.15))
 
-    await orchestrator.run()
+            await agent.run_round(round_num)
 
-    # Generate final consolidated outputs for each agent
+            if progress_callback:
+                progress_callback(
+                    agent.name,
+                    "done",
+                    content=agent.read_discussion(),
+                    activity="Round complete",
+                )
+
+            # Small breath between agents so the user can see the transition
+            if breath > 0:
+                await asyncio.sleep(breath)
+
+    # Final consolidated outputs — also animated
     for agent in agents:
+        if progress_callback:
+            progress_callback(
+                agent.name,
+                "writing",
+                progress_pct=0,
+                activity="Writing final output…",
+            )
         await agent.run_final()
+        if progress_callback:
+            progress_callback(
+                agent.name,
+                "done",
+                activity="Final output complete",
+            )
+        if breath > 0:
+            await asyncio.sleep(min(breath, 0.3))
 
-    return await orchestrator._collect_final_outputs()
+    return {
+        agent.name: workspace / "output" / agent.get_output_filename()
+        for agent in agents
+    }
