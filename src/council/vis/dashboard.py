@@ -88,37 +88,42 @@ class AgentCard(Static):
     AgentCard {
         width: 100%;
         height: 100%;
-        border: solid $surface-lighten-1;
+        border: solid $surface-darken-1;
         padding: 1 2;
-        transition: border 400ms in_out_cubic, background 400ms in_out_cubic;
+        transition: border 300ms in_out_cubic, background 300ms in_out_cubic, tint 300ms in_out_cubic;
     }
     AgentCard.writing {
-        border: solid $warning;
-        background: $warning-darken-3;
+        border: solid #f39c12;
+        background: #f39c12 8%;
+        tint: #f39c12 10%;
     }
     AgentCard.done {
-        border: solid $success;
-        background: $success-darken-3;
+        border: solid #2ecc71;
+        background: #2ecc71 8%;
+        tint: #2ecc71 10%;
     }
     AgentCard.error {
-        border: solid $error;
-        background: $error-darken-3;
+        border: solid #e74c3c;
+        background: #e74c3c 8%;
+        tint: #e74c3c 10%;
     }
     AgentCard.pending {
         border: solid $surface-lighten-1;
-        background: $surface-darken-1;
+        background: $surface-darken-1 50%;
     }
     AgentCard .agent-name {
         text-style: bold;
         width: 100%;
         content-align: center middle;
         height: auto;
+        color: $text;
     }
     AgentCard .agent-status {
         width: 100%;
         content-align: center middle;
         height: auto;
         margin: 1 0;
+        text-style: bold;
     }
     AgentCard .agent-progress {
         width: 100%;
@@ -129,6 +134,7 @@ class AgentCard(Static):
         content-align: center middle;
         height: auto;
         color: $text-muted;
+        text-style: italic;
     }
     """
 
@@ -156,21 +162,21 @@ class AgentCard(Static):
             f"{self.agent_avatar} {self.agent_name}",
             classes="agent-name",
         )
-        yield Static("⏳ PENDING", classes="agent-status")
+        yield Static("\uf017  PENDING", classes="agent-status")
         yield ProgressBar(total=100, show_eta=False, classes="agent-progress")
-        yield Static("Waiting...", classes="agent-activity")
+        yield Static("Waiting for assignment...", classes="agent-activity")
 
     def watch_state(self, new_state: str) -> None:
         self.remove_class("pending", "writing", "done", "error")
         self.add_class(new_state.lower())
-        emoji = {
-            "pending": "⏳",
-            "writing": "✍️",
-            "done": "✅",
-            "error": "❌",
-        }.get(new_state.lower(), "❓")
+        icon = {
+            "pending": "\uf017",
+            "writing": "\uf040",
+            "done": "\uf00c",
+            "error": "\uf00d",
+        }.get(new_state.lower(), "\uf128")
         status = self.query_one(".agent-status", Static)
-        status.update(f"{emoji} {new_state}")
+        status.update(f"{icon}  {new_state}")
         status.styles.color = self.agent_color
 
     def watch_progress(self, value: int) -> None:
@@ -208,31 +214,36 @@ class CouncilApp(App):
         height: 100%;
         border: solid $primary-darken-2;
         padding: 0 1;
+        background: $surface-darken-1 30%;
     }
 
     #sidebar .sidebar-title {
-        text-style: bold;
+        text-style: bold underline;
         width: 100%;
         height: auto;
         padding: 1 0;
         color: $text;
+        content-align: left middle;
     }
 
     #preview {
         height: 45%;
         border: solid $surface-lighten-1;
         padding: 1;
+        background: $surface-darken-1 20%;
     }
 
     #logs {
         height: 30%;
         border: solid $surface-lighten-1;
+        background: $surface-darken-1 20%;
     }
 
     #stats {
         height: 25%;
         border: solid $surface-lighten-1;
         padding: 1;
+        background: $surface-darken-1 20%;
     }
     """
 
@@ -287,16 +298,16 @@ class CouncilApp(App):
                     self._agent_cards[name] = card
                     yield card
             with Vertical(id="sidebar"):
-                yield Static("Content Preview", classes="sidebar-title")
+                yield Static("\uf06e  Content Preview", classes="sidebar-title")
                 yield Markdown(
                     "*Waiting for the first agent output...*",
                     id="preview",
                 )
                 yield Rule()
-                yield Static("Event Log", classes="sidebar-title")
+                yield Static("\uf02d  Event Log", classes="sidebar-title")
                 yield RichLog(id="logs", max_lines=200, highlight=True)
                 yield Rule()
-                yield Static("Stats", classes="sidebar-title")
+                yield Static("\uf080  Stats", classes="sidebar-title")
                 yield Static(id="stats")
         yield Footer()
 
