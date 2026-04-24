@@ -1,457 +1,557 @@
-"""Interactive TUI menu for the AI Marketing Council.
+"""Interactive TUI menu for the AI Marketing Council — Textual-based.
 
-Provides a rich-text menu for choosing modes, scenarios, and options
-without memorising CLI flags. Includes a first-run onboarding wizard.
+Provides a navigable multi-screen menu with:
+- Arrow-key navigation (↑↓) + Enter to select
+- Escape to go back
+- Mouse click support
+- Breadcrumb-style screen transitions
 """
 
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from pathlib import Path
 from typing import Optional
 
-from rich.console import Console
-from rich.panel import Panel
-from rich.prompt import Confirm, IntPrompt, Prompt
-from rich.table import Table
-from rich.text import Text
+from textual.app import App, ComposeResult
+from textual.containers import Center, Grid, Horizontal, Vertical
+from textual.reactive import reactive
+from textual.screen import Screen
+from textual.widgets import (
+    Button,
+    Input,
+    Label,
+    OptionList,
+    Rule,
+    Static,
+    Switch,
+)
+from textual.widgets.option_list import Option
 
 from council.demo import list_scenarios
 
-console = Console()
-
 _ONBOARDING_FLAG = Path.home() / ".config" / "council" / "onboarding_done"
+
+_PROVIDERS = [
+    ("openai", "OpenAI (GPT-4o)", "gpt-4o"),
+    ("anthropic", "Anthropic (Claude)", "claude-sonnet-4-6"),
+    ("ollama", "Ollama (local)", "llama3"),
+    ("kimi-code", "Kimi Code CLI", "kimi-for-coding"),
+    ("claude-code", "Claude Code CLI / IDE", "claude-sonnet-4-6"),
+]
 
 
 def _is_onboarding_done() -> bool:
-    """Check if the user has already completed onboarding."""
     return _ONBOARDING_FLAG.exists()
 
 
 def _mark_onboarding_done() -> None:
-    """Mark onboarding as completed."""
     _ONBOARDING_FLAG.parent.mkdir(parents=True, exist_ok=True)
     _ONBOARDING_FLAG.touch(exist_ok=True)
 
 
-def _header() -> None:
-    console.print(
-        Panel.fit(
-            "[bold cyan]🤖 Universal AI Marketing Council[/bold cyan]\n"
-            "[dim]v3.2 — AI-powered marketing strategy for B2B[/dim]",
-            border_style="cyan",
-        )
-    )
+# ── Screens ─────────────────────────────────────────────────────────────────
+
+class WelcomeScreen(Screen):
+    """First-run onboarding screen."""
+
+    def compose(self) -> ComposeResult:
+        with Center():
+            with Vertical(classes="menu-container"):
+                yield Static(
+                    "\uf0e8  Universal AI Marketing Council",
+                    classes="title",
+                )
+                yield Static("v3.2 — AI-powered marketing strategy", classes="subtitle")
+                yield Rule()
+                yield Static("[bold]The Four Agents[/bold]", classes="section-title")
+                yield Static(
+                    "\uf0ad  [cyan]Marcus[/cyan]  — Offer Architect\n"
+                    "\uf140  [magenta]Elena[/magenta] — Funnel Architect\n"
+                    "\uf040  [green]Kai[/green]   — Copywriter\n"
+                    "\uf201  [yellow]David[/yellow] — Lead Strategist",
+                    classes="agents-list",
+                )
+                yield Static(
+                    "[dim]Each round they read, critique, and improve each other's work."
+                    "\nAfter 2-3 rounds you get a polished multi-perspective plan.[/dim]",
+                    classes="description",
+                )
+                yield Rule()
+                with Center():
+                    yield Button("Start →", variant="primary", id="start")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "start":
+            _mark_onboarding_done()
+            self.app.push_screen("main")
 
 
-def _onboarding_flow() -> argparse.Namespace:
-    """First-run onboarding wizard for new users.
+class MainMenuScreen(Screen):
+    """Primary navigation hub."""
 
-    Returns:
-        argparse.Namespace ready to run.
-    """
-    console.print()
-    console.print(
-        Panel(
-            "[bold]Welcome![/bold] This tool runs [cyan]4 AI marketing specialists[/cyan] who\n"
-            "debate in rounds and produce a complete marketing plan for your company.\n\n"
-            "[dim]No templates. No hardcoded data. Real LLM debate.[/dim]",
-            title="👋 First Run",
-            border_style="green",
-        )
-    )
+    def compose(self) -> ComposeResult:
+        with Center():
+            with Vertical(classes="menu-container"):
+                yield Static("\uf0e8  Main Menu", classes="title")
+                yield Static("Choose how to run the council", classes="subtitle")
+                yield OptionList(
+                    Option("\uf11b  Demo Mode — pre-built scenarios, no API keys", id="demo"),
+                    Option("\uf115  Run from Template — built-in company configs", id="template"),
+                    Option("\uf0c5  Real Council Run — your own config + LLM", id="real"),
+                    Option("\uf108  IDE Help — VS Code, Cursor, Kimi, Claude", id="ide"),
+                    Option("\uf128  How it Works — the debate explained", id="help"),
+                    Option("\uf00d  Quit", id="quit"),
+                )
+                yield Static("[dim]↑↓ navigate · Enter select · q quit[/dim]", classes="hint")
 
-    console.print()
-    console.print(
-        "[bold]The Four Agents:[/bold]\n"
-        "  🏗️  [cyan]Marcus[/cyan] — Offer Architect (pricing, positioning, packaging)\n"
-        "  🎯  [magenta]Elena[/magenta] — Funnel Architect (pipeline, conversion, velocity)\n"
-        "  ✍️  [green]Kai[/green] — Copywriter (landing pages, emails, ads)\n"
-        "  🎣  [yellow]David[/yellow] — Lead Strategist (ABM, accounts, outreach)\n"
-    )
-    console.print(
-        "[dim]Each round they read each other's work, criticise, and improve.\n"
-        "After 2-3 rounds you get a polished, multi-perspective plan.[/dim]"
-    )
-    console.print()
+    def on_option_list_option_selected(self, event) -> None:
+        choice = event.option.id
+        if choice == "demo":
+            self.app.push_screen("demo")
+        elif choice == "template":
+            self.app.push_screen("template")
+        elif choice == "real":
+            self.app.push_screen("config")
+        elif choice == "ide":
+            self.app.push_screen("ide")
+        elif choice == "help":
+            self.app.push_screen("help")
+        elif choice == "quit":
+            self.app.exit(None)
 
-    table = Table(show_header=False, box=None)
-    table.add_column(style="bold")
-    table.add_column()
-    table.add_row("[1]", "🎮  Quick Demo — see it in action, no setup needed")
-    table.add_row("[2]", "⚙️   Real Run — I have a company JSON config")
-    table.add_row("[3]", "📊  Dashboard Demo — watch the live terminal dashboard")
-    table.add_row("[4]", "💻  How to use in my IDE — VS Code, Cursor, Kimi, Claude")
-    table.add_row("[5]", "📖  Help — how the debate works")
-    table.add_row("[s]", "⏭️   Skip — go to main menu")
-    console.print(table)
-    console.print()
 
-    choice = Prompt.ask(
-        "What would you like to do first",
-        choices=["1", "2", "3", "4", "5", "s"],
-        show_choices=False,
-        default="1",
-    )
+class DemoScreen(Screen):
+    """Demo mode configuration."""
 
-    if choice == "5":
-        console.print()
-        console.print(
-            Panel(
-                "[bold]How the debate works[/bold]\n\n"
-                "1. [cyan]Round 1[/cyan]: Each agent writes their specialised output\n"
-                "   (Marcus → offer, Elena → funnel, Kai → copy, David → ABM)\n\n"
-                "2. [cyan]Round 2[/cyan]: Agents read each other's work and critique it\n"
-                "   Marcus might say: 'Elena, at this price your funnel breaks'\n\n"
-                "3. [cyan]Round 3[/cyan]: Final outputs incorporating all feedback\n\n"
-                "[dim]The result is a plan that survived criticism from 4 experts.[/dim]",
-                border_style="blue",
+    def compose(self) -> ComposeResult:
+        scenarios = list_scenarios()
+        self.app.state["scenarios"] = scenarios
+        with Center():
+            with Vertical(classes="menu-container"):
+                yield Static("\uf11b  Demo Mode", classes="title")
+                yield Static("Pre-built scenarios — no API keys needed", classes="subtitle")
+                yield OptionList(
+                    *[
+                        Option(f"{s.name} — {s.description}", id=s.key)
+                        for s in scenarios
+                    ],
+                )
+                yield Rule()
+                yield Static("Rounds:", classes="field-label")
+                yield Input(value="3", placeholder="3", id="rounds-input")
+                yield Static("Dashboard:", classes="field-label")
+                with Horizontal(classes="switch-row"):
+                    yield Switch(value=True, id="dashboard-switch")
+                    yield Label("Enable live terminal dashboard")
+                with Horizontal(classes="button-row"):
+                    yield Button("← Back", variant="default", id="back")
+                    yield Button("Next →", variant="primary", id="next")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "back":
+            self.app.pop_screen()
+        elif event.button.id == "next":
+            ol = self.query_one(OptionList)
+            sel = ol.highlighted
+            scenarios = self.app.state.get("scenarios", [])
+            scenario = scenarios[sel].key if scenarios and sel is not None else "saas-launch"
+            rounds_str = self.query_one("#rounds-input", Input).value or "3"
+            dashboard = self.query_one("#dashboard-switch", Switch).value
+            self.app.state.update(
+                demo=True,
+                scenario=scenario,
+                rounds=int(rounds_str),
+                dashboard=dashboard,
+                provider="openai",
+                model=None,
+                config=None,
+                template=None,
+                output="./output",
             )
-        )
-        console.print()
-        if Confirm.ask("Run a quick demo now", default=True):
-            _mark_onboarding_done()
-            return _demo_menu(dashboard_default=True)
+            self.app.push_screen("confirm")
+
+
+class TemplateScreen(Screen):
+    """Template selection screen."""
+
+    def compose(self) -> ComposeResult:
+        template_dir = Path(__file__).parent.parent / "templates" / "companies"
+        templates = sorted(p.stem for p in template_dir.glob("*.json") if p.is_file())
+        self.app.state["templates"] = templates
+        with Center():
+            with Vertical(classes="menu-container"):
+                yield Static("\uf115  Run from Template", classes="title")
+                yield Static("Built-in company configurations", classes="subtitle")
+                yield OptionList(
+                    *[Option(t, id=t) for t in templates],
+                )
+                with Horizontal(classes="button-row"):
+                    yield Button("← Back", variant="default", id="back")
+                    yield Button("Next →", variant="primary", id="next")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "back":
+            self.app.pop_screen()
+        elif event.button.id == "next":
+            ol = self.query_one(OptionList)
+            sel = ol.highlighted
+            templates = self.app.state.get("templates", [])
+            template = templates[sel] if templates and sel is not None else templates[0] if templates else "saas"
+            self.app.state["template"] = template
+            self.app.push_screen("provider")
+
+
+class ConfigScreen(Screen):
+    """Custom config path input."""
+
+    def compose(self) -> ComposeResult:
+        with Center():
+            with Vertical(classes="menu-container"):
+                yield Static("\uf0c5  Real Council Run", classes="title")
+                yield Static("Enter path to your company JSON config", classes="subtitle")
+                yield Input(placeholder="e.g. ./my-company.json", id="config-input")
+                yield Static("[dim]Tip: copy from templates/companies/ as a starting point[/dim]", classes="hint")
+                with Horizontal(classes="button-row"):
+                    yield Button("← Back", variant="default", id="back")
+                    yield Button("Next →", variant="primary", id="next")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "back":
+            self.app.pop_screen()
+        elif event.button.id == "next":
+            path = self.query_one("#config-input", Input).value.strip()
+            if not path:
+                self.notify("Config path is required", severity="error")
+                return
+            self.app.state["config"] = path
+            self.app.state["template"] = None
+            self.app.push_screen("provider")
+
+
+class ProviderScreen(Screen):
+    """LLM provider selection."""
+
+    def compose(self) -> ComposeResult:
+        with Center():
+            with Vertical(classes="menu-container"):
+                yield Static("\uf233  LLM Provider", classes="title")
+                yield Static("Choose who powers the agents", classes="subtitle")
+                yield OptionList(
+                    *[
+                        Option(f"{name}  [dim](default: {default_model})[/dim]", id=key)
+                        for key, name, default_model in _PROVIDERS
+                    ],
+                )
+                yield Rule()
+                yield Static("Model override (optional):", classes="field-label")
+                yield Input(placeholder="leave empty for default", id="model-input")
+                yield Rule()
+                yield Static("Rounds:", classes="field-label")
+                yield Input(value="3", placeholder="3", id="rounds-input")
+                yield Static("Dashboard:", classes="field-label")
+                with Horizontal(classes="switch-row"):
+                    yield Switch(value=True, id="dashboard-switch")
+                    yield Label("Enable live terminal dashboard")
+                yield Static("Output directory:", classes="field-label")
+                yield Input(value="./output", placeholder="./output", id="output-input")
+                with Horizontal(classes="button-row"):
+                    yield Button("← Back", variant="default", id="back")
+                    yield Button("Next →", variant="primary", id="next")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "back":
+            self.app.pop_screen()
+        elif event.button.id == "next":
+            ol = self.query_one(OptionList)
+            sel = ol.highlighted
+            provider = _PROVIDERS[sel][0] if sel is not None else "openai"
+            model = self.query_one("#model-input", Input).value.strip() or None
+            rounds_str = self.query_one("#rounds-input", Input).value or "3"
+            dashboard = self.query_one("#dashboard-switch", Switch).value
+            output = self.query_one("#output-input", Input).value.strip() or "./output"
+            self.app.state.update(
+                provider=provider,
+                model=model,
+                rounds=int(rounds_str),
+                dashboard=dashboard,
+                output=output,
+            )
+            self.app.push_screen("confirm")
+
+
+class ConfirmScreen(Screen):
+    """Final review before execution."""
+
+    def compose(self) -> ComposeResult:
+        st = self.app.state
+        lines = []
+        if st.get("demo"):
+            lines.append(f"Mode:      Demo ({st.get('scenario', '?')})")
+            lines.append(f"Rounds:    {st.get('rounds', 3)}")
+            lines.append(f"Dashboard: {'Yes' if st.get('dashboard') else 'No'}")
+        elif st.get("template"):
+            lines.append(f"Mode:      Template ({st.get('template')})")
+            lines.append(f"Provider:  {st.get('provider', '?')}")
+            lines.append(f"Model:     {st.get('model') or 'default'}")
+            lines.append(f"Rounds:    {st.get('rounds', 3)}")
+            lines.append(f"Dashboard: {'Yes' if st.get('dashboard') else 'No'}")
+            lines.append(f"Output:    {st.get('output', './output')}")
         else:
-            _mark_onboarding_done()
-            return _choose_mode_and_run()
+            lines.append(f"Mode:      Real Run")
+            lines.append(f"Config:    {st.get('config', '?')}")
+            lines.append(f"Provider:  {st.get('provider', '?')}")
+            lines.append(f"Model:     {st.get('model') or 'default'}")
+            lines.append(f"Rounds:    {st.get('rounds', 3)}")
+            lines.append(f"Dashboard: {'Yes' if st.get('dashboard') else 'No'}")
+            lines.append(f"Output:    {st.get('output', './output')}")
 
-    if choice == "4":
-        _show_ide_help()
-        _mark_onboarding_done()
-        return _choose_mode_and_run()
+        with Center():
+            with Vertical(classes="menu-container"):
+                yield Static("\uf00c  Ready to Run", classes="title")
+                yield Static("Review your settings", classes="subtitle")
+                yield Rule()
+                yield Static("\n".join(lines), classes="summary")
+                yield Rule()
+                with Horizontal(classes="button-row"):
+                    yield Button("← Back", variant="default", id="back")
+                    yield Button("▶ Run", variant="success", id="run")
 
-    if choice == "3":
-        _mark_onboarding_done()
-        return _demo_menu(dashboard_default=True)
-
-    if choice == "1":
-        _mark_onboarding_done()
-        return _demo_menu(dashboard_default=False)
-
-    if choice == "2":
-        _mark_onboarding_done()
-        return _real_menu()
-
-    # "s" skip
-    _mark_onboarding_done()
-    return _choose_mode_and_run()
-
-
-def _show_ide_help() -> None:
-    """Display help for running in various IDEs."""
-    console.print()
-    console.print(
-        Panel(
-            "[bold]💻 Using the Council in your IDE[/bold]\n\n"
-            "[cyan]VS Code / Cursor / Windsurf:[/cyan]\n"
-            "  1. Open the integrated terminal (Ctrl+`)\n"
-            "  2. Run: [bold]python -m council[/bold]\n"
-            "  3. Files appear in the output/ folder — refresh explorer to see them\n\n"
-            "[cyan]Kimi Code IDE:[/cyan]\n"
-            "  1. Open terminal in Kimi Code\n"
-            "  2. Run: [bold]python -m council --provider kimi-code[/bold]\n"
-            "  3. No API key needed — uses your logged-in Kimi session\n\n"
-            "[cyan]Claude Code IDE:[/cyan]\n"
-            "  1. Open terminal in Claude Code\n"
-            "  2. Run: [bold]python -m council --provider claude-code[/bold]\n"
-            "  3. No API key needed — reads OAuth from ~/.claude/.credentials.json\n\n"
-            "[cyan]GitHub Codespaces:[/cyan]\n"
-            "  1. Open terminal in Codespaces\n"
-            "  2. Run: [bold]python -m council --platform copilot[/bold]\n\n"
-            "[dim]All platforms auto-detect. Just run 'python -m council' and it figures it out.[/dim]",
-            border_style="magenta",
-        )
-    )
-    console.print()
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "back":
+            self.app.pop_screen()
+        elif event.button.id == "run":
+            st = self.app.state
+            ns = argparse.Namespace(
+                config=st.get("config"),
+                provider=st.get("provider", "openai"),
+                model=st.get("model"),
+                platform="cli",
+                rounds=st.get("rounds", 3),
+                timeout=300.0,
+                output=st.get("output", "./output"),
+                monitor=False,
+                aggregate=False,
+                verbose=False,
+                documents=None,
+                documents_dir=None,
+                scalac_mode=False,
+                dashboard=st.get("dashboard", False),
+                demo=st.get("demo", False),
+                scenario=st.get("scenario", "saas-launch"),
+                template=st.get("template"),
+            )
+            self.app.exit(ns)
 
 
-def _show_auth_hint(provider: str) -> None:
-    """Show authentication hint for the selected provider."""
-    hints = {
-        "openai": (
-            "[yellow]Authentication:[/yellow] Set your OpenAI key\n"
-            "  export OPENAI_API_KEY='sk-...'\n"
-            "  Get one at: https://platform.openai.com/api-keys"
-        ),
-        "anthropic": (
-            "[yellow]Authentication:[/yellow] Set your Anthropic key\n"
-            "  export ANTHROPIC_API_KEY='sk-ant-...'\n"
-            "  Get one at: https://console.anthropic.com/settings/keys"
-        ),
-        "ollama": (
-            "[green]Authentication:[/green] No key needed!\n"
-            "  Just ensure Ollama is running:\n"
-            "  ollama run llama3"
-        ),
-        "kimi-code": (
-            "[green]Authentication:[/green] No key needed!\n"
-            "  Kimi Code provider auto-detects your IDE session.\n"
-            "  It runs 'kimi --quiet --yolo --prompt ...' as a subprocess."
-        ),
-        "claude-code": (
-            "[green]Authentication:[/green] No key needed!\n"
-            "  Claude Code provider reads OAuth token from:\n"
-            "  ~/.claude/.credentials.json\n"
-            "  Or uses the 'claude -p' CLI if installed."
-        ),
+class HelpScreen(Screen):
+    """How the debate works."""
+
+    def compose(self) -> ComposeResult:
+        with Center():
+            with Vertical(classes="menu-container"):
+                yield Static("\uf128  How the Debate Works", classes="title")
+                yield Static(
+                    "[bold]Round 1:[/bold] Each agent writes their specialised output\n"
+                    "  Marcus → offer, Elena → funnel, Kai → copy, David → ABM\n\n"
+                    "[bold]Round 2:[/bold] Agents read and critique each other\n"
+                    "  Marcus might say: 'Elena, at this price your funnel breaks'\n\n"
+                    "[bold]Round 3:[/bold] Final outputs with all feedback incorporated\n\n"
+                    "[dim]The result is a plan that survived criticism from 4 experts.[/dim]",
+                    classes="description",
+                )
+                with Center():
+                    yield Button("← Back", variant="default", id="back")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "back":
+            self.app.pop_screen()
+
+
+class IDEScreen(Screen):
+    """IDE setup help."""
+
+    def compose(self) -> ComposeResult:
+        with Center():
+            with Vertical(classes="menu-container"):
+                yield Static("\uf108  IDE Setup", classes="title")
+                yield Static(
+                    "[bold]VS Code / Cursor / Windsurf[/bold]\n"
+                    "  Open integrated terminal (Ctrl+`)\n"
+                    "  Run: python -m council\n\n"
+                    "[bold]Kimi Code IDE[/bold]\n"
+                    "  Run: python -m council --provider kimi-code\n"
+                    "  No API key — uses your logged-in Kimi session\n\n"
+                    "[bold]Claude Code IDE[/bold]\n"
+                    "  Run: python -m council --provider claude-code\n"
+                    "  Reads OAuth from ~/.claude/.credentials.json\n\n"
+                    "[bold]GitHub Codespaces[/bold]\n"
+                    "  Run: python -m council --platform copilot\n\n"
+                    "[dim]All platforms auto-detect.[/dim]",
+                    classes="description",
+                )
+                with Center():
+                    yield Button("← Back", variant="default", id="back")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "back":
+            self.app.pop_screen()
+
+
+# ── App ─────────────────────────────────────────────────────────────────────
+
+class CouncilMenuApp(App):
+    """Textual interactive menu for the AI Marketing Council."""
+
+    CSS = """
+    Screen { align: center middle; }
+
+    .menu-container {
+        width: 70;
+        height: auto;
+        max-height: 90%;
+        border: solid $primary-darken-2;
+        padding: 1 2;
+        background: $surface-darken-1 40%;
     }
-    hint = hints.get(provider, "")
-    if hint:
-        console.print()
-        console.print(Panel(hint, border_style="yellow"))
-        console.print()
 
-
-def _choose_mode_and_run() -> argparse.Namespace:
-    """Show main menu and return configured Namespace."""
-    console.print()
-    table = Table(show_header=False, box=None)
-    table.add_column(style="bold")
-    table.add_column()
-    table.add_row("[1]", "🎮  Demo Mode — pre-built scenarios, no API keys")
-    table.add_row("[2]", "📂  Run from Template — use a built-in company config")
-    table.add_row("[3]", "▶️   Real Council Run — your own config + LLM provider")
-    table.add_row("[q]", "🚪  Quit")
-    console.print(table)
-    console.print()
-
-    choice = Prompt.ask(
-        "Select",
-        choices=["1", "2", "3", "q"],
-        show_choices=False,
-    )
-
-    if choice == "q":
-        console.print("[dim]Goodbye![/dim]")
-        sys.exit(0)
-    elif choice == "1":
-        return _demo_menu()
-    elif choice == "2":
-        return _template_menu()
-    else:
-        return _real_menu()
-
-
-def _demo_menu(dashboard_default: bool = True) -> argparse.Namespace:
-    """Interactive demo-mode configuration."""
-    console.print()
-    console.print("[bold green]Demo Mode[/bold green] — no API keys needed\n")
-
-    scenarios = list_scenarios()
-    table = Table(title="Choose a scenario", show_header=False, box=None)
-    table.add_column(style="bold cyan")
-    table.add_column(style="bold")
-    table.add_column()
-    for idx, s in enumerate(scenarios, 1):
-        table.add_row(f"[{idx}]", s.name, f"[dim]{s.description}[/dim]")
-    console.print(table)
-    console.print()
-
-    scenario_idx = IntPrompt.ask(
-        "Scenario",
-        choices=[str(i) for i in range(1, len(scenarios) + 1)],
-        default=1,
-    )
-    scenario = scenarios[scenario_idx - 1]
-
-    rounds = IntPrompt.ask("How many rounds", default=3)
-    dashboard = Confirm.ask("Enable live dashboard", default=dashboard_default)
-
-    return argparse.Namespace(
-        config=None,
-        provider="openai",
-        model=None,
-        platform="cli",
-        rounds=rounds,
-        timeout=300.0,
-        output="./output",
-        monitor=False,
-        aggregate=False,
-        verbose=False,
-        documents=None,
-        documents_dir=None,
-        scalac_mode=False,
-        dashboard=dashboard,
-        demo=True,
-        scenario=scenario.key,
-        template=None,
-    )
-
-
-def _template_menu() -> argparse.Namespace:
-    """Interactive template selection and run."""
-    from pathlib import Path
-
-    template_dir = Path(__file__).parent.parent / "templates" / "companies"
-    templates = sorted(p.stem for p in template_dir.glob("*.json") if p.is_file())
-
-    console.print()
-    console.print("[bold blue]Run from Template[/bold blue] — built-in company configs\n")
-
-    table = Table(title="Choose a company template", show_header=False, box=None)
-    table.add_column(style="bold cyan")
-    table.add_column(style="bold")
-    table.add_column()
-    for idx, name in enumerate(templates, 1):
-        table.add_row(f"[{idx}]", name, f"[dim]templates/companies/{name}.json[/dim]")
-    console.print(table)
-    console.print()
-
-    choice = IntPrompt.ask(
-        "Template",
-        choices=[str(i) for i in range(1, len(templates) + 1)],
-        default=1,
-    )
-    template = templates[choice - 1]
-
-    console.print()
-    providers = {
-        "1": ("openai", "OpenAI (GPT-4o)"),
-        "2": ("anthropic", "Anthropic (Claude)"),
-        "3": ("ollama", "Ollama (local)"),
-        "4": ("kimi-code", "Kimi Code CLI"),
-        "5": ("claude-code", "Claude Code CLI / IDE"),
+    .title {
+        text-style: bold;
+        width: 100%;
+        content-align: center middle;
+        height: auto;
+        padding: 1 0;
+        color: $text;
     }
-    table = Table(show_header=False, box=None)
-    table.add_column(style="bold")
-    table.add_column()
-    for k, (_, name) in providers.items():
-        table.add_row(f"[{k}]", name)
-    console.print(table)
-    provider_choice = Prompt.ask(
-        "LLM Provider",
-        choices=list(providers.keys()),
-        default="1",
-    )
-    provider, _ = providers[provider_choice]
 
-    _show_auth_hint(provider)
-
-    model: Optional[str] = None
-    if provider == "openai":
-        model = Prompt.ask("Model", default="gpt-4o")
-    elif provider == "anthropic":
-        model = Prompt.ask("Model", default="claude-sonnet-4-6")
-    elif provider == "ollama":
-        model = Prompt.ask("Model", default="llama3")
-    elif provider == "kimi-code":
-        model = Prompt.ask("Model", default="kimi-for-coding")
-    elif provider == "claude-code":
-        model = Prompt.ask("Model", default="claude-sonnet-4-6")
-
-    rounds = IntPrompt.ask("How many rounds", default=3)
-    dashboard = Confirm.ask("Enable live dashboard", default=True)
-    output = Prompt.ask("Output directory", default="./output")
-
-    return argparse.Namespace(
-        config=None,
-        provider=provider,
-        model=model if model else None,
-        platform="cli",
-        rounds=rounds,
-        timeout=300.0,
-        output=output,
-        monitor=False,
-        aggregate=False,
-        verbose=False,
-        documents=None,
-        documents_dir=None,
-        scalac_mode=False,
-        dashboard=dashboard,
-        demo=False,
-        scenario="saas-launch",
-        template=template,
-    )
-
-
-def _real_menu() -> argparse.Namespace:
-    """Interactive real-run configuration."""
-    console.print()
-    console.print("[bold blue]Real Council Run[/bold blue] — requires config + LLM keys\n")
-
-    config_path = Prompt.ask("Path to company JSON config")
-    while not config_path.strip():
-        console.print("[red]Config path is required.[/red]")
-        config_path = Prompt.ask("Path to company JSON config")
-
-    console.print()
-    providers = {
-        "1": ("openai", "OpenAI (GPT-4o)"),
-        "2": ("anthropic", "Anthropic (Claude)"),
-        "3": ("ollama", "Ollama (local)"),
-        "4": ("kimi-code", "Kimi Code CLI"),
-        "5": ("claude-code", "Claude Code CLI / IDE"),
+    .subtitle {
+        color: $text-muted;
+        width: 100%;
+        content-align: center middle;
+        height: auto;
+        padding-bottom: 1;
     }
-    table = Table(show_header=False, box=None)
-    table.add_column(style="bold")
-    table.add_column()
-    for k, (_, name) in providers.items():
-        table.add_row(f"[{k}]", name)
-    console.print(table)
-    provider_choice = Prompt.ask(
-        "LLM Provider",
-        choices=list(providers.keys()),
-        default="1",
-    )
-    provider, _ = providers[provider_choice]
 
-    _show_auth_hint(provider)
+    .section-title {
+        text-style: bold;
+        width: 100%;
+        content-align: center middle;
+        height: auto;
+        padding: 1 0;
+    }
 
-    model: Optional[str] = None
-    if provider == "openai":
-        model = Prompt.ask("Model", default="gpt-4o")
-    elif provider == "anthropic":
-        model = Prompt.ask("Model", default="claude-sonnet-4-6")
-    elif provider == "ollama":
-        model = Prompt.ask("Model", default="llama3")
-    elif provider == "kimi-code":
-        model = Prompt.ask("Model", default="kimi-for-coding")
-    elif provider == "claude-code":
-        model = Prompt.ask("Model", default="claude-sonnet-4-6")
+    .agents-list {
+        width: 100%;
+        content-align: center middle;
+        height: auto;
+        padding: 1 0;
+    }
 
-    rounds = IntPrompt.ask("How many rounds", default=3)
-    dashboard = Confirm.ask("Enable live dashboard", default=True)
-    output = Prompt.ask("Output directory", default="./output")
+    .description {
+        color: $text-muted;
+        width: 100%;
+        content-align: center middle;
+        height: auto;
+        padding: 1 0;
+    }
 
-    return argparse.Namespace(
-        config=config_path.strip(),
-        provider=provider,
-        model=model if model else None,
-        platform="cli",
-        rounds=rounds,
-        timeout=300.0,
-        output=output,
-        monitor=False,
-        aggregate=False,
-        verbose=False,
-        documents=None,
-        documents_dir=None,
-        scalac_mode=False,
-        dashboard=dashboard,
-        demo=False,
-        scenario="saas-launch",
-        template=None,
-    )
+    .hint {
+        color: $text-muted;
+        width: 100%;
+        content-align: center middle;
+        height: auto;
+        padding-top: 1;
+    }
+
+    .field-label {
+        text-style: bold;
+        padding-top: 1;
+        height: auto;
+    }
+
+    .switch-row {
+        height: auto;
+        padding: 1 0;
+    }
+
+    .button-row {
+        height: auto;
+        content-align: center middle;
+        padding-top: 1;
+    }
+
+    .button-row Button {
+        margin: 0 1;
+    }
+
+    .summary {
+        width: 100%;
+        height: auto;
+        padding: 1 2;
+    }
+
+    OptionList {
+        width: 100%;
+        height: auto;
+        max-height: 20;
+        border: solid $surface-lighten-1;
+        padding: 0 1;
+    }
+
+    OptionList:focus {
+        border: solid $primary;
+    }
+
+    Input {
+        width: 100%;
+        margin: 1 0;
+    }
+    """
+
+    BINDINGS = [
+        ("q", "quit", "Quit"),
+        ("escape", "back", "Back"),
+    ]
+
+    def __init__(self, start_screen: str = "main", **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.state: dict = {}
+        self._start_screen = start_screen
+
+    def on_mount(self) -> None:
+        self.install_screen(WelcomeScreen(), "welcome")
+        self.install_screen(MainMenuScreen(), "main")
+        self.install_screen(DemoScreen(), "demo")
+        self.install_screen(TemplateScreen(), "template")
+        self.install_screen(ProviderScreen(), "provider")
+        self.install_screen(ConfigScreen(), "config")
+        self.install_screen(ConfirmScreen(), "confirm")
+        self.install_screen(HelpScreen(), "help")
+        self.install_screen(IDEScreen(), "ide")
+        self.push_screen(self._start_screen)
+
+    def action_back(self) -> None:
+        if len(self.screen_stack) > 1:
+            self.pop_screen()
+        else:
+            self.exit(None)
+
+    def action_quit(self) -> None:
+        self.exit(None)
 
 
-def prompt_for_args(force_onboarding: bool = False) -> argparse.Namespace:
+# ── Public API ──────────────────────────────────────────────────────────────
+
+def prompt_for_args(force_onboarding: bool = False) -> Optional[argparse.Namespace]:
     """Run the interactive menu and return a populated Namespace.
 
     On first run (or when force_onboarding=True) shows an onboarding
     wizard that explains the system and recommends a quick demo.
-
-    Args:
-        force_onboarding: Show onboarding even if already completed.
-
-    Returns:
-        argparse.Namespace compatible with council.cli._run_council.
     """
-    _header()
-
-    if force_onboarding or not _is_onboarding_done():
-        return _onboarding_flow()
-
-    return _choose_mode_and_run()
+    start = "welcome" if (force_onboarding or not _is_onboarding_done()) else "main"
+    app = CouncilMenuApp(start_screen=start)
+    result = app.run()
+    if result is None:
+        sys.exit(0)
+    return result
