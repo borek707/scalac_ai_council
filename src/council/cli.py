@@ -55,6 +55,14 @@ def parse_args(args: Optional[list[str]] = None) -> argparse.Namespace:
     auto_platform = auto_detect_platform()
     auto_msg = f"auto-detected: {auto_platform}" if auto_platform != "cli" else "default"
 
+    # Discover available templates
+    template_dir = Path(__file__).parent.parent.parent / "templates" / "companies"
+    available_templates = []
+    if template_dir.exists():
+        available_templates = sorted(
+            p.stem for p in template_dir.glob("*.json") if p.is_file()
+        )
+
     parser = argparse.ArgumentParser(
         description="Universal AI Marketing Council v3.2 — 4 AI agents debate and create a marketing plan for your company.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -64,15 +72,19 @@ Platform auto-detection: {{ {auto_msg} }}
 Quick start (pick one):
   First time here?          python -m council
   See it in action (no keys) python -m council --demo --dashboard
+  Run with a template        python -m council --template saas --dashboard
   Run with your company      python -m council --config firm.json
   Use Claude Code IDE        python -m council --config firm.json --provider claude-code
   Use Kimi Code IDE          python -m council --config firm.json --provider kimi-code
 
 Common operations:
-  More debate rounds         python -m council --config firm.json --rounds 5
-  Live terminal dashboard    python -m council --config firm.json --dashboard
-  Aggregate final proposal   python -m council --config firm.json --aggregate
+  More debate rounds         python -m council --template saas --rounds 5
+  Live terminal dashboard    python -m council --template saas --dashboard
+  Aggregate final proposal   python -m council --template saas --aggregate
   Only check status          python -m council --config firm.json --monitor
+
+Built-in templates:
+{chr(10).join(f"  {t:12} templates/companies/{t}.json" for t in available_templates)}
 
 Supported platforms:
   cli       Local terminal (default)
@@ -150,6 +162,14 @@ Need more help? Read README.md or run: python -m council --interactive
         "--documents-dir",
         default=None,
         help="Directory with .md/.txt files to load as context",
+    )
+    parser.add_argument(
+        "--template",
+        default=None,
+        choices=available_templates or None,
+        metavar="NAME",
+        help="Use a built-in company template (e.g. saas, fintech, ecommerce). "
+             "Ignores --config. Run without value to see available templates.",
     )
     parser.add_argument(
         "--scalac-mode",
@@ -238,11 +258,25 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         await _run_demo(args, dashboard)
         return
 
+    # Resolve --template to a config path
+    if getattr(args, "template", None):
+        template_dir = Path(__file__).parent.parent.parent / "templates" / "companies"
+        template_path = template_dir / f"{args.template}.json"
+        if template_path.exists():
+            args.config = str(template_path)
+            logger.info("Using template: %s", args.template)
+        else:
+            raise FileNotFoundError(
+                f"Template not found: {args.template}\n"
+                f"  Looked in: {template_dir}\n"
+                f"  Available: {', '.join(p.stem for p in template_dir.glob('*.json'))}"
+            )
+
     if not args.config:
         logger.error(
             "Missing --config. You have three options:\n"
             "  1. Run demo (no config needed):  python -m council --demo\n"
-            "  2. Create a config from template: cp templates/companies/saas.json my.json\n"
+            "  2. Use a built-in template:       python -m council --template saas\n"
             "  3. Run interactive menu:          python -m council --interactive"
         )
         sys.exit(1)

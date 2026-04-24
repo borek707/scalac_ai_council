@@ -212,14 +212,15 @@ def _choose_mode_and_run() -> argparse.Namespace:
     table.add_column(style="bold")
     table.add_column()
     table.add_row("[1]", "🎮  Demo Mode — pre-built scenarios, no API keys")
-    table.add_row("[2]", "▶️   Real Council Run — your config + LLM provider")
+    table.add_row("[2]", "📂  Run from Template — use a built-in company config")
+    table.add_row("[3]", "▶️   Real Council Run — your own config + LLM provider")
     table.add_row("[q]", "🚪  Quit")
     console.print(table)
     console.print()
 
     choice = Prompt.ask(
         "Select",
-        choices=["1", "2", "q"],
+        choices=["1", "2", "3", "q"],
         show_choices=False,
     )
 
@@ -228,6 +229,8 @@ def _choose_mode_and_run() -> argparse.Namespace:
         sys.exit(0)
     elif choice == "1":
         return _demo_menu()
+    elif choice == "2":
+        return _template_menu()
     else:
         return _real_menu()
 
@@ -274,6 +277,93 @@ def _demo_menu(dashboard_default: bool = True) -> argparse.Namespace:
         dashboard=dashboard,
         demo=True,
         scenario=scenario.key,
+        template=None,
+    )
+
+
+def _template_menu() -> argparse.Namespace:
+    """Interactive template selection and run."""
+    from pathlib import Path
+
+    template_dir = Path(__file__).parent.parent / "templates" / "companies"
+    templates = sorted(p.stem for p in template_dir.glob("*.json") if p.is_file())
+
+    console.print()
+    console.print("[bold blue]Run from Template[/bold blue] — built-in company configs\n")
+
+    table = Table(title="Choose a company template", show_header=False, box=None)
+    table.add_column(style="bold cyan")
+    table.add_column(style="bold")
+    table.add_column()
+    for idx, name in enumerate(templates, 1):
+        table.add_row(f"[{idx}]", name, f"[dim]templates/companies/{name}.json[/dim]")
+    console.print(table)
+    console.print()
+
+    choice = IntPrompt.ask(
+        "Template",
+        choices=[str(i) for i in range(1, len(templates) + 1)],
+        default=1,
+    )
+    template = templates[choice - 1]
+
+    console.print()
+    providers = {
+        "1": ("openai", "OpenAI (GPT-4o)"),
+        "2": ("anthropic", "Anthropic (Claude)"),
+        "3": ("ollama", "Ollama (local)"),
+        "4": ("kimi-code", "Kimi Code CLI"),
+        "5": ("claude-code", "Claude Code CLI / IDE"),
+    }
+    table = Table(show_header=False, box=None)
+    table.add_column(style="bold")
+    table.add_column()
+    for k, (_, name) in providers.items():
+        table.add_row(f"[{k}]", name)
+    console.print(table)
+    provider_choice = Prompt.ask(
+        "LLM Provider",
+        choices=list(providers.keys()),
+        default="1",
+    )
+    provider, _ = providers[provider_choice]
+
+    _show_auth_hint(provider)
+
+    model: Optional[str] = None
+    if provider == "openai":
+        model = Prompt.ask("Model", default="gpt-4o")
+    elif provider == "anthropic":
+        model = Prompt.ask("Model", default="claude-sonnet-4-6")
+    elif provider == "ollama":
+        model = Prompt.ask("Model", default="llama3")
+    elif provider == "kimi-code":
+        model = Prompt.ask("Model", default="kimi-for-coding")
+    elif provider == "claude-code":
+        model = Prompt.ask("Model", default="claude-sonnet-4-6")
+
+    rounds = IntPrompt.ask("How many rounds", default=3)
+    dashboard = Confirm.ask("Enable live dashboard", default=True)
+    output = Prompt.ask("Output directory", default="./output")
+
+    return argparse.Namespace(
+        config=None,
+        provider=provider,
+        model=model if model else None,
+        platform="cli",
+        rounds=rounds,
+        timeout=300.0,
+        output=output,
+        monitor=False,
+        aggregate=False,
+        verbose=False,
+        documents=None,
+        documents_dir=None,
+        scalac_mode=False,
+        dashboard=dashboard,
+        demo=False,
+        scenario="saas-launch",
+        template=template,
     )
 
 
@@ -343,6 +433,7 @@ def _real_menu() -> argparse.Namespace:
         dashboard=dashboard,
         demo=False,
         scenario="saas-launch",
+        template=None,
     )
 
 
