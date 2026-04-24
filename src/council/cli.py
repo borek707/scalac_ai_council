@@ -208,7 +208,7 @@ def _create_platform_adapter(platform: str) -> PlatformAdapter:
         return CLIAdapter()
 
 
-async def _run_demo(args: argparse.Namespace) -> None:
+async def _run_demo(args: argparse.Namespace, dashboard=None) -> None:
     """Run a pre-built demo scenario without LLM keys."""
     from council.demo import get_scenario, run_demo
 
@@ -218,45 +218,24 @@ async def _run_demo(args: argparse.Namespace) -> None:
     scenario = get_scenario(args.scenario)
     logger.info("Demo mode: scenario='%s' (%s), rounds=%d", scenario.key, scenario.name, args.rounds)
 
-    dashboard = None
-    if args.dashboard:
-        try:
-            from council.vis.dashboard import CouncilDashboard
-        except ImportError as exc:
-            logger.warning(
-                "Dashboard requires 'rich'. Install: pip install rich (%s)", exc
-            )
-        else:
-            dashboard = CouncilDashboard(
-                agent_names=["Marcus", "Elena", "Kai", "David"],
-                max_rounds=args.rounds,
-            )
-
-    if dashboard:
-        with dashboard:
-            await run_demo(
-                scenario_key=args.scenario,
-                rounds=args.rounds,
-                workspace=workspace,
-                progress_callback=dashboard.make_callback(),
-            )
-    else:
-        await run_demo(
-            scenario_key=args.scenario,
-            rounds=args.rounds,
-            workspace=workspace,
-        )
+    progress_callback = dashboard.make_callback() if dashboard else None
+    await run_demo(
+        scenario_key=args.scenario,
+        rounds=args.rounds,
+        workspace=workspace,
+        progress_callback=progress_callback,
+    )
 
     logger.info("Demo run complete. Output: %s", workspace)
     _print_success_summary(workspace, args.rounds, False)
 
 
-async def _run_council(args: argparse.Namespace) -> None:
+async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
     """Execute the council with parsed arguments."""
     setup_logging(args.verbose)
 
     if args.demo:
-        await _run_demo(args)
+        await _run_demo(args, dashboard)
         return
 
     if not args.config:
@@ -410,53 +389,7 @@ async def _run_council(args: argparse.Namespace) -> None:
         DavidAgent(workspace=workspace, config=company_config, provider=provider),
     ]
 
-    # Optional live dashboard
-    dashboard = None
-    if args.dashboard:
-        try:
-            from council.vis.dashboard import CouncilDashboard
-        except ImportError as exc:
-            logger.warning(
-                "Dashboard requires 'rich'. Install: pip install rich (%s)", exc
-            )
-        else:
-            dashboard = CouncilDashboard(
-                agent_names=[a.name for a in agents],
-                max_rounds=args.rounds,
-            )
-
-    if dashboard:
-        with dashboard:
-            orchestrator = AsyncOrchestrator(
-                agents=agents,
-                config=company_config,
-                provider=provider,
-                provider_name=args.provider,
-                provider_model=args.model,
-                max_rounds=args.rounds,
-                round_timeout=args.timeout,
-                workspace=workspace,
-                progress_callback=dashboard.make_callback(),
-            )
-            await adapter.spawn_agents(orchestrator)
-    else:
-        # Simple console progress when dashboard is off
-        def _console_progress(agent_name: str, state: str, **kwargs) -> None:
-            if state == "generating":
-                print(f"  {agent_name} is thinking …")
-            elif state == "writing":
-                progress = kwargs.get("progress_pct")
-                pct = f" {progress:.0f}%" if progress is not None else ""
-                print(f"  {agent_name} drafting{pct}")
-            elif state == "done":
-                print(f"  ✓ {agent_name} done")
-            elif state == "error":
-                err = kwargs.get("message", kwargs.get("error", "unknown error"))
-                print(f"  ✗ {agent_name} error: {err}")
-            elif state == "round_start":
-                round_num = kwargs.get("round_num", "?")
-                print(f"\n── Round {round_num}/{args.rounds} ──")
-
+    async def _execute_council(progress_callback=None):
         orchestrator = AsyncOrchestrator(
             agents=agents,
             config=company_config,
@@ -466,18 +399,35 @@ async def _run_council(args: argparse.Namespace) -> None:
             max_rounds=args.rounds,
             round_timeout=args.timeout,
             workspace=workspace,
-            progress_callback=_console_progress,
+            progress_callback=progress_callback,
         )
         await adapter.spawn_agents(orchestrator)
 
-    if args.aggregate:
-        proposal = orchestrator.aggregate_proposal()
-        proposal_path = workspace / "FINAL_PROPOSAL.md"
-        proposal_path.write_text(proposal, encoding="utf-8")
-        logger.info("Aggregated proposal written to %s", proposal_path)
+        if args.aggregate:
+            proposal = orchestrator.aggregate_proposal()
+            proposal_path = workspace / "FINAL_PROPOSAL.md"
+            proposal_path.write_text(proposal, encoding="utf-8")
+            logger.info("Aggregated proposal written to %s", proposal_path)
 
-    # Success summary (Principle 5)
-    _print_success_summary(workspace, args.rounds, args.aggregate)
+        _print_success_summary(workspace, args.rounds, args.aggregate)
+
+    def _console_progress(agent_name: str, state: str, **kwargs) -> None:
+        if state == "generating":
+            print(f"  {agent_name} is thinking …")
+        elif state == "writing":
+            progress = kwargs.get("progress_pct")
+            pct = f" {progress:.0f}%" if progress is not None else ""
+            print(f"  {agent_name} drafting{pct}")
+        elif state == "done":
+            print(f"  ✓ {agent_name} done")
+        elif state == "error":
+            err = kwargs.get("message", kwargs.get("error", "unknown error"))
+            print(f"  ✗ {agent_name} error: {err}")
+        elif state == "round_start":
+            round_num = kwargs.get("round_num", "?")
+            print(f"\n── Round {round_num}/{args.rounds} ──")
+
+    await _execute_council(_console_progress)
 
 
 def _create_provider(provider_name: str, model: Optional[str]) -> LLMProvider:
@@ -605,6 +555,19 @@ def _show_status(workspace: Path) -> None:
         print(f"  - {f.name} ({size} bytes)")
 
 
+def _run_async_in_thread(coro) -> Exception:
+    """Run an async coroutine in a new event loop inside the current thread."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(coro)
+    except Exception as exc:
+        return exc
+    finally:
+        loop.close()
+    return None
+
+
 def main() -> None:
     """CLI entry point for the Universal AI Marketing Council."""
     argv = sys.argv[1:]
@@ -618,6 +581,39 @@ def main() -> None:
         args = prompt_for_args(force_onboarding=onboarding_requested)
     else:
         args = parse_args()
+
+    dashboard = None
+    if args.dashboard:
+        try:
+            from council.vis.dashboard import CouncilDashboard
+        except ImportError as exc:
+            logger.warning("Dashboard requires 'textual'. Install: pip install textual (%s)", exc)
+        else:
+            dashboard = CouncilDashboard(
+                agent_names=["Marcus", "Elena", "Kai", "David"],
+                max_rounds=args.rounds,
+            )
+
+    if dashboard:
+        import threading
+
+        council_exception: Optional[Exception] = None
+
+        def _council_thread() -> None:
+            nonlocal council_exception
+            exc = _run_async_in_thread(_run_council(args, dashboard))
+            if exc:
+                council_exception = exc
+            dashboard.stop()
+
+        thread = threading.Thread(target=_council_thread, daemon=True)
+        thread.start()
+        dashboard.run()  # blocks in main thread (Textual requirement)
+        thread.join(timeout=60.0)
+        if council_exception:
+            _handle_error(council_exception)
+            sys.exit(1)
+        return
 
     try:
         asyncio.run(_run_council(args))
@@ -647,6 +643,29 @@ def main() -> None:
         print()
         print("If this looks like a bug, run with --verbose and file an issue.")
         sys.exit(1)
+
+
+def _handle_error(exc: Exception) -> None:
+    """Print a human-friendly error message."""
+    if isinstance(exc, FileNotFoundError):
+        print()
+        print(f"✗  File not found: {exc}")
+    elif isinstance(exc, ImportError):
+        print()
+        print(f"✗  Missing dependency\n\n{exc}")
+    elif isinstance(exc, RuntimeError):
+        print()
+        print(f"✗  {exc}")
+        print()
+        print("Need help?")
+        print("  • Demo mode (no API keys):  python -m council --demo")
+        print("  • Interactive menu:         python -m council")
+        print("  • Full help:                python -m council --help")
+    else:
+        print()
+        print(f"✗  Council execution failed: {exc}")
+        print()
+        print("If this looks like a bug, run with --verbose and file an issue.")
 
 
 if __name__ == "__main__":
