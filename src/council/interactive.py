@@ -149,28 +149,34 @@ class DemoScreen(Screen):
                     yield Button("← Back", variant="default", id="back")
                     yield Button("Next →", variant="primary", id="next")
 
+    def _go_next(self) -> None:
+        ol = self.query_one(OptionList)
+        sel = ol.highlighted
+        scenarios = self.app.state.get("scenarios", [])
+        scenario = scenarios[sel].key if scenarios and sel is not None else "saas-launch"
+        rounds_str = self.query_one("#rounds-input", Input).value or "3"
+        dashboard = self.query_one("#dashboard-switch", Switch).value
+        self.app.state.update(
+            demo=True,
+            scenario=scenario,
+            rounds=int(rounds_str),
+            dashboard=dashboard,
+            provider="openai",
+            model=None,
+            config=None,
+            template=None,
+            output="./output",
+        )
+        self.app.push_screen("confirm")
+
+    def on_option_list_option_selected(self, event) -> None:
+        self._go_next()
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "back":
             self.app.pop_screen()
         elif event.button.id == "next":
-            ol = self.query_one(OptionList)
-            sel = ol.highlighted
-            scenarios = self.app.state.get("scenarios", [])
-            scenario = scenarios[sel].key if scenarios and sel is not None else "saas-launch"
-            rounds_str = self.query_one("#rounds-input", Input).value or "3"
-            dashboard = self.query_one("#dashboard-switch", Switch).value
-            self.app.state.update(
-                demo=True,
-                scenario=scenario,
-                rounds=int(rounds_str),
-                dashboard=dashboard,
-                provider="openai",
-                model=None,
-                config=None,
-                template=None,
-                output="./output",
-            )
-            self.app.push_screen("confirm")
+            self._go_next()
 
 
 class TemplateScreen(Screen):
@@ -191,16 +197,22 @@ class TemplateScreen(Screen):
                     yield Button("← Back", variant="default", id="back")
                     yield Button("Next →", variant="primary", id="next")
 
+    def _go_next(self) -> None:
+        ol = self.query_one(OptionList)
+        sel = ol.highlighted
+        templates = self.app.state.get("templates", [])
+        template = templates[sel] if templates and sel is not None else templates[0] if templates else "saas"
+        self.app.state["template"] = template
+        self.app.push_screen("provider")
+
+    def on_option_list_option_selected(self, event) -> None:
+        self._go_next()
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "back":
             self.app.pop_screen()
         elif event.button.id == "next":
-            ol = self.query_one(OptionList)
-            sel = ol.highlighted
-            templates = self.app.state.get("templates", [])
-            template = templates[sel] if templates and sel is not None else templates[0] if templates else "saas"
-            self.app.state["template"] = template
-            self.app.push_screen("provider")
+            self._go_next()
 
 
 class ConfigScreen(Screen):
