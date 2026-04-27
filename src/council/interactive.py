@@ -109,7 +109,9 @@ class MainMenuScreen(Screen):
                 yield Static("[dim]↑↓ navigate · Enter select · q quit[/dim]", classes="hint")
 
     def on_mount(self) -> None:
-        self.query_one(OptionList).focus()
+        ol = self.query_one(OptionList)
+        ol.highlighted = 0
+        ol.focus()
 
     def on_option_list_option_selected(self, event) -> None:
         choice = event.option.id
@@ -237,7 +239,9 @@ class TemplateScreen(Screen):
                     yield Button("Next →", variant="primary", id="next")
 
     def on_mount(self) -> None:
-        self.query_one(OptionList).focus()
+        ol = self.query_one(OptionList)
+        ol.highlighted = 0
+        ol.focus()
 
     def _go_next(self) -> None:
         ol = self.query_one(OptionList)
@@ -317,6 +321,7 @@ class ProviderScreen(Screen):
                         Option(f"{name}  [dim](default: {default_model})[/dim]", id=key)
                         for key, name, default_model in _PROVIDERS
                     ],
+                    classes="provider-options",
                 )
                 yield Rule()
                 yield Static("Model override (optional):", classes="field-label")
@@ -335,7 +340,9 @@ class ProviderScreen(Screen):
                     yield Button("Next →", variant="primary", id="next")
 
     def on_mount(self) -> None:
-        self.query_one(OptionList).focus()
+        ol = self.query_one(OptionList)
+        ol.highlighted = 0
+        ol.focus()
 
     def _go_next(self) -> None:
         ol = self.query_one(OptionList)
@@ -615,6 +622,10 @@ class CouncilMenuApp(App):
         max-height: 20;
         border: solid $surface-lighten-1;
         padding: 0 1;
+    }
+
+    .provider-options {
+        max-height: 6;
     }
 
     OptionList:focus {
