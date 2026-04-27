@@ -106,6 +106,9 @@ class MainMenuScreen(Screen):
                 )
                 yield Static("[dim]↑↓ navigate · Enter select · q quit[/dim]", classes="hint")
 
+    def on_mount(self) -> None:
+        self.query_one(OptionList).focus()
+
     def on_option_list_option_selected(self, event) -> None:
         choice = event.option.id
         if choice == "demo":
@@ -170,6 +173,9 @@ class DemoScreen(Screen):
         )
         self.app.push_screen("confirm")
 
+    def on_mount(self) -> None:
+        self.query_one(OptionList).focus()
+
     def on_option_list_option_selected(self, event) -> None:
         self._go_next()
 
@@ -202,6 +208,9 @@ class TemplateScreen(Screen):
                 with Horizontal(classes="button-row"):
                     yield Button("← Back", variant="default", id="back")
                     yield Button("Next →", variant="primary", id="next")
+
+    def on_mount(self) -> None:
+        self.query_one(OptionList).focus()
 
     def _go_next(self) -> None:
         ol = self.query_one(OptionList)
