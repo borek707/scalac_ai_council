@@ -368,6 +368,10 @@ class ConfirmScreen(Screen):
                     yield Button("← Back", variant="default", id="back")
                     yield Button("▶ Run", variant="success", id="run")
 
+    def on_mount(self) -> None:
+        # Focus the Run button so Enter works immediately
+        self.query_one("#run", Button).focus()
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "back":
             self.app.pop_screen()
