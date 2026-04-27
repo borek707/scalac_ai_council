@@ -295,25 +295,40 @@ class ProviderScreen(Screen):
                     yield Button("← Back", variant="default", id="back")
                     yield Button("Next →", variant="primary", id="next")
 
+    def on_mount(self) -> None:
+        self.query_one(OptionList).focus()
+
+    def _go_next(self) -> None:
+        ol = self.query_one(OptionList)
+        sel = ol.highlighted
+        provider = _PROVIDERS[sel][0] if sel is not None else "openai"
+        model = self.query_one("#model-input", Input).value.strip() or None
+        rounds_str = self.query_one("#rounds-input", Input).value or "3"
+        dashboard = self.query_one("#dashboard-switch", Switch).value
+        output = self.query_one("#output-input", Input).value.strip() or "./output"
+        self.app.state.update(
+            provider=provider,
+            model=model,
+            rounds=int(rounds_str),
+            dashboard=dashboard,
+            output=output,
+        )
+        self.app.push_screen("confirm")
+
+    def on_option_list_option_selected(self, event) -> None:
+        self._go_next()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id == "model-input":
+            self.query_one("#rounds-input", Input).focus()
+        elif event.input.id in ("rounds-input", "output-input"):
+            self._go_next()
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "back":
             self.app.pop_screen()
         elif event.button.id == "next":
-            ol = self.query_one(OptionList)
-            sel = ol.highlighted
-            provider = _PROVIDERS[sel][0] if sel is not None else "openai"
-            model = self.query_one("#model-input", Input).value.strip() or None
-            rounds_str = self.query_one("#rounds-input", Input).value or "3"
-            dashboard = self.query_one("#dashboard-switch", Switch).value
-            output = self.query_one("#output-input", Input).value.strip() or "./output"
-            self.app.state.update(
-                provider=provider,
-                model=model,
-                rounds=int(rounds_str),
-                dashboard=dashboard,
-                output=output,
-            )
-            self.app.push_screen("confirm")
+            self._go_next()
 
 
 class ConfirmScreen(Screen):
