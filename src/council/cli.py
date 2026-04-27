@@ -112,13 +112,18 @@ Need more help? Read README.md or run: python -m council --interactive
     parser.add_argument(
         "--provider",
         default="openai",
-        choices=["openai", "anthropic", "ollama", "kimi-code", "claude-code"],
+        choices=["openai", "anthropic", "ollama", "openrouter", "kimi-code", "claude-code"],
         help="LLM provider to use (default: openai)",
     )
     parser.add_argument(
         "--model",
         default=None,
         help="Model name override",
+    )
+    parser.add_argument(
+        "--api-key",
+        default=None,
+        help="API key for the selected provider (overrides env variable)",
     )
     parser.add_argument(
         "--platform",
@@ -512,6 +517,22 @@ def _create_provider(provider_name: str, model: Optional[str]) -> LLMProvider:
             raise RuntimeError(
                 f"Failed to initialize Anthropic provider: {exc}\n"
                 "  Check that ANTHROPIC_API_KEY is set and valid."
+            ) from exc
+    elif provider_name == "openrouter":
+        try:
+            from council.llm.openrouter_provider import OpenRouterProvider
+        except ImportError as exc:
+            raise ImportError(
+                "OpenAI package not installed (needed for OpenRouter).\n"
+                "  Fix: pip install openai\n"
+                "  Then: export OPENROUTER_API_KEY=sk-or-..."
+            ) from exc
+        try:
+            return OpenRouterProvider(model=model or "anthropic/claude-sonnet-4")
+        except RuntimeError as exc:
+            raise RuntimeError(
+                f"Failed to initialize OpenRouter provider: {exc}\n"
+                "  Check that OPENROUTER_API_KEY is set and valid."
             ) from exc
     elif provider_name == "ollama":
         try:

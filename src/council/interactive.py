@@ -37,6 +37,7 @@ _ONBOARDING_FLAG = Path.home() / ".config" / "council" / "onboarding_done"
 _PROVIDERS = [
     ("openai", "OpenAI (GPT-4o)", "gpt-4o"),
     ("anthropic", "Anthropic (Claude)", "claude-sonnet-4-6"),
+    ("openrouter", "OpenRouter (universal)", "anthropic/claude-sonnet-4"),
     ("ollama", "Ollama (local)", "llama3"),
     ("kimi-code", "Kimi Code CLI", "kimi-for-coding"),
     ("claude-code", "Claude Code CLI / IDE", "claude-sonnet-4-6"),
@@ -324,6 +325,8 @@ class ProviderScreen(Screen):
                     classes="provider-options",
                 )
                 yield Rule()
+                yield Static("API Key (optional — overrides env):", classes="field-label")
+                yield Input(placeholder="leave empty to use env variable", id="api-key-input")
                 yield Static("Model override (optional):", classes="field-label")
                 yield Input(placeholder="leave empty for default", id="model-input")
                 yield Rule()
@@ -348,6 +351,7 @@ class ProviderScreen(Screen):
         ol = self.query_one(OptionList)
         sel = ol.highlighted
         provider = _PROVIDERS[sel][0] if sel is not None else "openai"
+        api_key = self.query_one("#api-key-input", Input).value.strip() or None
         model = self.query_one("#model-input", Input).value.strip() or None
         rounds_str = self.query_one("#rounds-input", Input).value or "3"
         try:
@@ -361,6 +365,7 @@ class ProviderScreen(Screen):
         output = self.query_one("#output-input", Input).value.strip() or "./output"
         self.app.state.update(
             provider=provider,
+            api_key=api_key,
             model=model,
             rounds=rounds,
             dashboard=dashboard,
@@ -407,6 +412,7 @@ class ConfirmScreen(Screen):
             lines.append(f"[bold]Config:[/bold]    {st.get('config', '?')}")
 
         lines.append(f"[bold]Provider:[/bold]  {st.get('provider', '?').upper()}")
+        lines.append(f"[bold]API Key:[/bold]   {'[green]••••••••[/green]' if st.get('api_key') else '[dim]env[/dim]'}")
         lines.append(f"[bold]Model:[/bold]     {st.get('model') or 'default'}")
         lines.append(f"[bold]Rounds:[/bold]    {st.get('rounds', 3)}")
         lines.append(f"[bold]Dashboard:[/bold] {'[green]Yes[/green]' if st.get('dashboard') else '[dim]No[/dim]'}")
@@ -434,6 +440,7 @@ class ConfirmScreen(Screen):
             ns = argparse.Namespace(
                 config=st.get("config"),
                 provider=st.get("provider", "openai"),
+                api_key=st.get("api_key"),
                 model=st.get("model"),
                 platform="cli",
                 rounds=st.get("rounds", 3),
