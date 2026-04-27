@@ -328,7 +328,7 @@ class ProviderScreen(Screen):
                 yield Static("API Key (optional — overrides env):", classes="field-label")
                 yield Input(placeholder="leave empty to use env variable", id="api-key-input")
                 yield Static("Model override (optional):", classes="field-label")
-                yield Input(placeholder="leave empty for default", id="model-input")
+                yield Input(placeholder="leave empty — OpenRouter auto-picks a free model", id="model-input")
                 yield Rule()
                 yield Static("Rounds:", classes="field-label")
                 yield Input(value="3", placeholder="3", id="rounds-input")
@@ -413,7 +413,8 @@ class ConfirmScreen(Screen):
 
         lines.append(f"[bold]Provider:[/bold]  {st.get('provider', '?').upper()}")
         lines.append(f"[bold]API Key:[/bold]   {'[green]••••••••[/green]' if st.get('api_key') else '[dim]env[/dim]'}")
-        lines.append(f"[bold]Model:[/bold]     {st.get('model') or 'default'}")
+        model_display = st.get('model') or ('[green]auto (free)[/green]' if st.get('provider') == 'openrouter' else 'default')
+        lines.append(f"[bold]Model:[/bold]     {model_display}")
         lines.append(f"[bold]Rounds:[/bold]    {st.get('rounds', 3)}")
         lines.append(f"[bold]Dashboard:[/bold] {'[green]Yes[/green]' if st.get('dashboard') else '[dim]No[/dim]'}")
         lines.append(f"[bold]Output:[/bold]    {st.get('output', './output')}")
