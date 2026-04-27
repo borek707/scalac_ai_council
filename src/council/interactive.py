@@ -10,6 +10,7 @@ Provides a navigable multi-screen menu with:
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from typing import Optional
@@ -79,11 +80,12 @@ class WelcomeScreen(Screen):
                     classes="description",
                 )
                 yield Rule()
-                with Center():
+                with Horizontal(classes="button-row"):
+                    yield Button("Skip →", variant="default", id="skip")
                     yield Button("Start →", variant="primary", id="start")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "start":
+        if event.button.id in ("start", "skip"):
             _mark_onboarding_done()
             self.app.push_screen("main")
 
@@ -122,7 +124,7 @@ class MainMenuScreen(Screen):
         elif choice == "help":
             self.app.push_screen("help")
         elif choice == "quit":
-            self.app.exit(None)
+            self.app.push_screen("quit_confirm")
 
 
 class DemoScreen(Screen):
@@ -191,18 +193,43 @@ class DemoScreen(Screen):
 
 
 class TemplateScreen(Screen):
-    """Template selection screen."""
+    """Template selection screen with live previews."""
 
     def compose(self) -> ComposeResult:
-        template_dir = Path(__file__).parent.parent / "templates" / "companies"
+        template_dir = Path(__file__).parent.parent.parent / "templates" / "companies"
         templates = sorted(p.stem for p in template_dir.glob("*.json") if p.is_file())
         self.app.state["templates"] = templates
+        self.app.state["template_dir"] = str(template_dir)
+
+        # Load rich previews from JSON files
+        previews: dict[str, dict[str, str]] = {}
+        for t in templates:
+            try:
+                data = json.loads((template_dir / f"{t}.json").read_text(encoding="utf-8"))
+                previews[t] = {
+                    "name": data.get("name", t),
+                    "product": data.get("product", ""),
+                    "segment": data.get("target", {}).get("segment", ""),
+                    "value": data.get("value_proposition", "")[:60] + "…" if len(data.get("value_proposition", "")) > 60 else data.get("value_proposition", ""),
+                }
+            except Exception:
+                previews[t] = {"name": t, "product": "", "segment": "", "value": ""}
+        self.app.state["template_previews"] = previews
+
         with Center():
             with Vertical(classes="menu-container"):
                 yield Static("\uf115  Run from Template", classes="title")
                 yield Static("Built-in company configurations", classes="subtitle")
                 yield OptionList(
-                    *[Option(t, id=t) for t in templates],
+                    *[
+                        Option(
+                            f"[bold]{previews[t]['name']}[/bold]  [dim]({t})[/dim]\n"
+                            f"[italic]{previews[t]['product']}[/italic]\n"
+                            f"[dim]{previews[t]['segment']}[/dim]",
+                            id=t,
+                        )
+                        for t in templates
+                    ],
                 )
                 yield Static("[dim]↑↓ navigate · Enter select · Esc back[/dim]", classes="hint")
                 with Horizontal(classes="button-row"):
@@ -216,8 +243,14 @@ class TemplateScreen(Screen):
         ol = self.query_one(OptionList)
         sel = ol.highlighted
         templates = self.app.state.get("templates", [])
-        template = templates[sel] if templates and sel is not None else templates[0] if templates else "saas"
+        if not templates:
+            self.notify("No templates found — check templates/companies/ directory", severity="error")
+            return
+        template = templates[sel] if sel is not None else templates[0]
         self.app.state["template"] = template
+        # Pre-load preview for ConfirmScreen
+        previews = self.app.state.get("template_previews", {})
+        self.app.state["template_preview"] = previews.get(template, {})
         self.app.push_screen("provider")
 
     def on_option_list_option_selected(self, event) -> None:
@@ -250,6 +283,12 @@ class ConfigScreen(Screen):
         if not path:
             self.notify("Config path is required", severity="error")
             return
+        p = Path(path)
+        if not p.exists():
+            self.notify(f"File not found: {path}", severity="error")
+            return
+        if not p.suffix.lower() == ".json":
+            self.notify("Config must be a .json file", severity="warning")
         self.app.state["config"] = path
         self.app.state["template"] = None
         self.app.push_screen("provider")
@@ -304,12 +343,19 @@ class ProviderScreen(Screen):
         provider = _PROVIDERS[sel][0] if sel is not None else "openai"
         model = self.query_one("#model-input", Input).value.strip() or None
         rounds_str = self.query_one("#rounds-input", Input).value or "3"
+        try:
+            rounds = int(rounds_str)
+            if rounds < 1 or rounds > 20:
+                raise ValueError
+        except ValueError:
+            self.notify("Rounds must be a number between 1 and 20", severity="error")
+            return
         dashboard = self.query_one("#dashboard-switch", Switch).value
         output = self.query_one("#output-input", Input).value.strip() or "./output"
         self.app.state.update(
             provider=provider,
             model=model,
-            rounds=int(rounds_str),
+            rounds=rounds,
             dashboard=dashboard,
             output=output,
         )
@@ -332,35 +378,37 @@ class ProviderScreen(Screen):
 
 
 class ConfirmScreen(Screen):
-    """Final review before execution."""
+    """Final review before execution with rich preview."""
 
     def compose(self) -> ComposeResult:
         st = self.app.state
-        lines = []
+        lines: list[str] = []
+        preview = st.get("template_preview", {})
+
         if st.get("demo"):
-            lines.append(f"Mode:      Demo ({st.get('scenario', '?')})")
-            lines.append(f"Rounds:    {st.get('rounds', 3)}")
-            lines.append(f"Dashboard: {'Yes' if st.get('dashboard') else 'No'}")
+            lines.append("[bold cyan]Mode:[/bold cyan]      Demo")
+            lines.append(f"[bold]Scenario:[/bold]  {st.get('scenario', '?')}")
         elif st.get("template"):
-            lines.append(f"Mode:      Template ({st.get('template')})")
-            lines.append(f"Provider:  {st.get('provider', '?')}")
-            lines.append(f"Model:     {st.get('model') or 'default'}")
-            lines.append(f"Rounds:    {st.get('rounds', 3)}")
-            lines.append(f"Dashboard: {'Yes' if st.get('dashboard') else 'No'}")
-            lines.append(f"Output:    {st.get('output', './output')}")
+            lines.append("[bold cyan]Mode:[/bold cyan]      Template")
+            lines.append(f"[bold]Company:[/bold]   {preview.get('name', st.get('template', '?'))}")
+            if preview.get('product'):
+                lines.append(f"[bold]Product:[/bold]   {preview['product']}")
+            if preview.get('segment'):
+                lines.append(f"[bold]Target:[/bold]    {preview['segment']}")
         else:
-            lines.append(f"Mode:      Real Run")
-            lines.append(f"Config:    {st.get('config', '?')}")
-            lines.append(f"Provider:  {st.get('provider', '?')}")
-            lines.append(f"Model:     {st.get('model') or 'default'}")
-            lines.append(f"Rounds:    {st.get('rounds', 3)}")
-            lines.append(f"Dashboard: {'Yes' if st.get('dashboard') else 'No'}")
-            lines.append(f"Output:    {st.get('output', './output')}")
+            lines.append("[bold cyan]Mode:[/bold cyan]      Real Run")
+            lines.append(f"[bold]Config:[/bold]    {st.get('config', '?')}")
+
+        lines.append(f"[bold]Provider:[/bold]  {st.get('provider', '?').upper()}")
+        lines.append(f"[bold]Model:[/bold]     {st.get('model') or 'default'}")
+        lines.append(f"[bold]Rounds:[/bold]    {st.get('rounds', 3)}")
+        lines.append(f"[bold]Dashboard:[/bold] {'[green]Yes[/green]' if st.get('dashboard') else '[dim]No[/dim]'}")
+        lines.append(f"[bold]Output:[/bold]    {st.get('output', './output')}")
 
         with Center():
             with Vertical(classes="menu-container"):
                 yield Static("\uf00c  Ready to Run", classes="title")
-                yield Static("Review your settings", classes="subtitle")
+                yield Static("Review your settings before launch", classes="subtitle")
                 yield Rule()
                 yield Static("\n".join(lines), classes="summary")
                 yield Rule()
@@ -393,6 +441,26 @@ class ConfirmScreen(Screen):
                 template=st.get("template"),
             )
             self.app.exit(ns)
+
+
+class QuitConfirmScreen(Screen):
+    """Confirm before exiting."""
+
+    def compose(self) -> ComposeResult:
+        with Center():
+            with Vertical(classes="menu-container"):
+                yield Static("\uf128  Quit?", classes="title")
+                yield Static("Any running council will be cancelled.", classes="subtitle")
+                yield Rule()
+                with Horizontal(classes="button-row"):
+                    yield Button("← Back", variant="default", id="back")
+                    yield Button("Quit", variant="error", id="quit")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "back":
+            self.app.pop_screen()
+        elif event.button.id == "quit":
+            self.app.exit(None)
 
 
 class HelpScreen(Screen):
@@ -579,6 +647,7 @@ class CouncilMenuApp(App):
         self.install_screen(ConfirmScreen(), "confirm")
         self.install_screen(HelpScreen(), "help")
         self.install_screen(IDEScreen(), "ide")
+        self.install_screen(QuitConfirmScreen(), "quit_confirm")
         self.push_screen(self._start_screen)
 
     def action_back(self) -> None:

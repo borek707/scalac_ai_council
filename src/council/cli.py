@@ -8,11 +8,18 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from rich.console import Console
+from rich.panel import Panel
+from rich.rule import Rule
+from rich.table import Table
+from rich.text import Text
+
 from council.config.loader import ConfigLoader
 from council.llm.provider import LLMProvider
 from council.platform.base import PlatformAdapter
 
 logger = logging.getLogger(__name__)
+console = Console()
 
 # Supported platforms with their display names and env detection
 PLATFORM_REGISTRY: dict[str, tuple[str, list[str]]] = {
@@ -446,20 +453,28 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         _print_success_summary(workspace, args.rounds, args.aggregate)
 
     def _console_progress(agent_name: str, state: str, **kwargs) -> None:
+        _AGENT_COLORS = {
+            "Marcus": "cyan",
+            "Elena": "magenta",
+            "Kai": "green",
+            "David": "yellow",
+        }
+        color = _AGENT_COLORS.get(agent_name, "white")
         if state == "generating":
-            print(f"  {agent_name} is thinking …")
+            console.print(f"  [bold {color}]{agent_name}[/bold {color}] [dim]is thinking…[/dim]")
         elif state == "writing":
             progress = kwargs.get("progress_pct")
             pct = f" {progress:.0f}%" if progress is not None else ""
-            print(f"  {agent_name} drafting{pct}")
+            console.print(f"  [bold {color}]{agent_name}[/bold {color}] drafting[pct]{pct}[/pct]")
         elif state == "done":
-            print(f"  ✓ {agent_name} done")
+            console.print(f"  [bold green]✓[/bold green] [bold {color}]{agent_name}[/bold {color}] [green]done[/green]")
         elif state == "error":
             err = kwargs.get("message", kwargs.get("error", "unknown error"))
-            print(f"  ✗ {agent_name} error: {err}")
+            console.print(f"  [bold red]✗[/bold red] [bold {color}]{agent_name}[/bold {color}] [red]error: {err}[/red]")
         elif state == "round_start":
             round_num = kwargs.get("round_num", "?")
-            print(f"\n── Round {round_num}/{args.rounds} ──")
+            console.print()
+            console.print(Rule(title=f"[bold blue]Round {round_num}/{args.rounds}[/bold blue]", style="blue"))
 
     await _execute_council(_console_progress)
 
@@ -540,53 +555,57 @@ def _create_provider(provider_name: str, model: Optional[str]) -> LLMProvider:
 
 
 def _print_success_summary(workspace: Path, rounds: int, aggregated: bool) -> None:
-    """Print a human-friendly summary of what was generated."""
+    """Print a rich, human-friendly summary of what was generated."""
     output_dir = workspace / "output"
     discussion_dir = workspace / "shared" / "discussion"
 
     output_files = list(output_dir.glob("*.md")) if output_dir.exists() else []
     round_files = list(discussion_dir.glob("*_round_*.md")) if discussion_dir.exists() else []
 
-    print()
-    print("=" * 50)
-    print("✓  Council run complete")
-    print("=" * 50)
-    print(f"  Rounds:        {rounds}")
-    print(f"  Output dir:    {workspace}")
-    print(f"  Agent outputs: {len(output_files)} files")
-    print(f"  Round files:   {len(round_files)} files")
-
+    table = Table(title="Council Run Complete", show_header=False, border_style="green")
+    table.add_column("Key", style="bold cyan", width=16)
+    table.add_column("Value", style="white")
+    table.add_row("Rounds", str(rounds))
+    table.add_row("Output dir", str(workspace))
+    table.add_row("Agent outputs", f"{len(output_files)} files")
+    table.add_row("Round files", f"{len(round_files)} files")
     if aggregated and (workspace / "FINAL_PROPOSAL.md").exists():
-        print(f"  Proposal:      {workspace / 'FINAL_PROPOSAL.md'}")
+        table.add_row("Proposal", str(workspace / "FINAL_PROPOSAL.md"))
 
-    print()
-    print("What to do next:")
+    console.print()
+    console.print(table)
+
+    tips = Table(show_header=False, border_style="dim")
+    tips.add_column(style="bold yellow")
+    tips.add_column(style="dim")
     if output_files:
-        print(f"  • Read agent outputs:  ls {output_dir}")
+        tips.add_row("• Read outputs", f"ls {output_dir}")
     if (workspace / "FINAL_PROPOSAL.md").exists():
-        print(f"  • View proposal:       cat {workspace / 'FINAL_PROPOSAL.md'}")
-    print(f"  • Check discussion:    ls {discussion_dir}")
-    print(f"  • Run again:           python -m council --config ...")
-    print("=" * 50)
+        tips.add_row("• View proposal", f"cat {workspace / 'FINAL_PROPOSAL.md'}")
+    tips.add_row("• Check discussion", f"ls {discussion_dir}")
+    tips.add_row("• Run again", "python -m council --config ...")
+    console.print(tips)
 
 
 def _show_status(workspace: Path) -> None:
     """Display current discussion status."""
     discussion_dir = workspace / "shared" / "discussion"
     if not discussion_dir.exists():
-        print("No discussion found.")
+        console.print(Panel("[dim]No discussion found.[/dim]", title="Status", border_style="yellow"))
         return
 
     files = sorted(discussion_dir.glob("*_round_*.md"))
     if not files:
-        print("No round files found.")
+        console.print(Panel("[dim]No round files found.[/dim]", title="Status", border_style="yellow"))
         return
 
-    print(f"Discussion status in {discussion_dir}:")
-    print(f"  Files: {len(files)}")
+    table = Table(title=f"Discussion in {discussion_dir}", border_style="blue")
+    table.add_column("File", style="cyan")
+    table.add_column("Size", justify="right", style="dim")
     for f in files:
         size = f.stat().st_size
-        print(f"  - {f.name} ({size} bytes)")
+        table.add_row(f.name, f"{size:,} bytes")
+    console.print(table)
 
 
 def _run_async_in_thread(coro) -> Exception:
@@ -652,54 +671,49 @@ def main() -> None:
     try:
         asyncio.run(_run_council(args))
     except KeyboardInterrupt:
-        print("\n\nInterrupted by user. Partial results may be in the workspace.")
+        console.print("\n\n[yellow]Interrupted by user. Partial results may be in the workspace.[/yellow]")
         sys.exit(130)
     except FileNotFoundError as exc:
-        print()
-        print(f"✗  File not found: {exc}")
+        console.print()
+        console.print(Panel(f"[bold red]File not found[/bold red]\n{exc}", border_style="red"))
         sys.exit(1)
     except ImportError as exc:
-        print()
-        print(f"✗  Missing dependency\n\n{exc}")
+        console.print()
+        console.print(Panel(f"[bold red]Missing dependency[/bold red]\n{exc}", border_style="red"))
         sys.exit(1)
     except RuntimeError as exc:
-        print()
-        print(f"✗  {exc}")
-        print()
-        print("Need help?")
-        print("  • Demo mode (no API keys):  python -m council --demo")
-        print("  • Interactive menu:         python -m council")
-        print("  • Full help:                python -m council --help")
+        console.print()
+        console.print(Panel(f"[bold red]{exc}[/bold red]", border_style="red"))
+        console.print()
+        console.print("[bold]Need help?[/bold]")
+        console.print("  • Demo mode (no API keys):  [cyan]python -m council --demo[/cyan]")
+        console.print("  • Interactive menu:         [cyan]python -m council[/cyan]")
+        console.print("  • Full help:                [cyan]python -m council --help[/cyan]")
         sys.exit(1)
     except Exception as exc:
-        print()
-        print(f"✗  Council execution failed: {exc}")
-        print()
-        print("If this looks like a bug, run with --verbose and file an issue.")
+        console.print()
+        console.print(Panel(f"[bold red]Council execution failed[/bold red]\n{exc}", border_style="red"))
+        console.print()
+        console.print("[dim]If this looks like a bug, run with --verbose and file an issue.[/dim]")
         sys.exit(1)
 
 
 def _handle_error(exc: Exception) -> None:
     """Print a human-friendly error message."""
     if isinstance(exc, FileNotFoundError):
-        print()
-        print(f"✗  File not found: {exc}")
+        console.print(Panel(f"[bold red]File not found[/bold red]\n{exc}", border_style="red"))
     elif isinstance(exc, ImportError):
-        print()
-        print(f"✗  Missing dependency\n\n{exc}")
+        console.print(Panel(f"[bold red]Missing dependency[/bold red]\n{exc}", border_style="red"))
     elif isinstance(exc, RuntimeError):
-        print()
-        print(f"✗  {exc}")
-        print()
-        print("Need help?")
-        print("  • Demo mode (no API keys):  python -m council --demo")
-        print("  • Interactive menu:         python -m council")
-        print("  • Full help:                python -m council --help")
+        console.print(Panel(f"[bold red]{exc}[/bold red]", border_style="red"))
+        console.print()
+        console.print("[bold]Need help?[/bold]")
+        console.print("  • Demo mode (no API keys):  [cyan]python -m council --demo[/cyan]")
+        console.print("  • Interactive menu:         [cyan]python -m council[/cyan]")
+        console.print("  • Full help:                [cyan]python -m council --help[/cyan]")
     else:
-        print()
-        print(f"✗  Council execution failed: {exc}")
-        print()
-        print("If this looks like a bug, run with --verbose and file an issue.")
+        console.print(Panel(f"[bold red]Council execution failed[/bold red]\n{exc}", border_style="red"))
+        console.print("[dim]If this looks like a bug, run with --verbose and file an issue.[/dim]")
 
 
 if __name__ == "__main__":
