@@ -145,6 +145,7 @@ class DemoScreen(Screen):
                 with Horizontal(classes="switch-row"):
                     yield Switch(value=True, id="dashboard-switch")
                     yield Label("Enable live terminal dashboard")
+                yield Static("[dim]↑↓ navigate · Tab next field · Enter confirm · Esc back[/dim]", classes="hint")
                 with Horizontal(classes="button-row"):
                     yield Button("← Back", variant="default", id="back")
                     yield Button("Next →", variant="primary", id="next")
@@ -172,6 +173,10 @@ class DemoScreen(Screen):
     def on_option_list_option_selected(self, event) -> None:
         self._go_next()
 
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id == "rounds-input":
+            self._go_next()
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "back":
             self.app.pop_screen()
@@ -193,6 +198,7 @@ class TemplateScreen(Screen):
                 yield OptionList(
                     *[Option(t, id=t) for t in templates],
                 )
+                yield Static("[dim]↑↓ navigate · Enter select · Esc back[/dim]", classes="hint")
                 with Horizontal(classes="button-row"):
                     yield Button("← Back", variant="default", id="back")
                     yield Button("Next →", variant="primary", id="next")
@@ -225,21 +231,29 @@ class ConfigScreen(Screen):
                 yield Static("Enter path to your company JSON config", classes="subtitle")
                 yield Input(placeholder="e.g. ./my-company.json", id="config-input")
                 yield Static("[dim]Tip: copy from templates/companies/ as a starting point[/dim]", classes="hint")
+                yield Static("[dim]↑↓ navigate · Tab next field · Enter confirm · Esc back[/dim]", classes="hint")
                 with Horizontal(classes="button-row"):
                     yield Button("← Back", variant="default", id="back")
                     yield Button("Next →", variant="primary", id="next")
+
+    def _go_next(self) -> None:
+        path = self.query_one("#config-input", Input).value.strip()
+        if not path:
+            self.notify("Config path is required", severity="error")
+            return
+        self.app.state["config"] = path
+        self.app.state["template"] = None
+        self.app.push_screen("provider")
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id == "config-input":
+            self._go_next()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "back":
             self.app.pop_screen()
         elif event.button.id == "next":
-            path = self.query_one("#config-input", Input).value.strip()
-            if not path:
-                self.notify("Config path is required", severity="error")
-                return
-            self.app.state["config"] = path
-            self.app.state["template"] = None
-            self.app.push_screen("provider")
+            self._go_next()
 
 
 class ProviderScreen(Screen):
