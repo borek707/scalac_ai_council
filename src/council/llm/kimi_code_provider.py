@@ -155,7 +155,10 @@ class KimiCodeProvider(LLMProvider):
             stderr=asyncio.subprocess.PIPE,
         )
 
-        stdout_bytes, stderr_bytes = await proc.communicate()
+        # Kimi CLI can take a long time on large workspaces; cap single call at 2 min
+        stdout_bytes, stderr_bytes = await asyncio.wait_for(
+            proc.communicate(), timeout=120.0
+        )
         latency = (time.time() - start) * 1000
 
         stdout = stdout_bytes.decode("utf-8", errors="replace")

@@ -146,7 +146,10 @@ class ClaudeCodeProvider(LLMProvider):
             stderr=asyncio.subprocess.PIPE,
         )
 
-        stdout_bytes, stderr_bytes = await proc.communicate()
+        # Cap single subprocess call at 2 minutes to avoid hanging forever
+        stdout_bytes, stderr_bytes = await asyncio.wait_for(
+            proc.communicate(), timeout=120.0
+        )
         latency = (time.time() - start) * 1000
 
         stdout = stdout_bytes.decode("utf-8", errors="replace")
