@@ -601,7 +601,10 @@ def prompt_for_args(force_onboarding: bool = False) -> Optional[argparse.Namespa
     """
     start = "welcome" if (force_onboarding or not _is_onboarding_done()) else "main"
     app = CouncilMenuApp(start_screen=start)
-    result = app.run()
+    # inline=True keeps the menu in the normal terminal buffer so that
+    # a subsequent full-screen dashboard (which uses the alternate buffer)
+    # can start cleanly without terminal state conflicts.
+    result = app.run(inline=True)
     if result is None:
         sys.exit(0)
     return result
