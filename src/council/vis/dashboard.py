@@ -296,7 +296,7 @@ class CouncilApp(App):
             "david": ("yellow", "🎣"),
         }
         for name in agent_names:
-            color, avatar = _META.get(name, ("white", "🤖"))
+            color, avatar = _META.get(name.lower(), ("white", "🤖"))
             self._agents_data[name] = AgentView(
                 name=name,
                 display_name=name.capitalize(),
@@ -385,11 +385,12 @@ class CouncilApp(App):
             if activity is not None:
                 card.activity = activity
 
-        if content:
+        if content is not None:
             preview = self.query_one("#preview", Markdown)
-            truncated = content[:2000]
-            if len(content) > 2000:
-                truncated += "\n\n*... (truncated)*"
+            latest = agent.last_content
+            truncated = latest[:5000]
+            if len(latest) > 5000:
+                truncated += "\n\n*... [truncated]*"
             preview.update(truncated)
 
         if state == "WRITING" and agent.stats.start_time is None:
@@ -535,7 +536,7 @@ class CouncilDashboard:
             "david": ("yellow", "🎣"),
         }
         for name in agent_names:
-            color, avatar = _META.get(name, ("white", "🤖"))
+            color, avatar = _META.get(name.lower(), ("white", "🤖"))
             self._agents[name] = AgentView(
                 name=name,
                 display_name=name.capitalize(),
