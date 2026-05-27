@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
@@ -205,6 +206,50 @@ class DocumentLoader:
         return [scalac_brief, scalac_cs_swissborg]
 
 
+def _smart_truncate(content: str, limit: int) -> str:
+    """Truncate *content* to at most *limit* characters intelligently.
+
+    Rules applied in order:
+    1. If *limit* >= len(content), return content unchanged.
+    2. Do not cut inside a code fence (``` block): if the candidate
+       truncation point falls inside an open fence, move the cut to
+       just before that fence's opening line.
+    3. Truncate at the last word boundary (whitespace) at or before the
+       adjusted limit so no word is split mid-character.
+    4. Append a clear truncation indicator.
+    """
+    if limit >= len(content):
+        return content
+
+    # Step 1 — find the last code-fence boundary before `limit`.
+    # A code fence line starts with optional spaces then ``` (or ~~~).
+    fence_pattern = re.compile(r"^[ \t]*(?:```|~~~)", re.MULTILINE)
+    # Collect all fence positions within the content up to `limit`
+    # We need to know whether the truncation point is *inside* an open fence.
+    fence_starts: List[int] = [m.start() for m in fence_pattern.finditer(content)]
+
+    # Count how many fences open before `limit`; if the count is odd
+    # the truncation point is inside a fence block.
+    fences_before_limit = [pos for pos in fence_starts if pos < limit]
+    if len(fences_before_limit) % 2 == 1:
+        # Odd number of fences → we're inside an open fence.
+        # Move limit to just before the last (opening) fence.
+        limit = fences_before_limit[-1]
+
+    # Step 2 — back up to the nearest word boundary (whitespace char).
+    # Search backwards from `limit` for the first whitespace character.
+    while limit > 0 and not content[limit - 1].isspace():
+        limit -= 1
+
+    # If we backed all the way to 0 (e.g. one giant word), keep at least
+    # the original limit to avoid empty output.
+    if limit == 0:
+        limit = int(len(content) * 0.5)  # fallback: half of original
+
+    truncated = content[:limit].rstrip()
+    return truncated + "\n\n[... content truncated ...]\n"
+
+
 @dataclass
 class AgentContext:
     """Enriched context combining CompanyConfig + loaded documents.
@@ -259,10 +304,7 @@ class AgentContext:
             content = doc.content
             if scale < 1.0:
                 limit = int(len(content) * scale)
-                content = content[:limit]
-                if not content.endswith("\n"):
-                    content += "\n"
-                content += "\n*... (truncated)\n"
+                content = _smart_truncate(content, limit)
             lines.append(f"\n### {doc.name} ({doc.doc_type})\n")
             lines.append(content)
             lines.append("\n---\n")
