@@ -333,6 +333,11 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
                 f"  Available: {', '.join(available) or '(none)'}"
             )
 
+    # Issue #22: short-circuit before config loading when --monitor is requested.
+    if args.monitor:
+        _show_status(Path(args.output))
+        return
+
     if not args.config:
         logger.error(
             "Missing --config. You have three options:\n"
@@ -379,23 +384,29 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         logger.info("Saved campaign brief to %s", brief_path)
 
     # Set API key if provided
+    # Issue #4: ollama and kimi-code don't use API keys — warn and skip instead.
+    _NO_API_KEY_PROVIDERS = {"ollama", "kimi-code"}
     if getattr(args, "api_key", None):
-        env_map = {
-            "openai": "OPENAI_API_KEY",
-            "anthropic": "ANTHROPIC_API_KEY",
-            "ollama": "OLLAMA_API_KEY",
-            "kimi-code": "KIMI_API_KEY",
-            "claude-code": "ANTHROPIC_API_KEY",
-            "openrouter": "OPENROUTER_API_KEY",
-        }
-        if args.provider not in env_map:
-            raise ValueError(
-                f"Unknown provider '{args.provider}': cannot determine which env var to set for --api-key.\n"
-                f"  Supported providers: {', '.join(sorted(env_map))}"
+        if args.provider in _NO_API_KEY_PROVIDERS:
+            logger.warning(
+                "Provider '%s' does not use an API key — --api-key will be ignored.",
+                args.provider,
             )
-        env_var = env_map[args.provider]
-        os.environ[env_var] = args.api_key
-        logger.info("API key set from command line for provider %s", args.provider)
+        else:
+            env_map = {
+                "openai": "OPENAI_API_KEY",
+                "anthropic": "ANTHROPIC_API_KEY",
+                "claude-code": "ANTHROPIC_API_KEY",
+                "openrouter": "OPENROUTER_API_KEY",
+            }
+            if args.provider not in env_map:
+                raise ValueError(
+                    f"Unknown provider '{args.provider}': cannot determine which env var to set for --api-key.\n"
+                    f"  Supported providers: {', '.join(sorted(env_map))}"
+                )
+            env_var = env_map[args.provider]
+            os.environ[env_var] = args.api_key
+            logger.info("API key set from command line for provider %s", args.provider)
 
     config_save_path = workspace / "config.json"
     config_save_path.write_text(
@@ -413,10 +424,6 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         args.platform,
         args.timeout,
     )
-
-    if args.monitor:
-        _show_status(workspace)
-        return
 
     # Load documents (markdown context for agents)
     from council.config.documents import DocumentLoader
@@ -511,6 +518,7 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         args.provider,
         args.model,
         getattr(args, "free_tier", False),
+        api_key=getattr(args, "api_key", None),
     )
 
     # Create agents with optional document context
@@ -572,8 +580,27 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
     await _execute_council(_console_progress)
 
 
-def _create_provider(provider_name: str, model: Optional[str], free_tier: bool = False) -> LLMProvider:
-    """Create an LLM provider based on the name."""
+def _create_provider(
+    provider_name: str,
+    model: Optional[str],
+    free_tier: bool = False,
+    api_key: Optional[str] = None,
+) -> LLMProvider:
+    """Create an LLM provider based on the name.
+
+    Parameters
+    ----------
+    provider_name:
+        One of the supported provider identifiers.
+    model:
+        Optional model name override.
+    free_tier:
+        Use the OpenRouter free-tier model fallback when True.
+    api_key:
+        API key passed directly via --api-key.  Forwarded to provider
+        constructors that accept it; ignored for providers that don't
+        use API keys (ollama, kimi-code, claude-code).
+    """
     if provider_name == "openai":
         try:
             from council.llm.openai_provider import OpenAIProvider
@@ -584,7 +611,7 @@ def _create_provider(provider_name: str, model: Optional[str], free_tier: bool =
                 "  Then: export OPENAI_API_KEY=sk-..."
             ) from exc
         try:
-            return OpenAIProvider(model=model or "gpt-4o")
+            return OpenAIProvider(model=model or "gpt-4o", api_key=api_key)
         except RuntimeError as exc:
             raise RuntimeError(
                 f"Failed to initialize OpenAI provider: {exc}\n"
@@ -600,7 +627,7 @@ def _create_provider(provider_name: str, model: Optional[str], free_tier: bool =
                 "  Then: export ANTHROPIC_API_KEY=sk-ant-..."
             ) from exc
         try:
-            return AnthropicProvider(model=model or "claude-sonnet-4-6")
+            return AnthropicProvider(model=model or "claude-sonnet-4-6", api_key=api_key)
         except RuntimeError as exc:
             raise RuntimeError(
                 f"Failed to initialize Anthropic provider: {exc}\n"
@@ -616,7 +643,11 @@ def _create_provider(provider_name: str, model: Optional[str], free_tier: bool =
                 "  Then: export OPENROUTER_API_KEY=sk-or-..."
             ) from exc
         try:
-            return OpenRouterProvider(model=model or "anthropic/claude-sonnet-4")
+            return OpenRouterProvider(
+                model=model or "anthropic/claude-sonnet-4",
+                free_tier=free_tier,
+                api_key=api_key,
+            )
         except RuntimeError as exc:
             raise RuntimeError(
                 f"Failed to initialize OpenRouter provider: {exc}\n"
@@ -632,6 +663,7 @@ def _create_provider(provider_name: str, model: Optional[str], free_tier: bool =
                 "  Also ensure Ollama is running: ollama serve"
             ) from exc
         try:
+            # Ollama connects to localhost — no API key is used.
             return OllamaProvider(model=model or "llama3")
         except RuntimeError as exc:
             raise RuntimeError(
@@ -641,6 +673,7 @@ def _create_provider(provider_name: str, model: Optional[str], free_tier: bool =
     elif provider_name == "kimi-code":
         from council.llm.kimi_code_provider import KimiCodeProvider
         try:
+            # Kimi Code uses subprocess/session — no API key is used.
             return KimiCodeProvider(model=model or "kimi-for-coding")
         except RuntimeError as exc:
             raise RuntimeError(
@@ -651,6 +684,7 @@ def _create_provider(provider_name: str, model: Optional[str], free_tier: bool =
     elif provider_name == "claude-code":
         from council.llm.claude_code_provider import ClaudeCodeProvider
         try:
+            # Claude Code uses the local 'claude' CLI — no API key is used.
             return ClaudeCodeProvider(model=model or "claude-sonnet-4-6")
         except RuntimeError as exc:
             raise RuntimeError(
@@ -658,15 +692,6 @@ def _create_provider(provider_name: str, model: Optional[str], free_tier: bool =
                 "  Make sure you are running inside Claude Code IDE,\n"
                 "  or that the 'claude' CLI is installed (npm install -g @anthropic-ai/claude-code),\n"
                 "  or that ~/.claude/.credentials.json exists."
-            ) from exc
-    elif provider_name == "openrouter":
-        from council.llm.openrouter_provider import OpenRouterProvider
-        try:
-            return OpenRouterProvider(model=model, free_tier=free_tier)
-        except RuntimeError as exc:
-            raise RuntimeError(
-                f"Failed to initialize OpenRouter provider: {exc}\n"
-                "  Set OPENROUTER_API_KEY or pass --api-key"
             ) from exc
     else:
         raise ValueError(f"Unknown provider: {provider_name}")
@@ -837,6 +862,13 @@ def main() -> None:
         thread.start()
         dashboard.run()  # blocks in main thread (Textual requirement)
         thread.join(timeout=60.0)
+        # Issue #19: exit with an error if the council thread is still running
+        # after the dashboard has closed.
+        if thread.is_alive():
+            logger.error(
+                "Council thread did not finish within 60 seconds after dashboard closed."
+            )
+            sys.exit(1)
         if council_exception:
             _handle_error(council_exception)
             sys.exit(1)
