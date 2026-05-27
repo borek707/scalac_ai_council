@@ -54,8 +54,8 @@ dashboard = [
 council = "council.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/ScalaC/universal-ai-marketing-council"
-Repository = "https://github.com/ScalaC/universal-ai-marketing-council"
+Homepage = "https://github.com/borek707/scalac_ai_council"
+Repository = "https://github.com/borek707/scalac_ai_council"
 
 [tool.setuptools.packages.find]
 where = ["src"]
