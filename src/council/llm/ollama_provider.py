@@ -17,6 +17,14 @@ from council.llm.retry import retry_with_backoff
 logger = logging.getLogger(__name__)
 
 
+class _OllamaDeterministicError(Exception):
+    """Raised instead of aiohttp.ClientResponseError for 4xx responses from Ollama.
+
+    Using a dedicated exception type lets the retry decorator identify
+    deterministic failures without importing aiohttp at module level.
+    """
+
+
 class OllamaProvider(LLMProvider):
     """LLM provider implementation for Ollama (local models)."""
 
@@ -33,7 +41,11 @@ class OllamaProvider(LLMProvider):
         self.base_url = base_url.rstrip("/")
         self.model = model
 
-    @retry_with_backoff(max_retries=3, exceptions=(Exception,))
+    @retry_with_backoff(
+        max_retries=3,
+        exceptions=(Exception,),
+        non_retryable_exceptions=(_OllamaDeterministicError, ValueError),
+    )
     async def generate(
         self,
         prompt: str,
@@ -62,8 +74,17 @@ class OllamaProvider(LLMProvider):
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, json=payload) as response:
+                    # Translate deterministic 4xx HTTP errors so the retry
+                    # decorator can fast-fail without inspecting aiohttp types.
+                    if response.status in (400, 401, 403, 404):
+                        body = await response.text()
+                        raise _OllamaDeterministicError(
+                            f"Ollama returned HTTP {response.status}: {body[:200]}"
+                        )
                     response.raise_for_status()
                     data = await response.json()
+        except _OllamaDeterministicError:
+            raise
         except Exception as exc:
             logger.error("Ollama API error: %s", exc)
             raise

@@ -134,7 +134,11 @@ class KimiCodeProvider(LLMProvider):
         cleaned = _RESUME_SESSION_RE.sub("", raw)
         return cleaned.strip()
 
-    @retry_with_backoff(max_retries=2, exceptions=(Exception,))
+    @retry_with_backoff(
+        max_retries=2,
+        exceptions=(Exception,),
+        non_retryable_exceptions=(ValueError, FileNotFoundError, PermissionError),
+    )
     async def generate(
         self,
         prompt: str,
@@ -147,7 +151,9 @@ class KimiCodeProvider(LLMProvider):
         cmd = self._build_cmd(prompt, model=model, system=system)
         start = time.time()
 
-        logger.debug("KimiCodeProvider executing: %s", " ".join(cmd))
+        # Redact the prompt argument to avoid exposing full prompt text in logs
+        safe_cmd = cmd[:-1] + [f"<prompt:{len(cmd[-1])}chars>"]
+        logger.debug("KimiCodeProvider executing: %s", " ".join(safe_cmd))
 
         proc = await asyncio.create_subprocess_exec(
             *cmd,

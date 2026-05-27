@@ -16,6 +16,26 @@ from council.llm.retry import retry_with_backoff
 logger = logging.getLogger(__name__)
 
 
+def _anthropic_non_retryable() -> tuple[type[Exception], ...]:
+    """Return non-retryable Anthropic exception types when the SDK is available.
+
+    These errors are deterministic (auth, bad model, bad request) and will
+    never succeed on a retry.  ValueError guards against invalid parameters
+    caught before the network call.
+    """
+    types: list[type[Exception]] = [ValueError]
+    if anthropic is not None:
+        # 401 Unauthorized / invalid API key
+        types.append(anthropic.AuthenticationError)
+        # 403 Forbidden
+        types.append(anthropic.PermissionDeniedError)
+        # 404 Not Found (e.g. invalid model name)
+        types.append(anthropic.NotFoundError)
+        # 400 Bad Request (malformed payload)
+        types.append(anthropic.BadRequestError)
+    return tuple(types)
+
+
 class AnthropicProvider(LLMProvider):
     """LLM provider implementation for Anthropic Claude API."""
 
@@ -35,7 +55,11 @@ class AnthropicProvider(LLMProvider):
 
         self._client = anthropic.AsyncAnthropic(api_key=self.api_key)
 
-    @retry_with_backoff(max_retries=3, exceptions=(Exception,))
+    @retry_with_backoff(
+        max_retries=3,
+        exceptions=(Exception,),
+        non_retryable_exceptions=_anthropic_non_retryable(),
+    )
     async def generate(
         self,
         prompt: str,

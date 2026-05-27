@@ -15,6 +15,21 @@ from council.llm.retry import retry_with_backoff
 logger = logging.getLogger(__name__)
 
 
+def _anthropic_non_retryable() -> tuple[type[Exception], ...]:
+    """Return non-retryable Anthropic exception types when the SDK is available."""
+    types: list[type[Exception]] = [ValueError, FileNotFoundError, PermissionError]
+    try:
+        import anthropic as _anthropic
+
+        types.append(_anthropic.AuthenticationError)
+        types.append(_anthropic.PermissionDeniedError)
+        types.append(_anthropic.NotFoundError)
+        types.append(_anthropic.BadRequestError)
+    except ImportError:
+        pass
+    return tuple(types)
+
+
 class ClaudeCodeProvider(LLMProvider):
     """LLM provider backed by Claude Code IDE / CLI.
 
@@ -128,7 +143,11 @@ class ClaudeCodeProvider(LLMProvider):
 
     # ── Subprocess generation ───────────────────────────────────────────
 
-    @retry_with_backoff(max_retries=2, exceptions=(Exception,))
+    @retry_with_backoff(
+        max_retries=2,
+        exceptions=(Exception,),
+        non_retryable_exceptions=(ValueError, FileNotFoundError, PermissionError),
+    )
     async def _generate_subprocess(
         self,
         prompt: str,
@@ -138,7 +157,9 @@ class ClaudeCodeProvider(LLMProvider):
         cmd = self._build_cmd(prompt, model=model, system=system)
         start = time.time()
 
-        logger.debug("ClaudeCodeProvider executing: %s", " ".join(cmd))
+        # Redact the prompt argument to avoid exposing full prompt text in logs
+        safe_cmd = cmd[:-1] + [f"<prompt:{len(cmd[-1])}chars>"]
+        logger.debug("ClaudeCodeProvider executing: %s", " ".join(safe_cmd))
 
         proc = await asyncio.create_subprocess_exec(
             *cmd,
@@ -179,7 +200,11 @@ class ClaudeCodeProvider(LLMProvider):
 
     # ── HTTP fallback generation ────────────────────────────────────────
 
-    @retry_with_backoff(max_retries=2, exceptions=(Exception,))
+    @retry_with_backoff(
+        max_retries=2,
+        exceptions=(Exception,),
+        non_retryable_exceptions=_anthropic_non_retryable(),
+    )
     async def _generate_http(
         self,
         prompt: str,
@@ -220,7 +245,11 @@ class ClaudeCodeProvider(LLMProvider):
     # to avoid ARG_MAX / CLI parsing issues.
     _SUBPROCESS_PROMPT_LIMIT: int = 50_000
 
-    @retry_with_backoff(max_retries=2, exceptions=(Exception,))
+    @retry_with_backoff(
+        max_retries=2,
+        exceptions=(Exception,),
+        non_retryable_exceptions=_anthropic_non_retryable(),
+    )
     async def generate(
         self,
         prompt: str,

@@ -16,6 +16,26 @@ from council.llm.retry import retry_with_backoff
 logger = logging.getLogger(__name__)
 
 
+def _openai_non_retryable() -> tuple[type[Exception], ...]:
+    """Return non-retryable OpenAI exception types when the SDK is available.
+
+    These errors are deterministic (auth, bad model, bad request) and will
+    never succeed on a retry.  We also include ValueError to guard against
+    invalid parameter combinations caught before the network call.
+    """
+    types: list[type[Exception]] = [ValueError]
+    if openai is not None:
+        # 401 Unauthorized / invalid API key
+        types.append(openai.AuthenticationError)
+        # 403 Forbidden
+        types.append(openai.PermissionDeniedError)
+        # 404 Not Found (e.g. invalid model name)
+        types.append(openai.NotFoundError)
+        # 400 Bad Request (malformed payload)
+        types.append(openai.BadRequestError)
+    return tuple(types)
+
+
 class OpenAIProvider(LLMProvider):
     """LLM provider implementation for OpenAI API."""
 
@@ -46,7 +66,11 @@ class OpenAIProvider(LLMProvider):
             base_url=self.base_url,
         )
 
-    @retry_with_backoff(max_retries=3, exceptions=(Exception,))
+    @retry_with_backoff(
+        max_retries=3,
+        exceptions=(Exception,),
+        non_retryable_exceptions=_openai_non_retryable(),
+    )
     async def generate(
         self,
         prompt: str,
