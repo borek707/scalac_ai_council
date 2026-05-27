@@ -160,9 +160,12 @@ Need more help? Read README.md or run: python -m council --interactive
     )
     parser.add_argument(
         "--review",
+        nargs="?",
+        const=True,
         metavar="DIR",
         default=None,
-        help="Review a previous run from the given output directory",
+        help="Review a previous run: pass a DIR to review that directory standalone, "
+             "or pass without a value to auto-review after a successful council run",
     )
     parser.add_argument(
         "--verbose", "-v",
@@ -316,7 +319,7 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
     """Execute the council with parsed arguments."""
     setup_logging(args.verbose)
 
-    if getattr(args, "review", None):
+    if isinstance(getattr(args, "review", None), str):
         _review_run(Path(args.review))
         return
 
@@ -355,7 +358,10 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         _show_status(Path(args.output))
         return
 
-    if not args.config:
+    # Issue #10: --scalac-mode generates its own config — skip the config requirement check.
+    if args.scalac_mode:
+        args.config = args.config or "scalac.json"
+    elif not args.config:
         logger.error(
             "Missing --config. You have three options:\n"
             "  1. Run demo (no config needed):  python -m council --demo\n"
@@ -615,6 +621,10 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
 
     await _execute_council(_console_progress)
 
+    # Issue #38: post-run auto-review when --review is passed without a DIR value.
+    if getattr(args, "review", None) is True:
+        _review_run(workspace)
+
 
 def _create_provider(
     provider_name: str,
@@ -680,7 +690,7 @@ def _create_provider(
             ) from exc
         try:
             return OpenRouterProvider(
-                model=model or "anthropic/claude-sonnet-4",
+                model=model,
                 free_tier=free_tier,
                 api_key=api_key,
             )
