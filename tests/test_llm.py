@@ -399,3 +399,90 @@ class TestKimiCodeProvider:
 
         with pytest.raises(RuntimeError, match="Kimi Code CLI binary not found"):
             KimiCodeProvider()
+
+
+class TestOpenRouterProvider:
+    """Tests for OpenRouterProvider."""
+
+    def _make_provider(self, monkeypatch: Any, **kwargs: Any) -> Any:
+        """Helper: set a fake API key then construct OpenRouterProvider.
+
+        The openai.AsyncOpenAI client is patched out so no real network
+        calls are made during construction.
+        """
+        from unittest.mock import MagicMock, patch
+
+        monkeypatch.setenv("OPENROUTER_API_KEY", "test-key-abc")
+        # Prevent the free-tier model fetch from hitting the network
+        monkeypatch.delenv("OPENROUTER_BASE_URL", raising=False)
+
+        with patch("council.llm.openai_provider.openai") as mock_openai:
+            mock_openai.AsyncOpenAI.return_value = MagicMock()
+            from council.llm.openrouter_provider import OpenRouterProvider
+            return OpenRouterProvider(**kwargs)
+
+    # 1. Happy-path initialisation with OPENROUTER_API_KEY set
+    def test_init_with_env_api_key(self, monkeypatch: Any) -> None:
+        provider = self._make_provider(monkeypatch)
+        assert provider is not None
+        assert provider.api_key == "test-key-abc"
+
+    # 2. Correct default base URL
+    def test_default_base_url(self, monkeypatch: Any) -> None:
+        provider = self._make_provider(monkeypatch)
+        assert provider.base_url == "https://openrouter.ai/api/v1"
+
+    # 3. RuntimeError raised when OPENROUTER_API_KEY is missing and no api_key passed
+    def test_missing_api_key_raises(self, monkeypatch: Any) -> None:
+        monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+        from council.llm.openrouter_provider import OpenRouterProvider
+
+        with pytest.raises(RuntimeError, match="OpenRouter API key missing"):
+            OpenRouterProvider()
+
+    # 3b. Explicit api_key argument bypasses env-var requirement
+    def test_explicit_api_key_bypasses_env(self, monkeypatch: Any) -> None:
+        from unittest.mock import MagicMock, patch
+
+        monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+        monkeypatch.delenv("OPENROUTER_BASE_URL", raising=False)
+
+        with patch("council.llm.openai_provider.openai") as mock_openai:
+            mock_openai.AsyncOpenAI.return_value = MagicMock()
+            from council.llm.openrouter_provider import OpenRouterProvider
+            provider = OpenRouterProvider(api_key="explicit-key")
+        assert provider.api_key == "explicit-key"
+
+    # 4. Correct inheritance from OpenAIProvider
+    def test_inherits_from_openai_provider(self, monkeypatch: Any) -> None:
+        from council.llm.openai_provider import OpenAIProvider
+
+        provider = self._make_provider(monkeypatch)
+        assert isinstance(provider, OpenAIProvider)
+
+    # 5. model=None is forwarded as-is — issue #14 fix
+    #    When free_tier=False and model is not passed (None), the provider
+    #    assigns a default model name instead of keeping None.  The fix for
+    #    issue #14 ensures that an *explicit* non-None, non-"default" model
+    #    value is forwarded unchanged to super().__init__.
+    def test_explicit_model_forwarded_unchanged(self, monkeypatch: Any) -> None:
+        provider = self._make_provider(monkeypatch, model="openai/gpt-4o")
+        assert provider.model == "openai/gpt-4o"
+
+    def test_explicit_model_not_replaced_with_default(self, monkeypatch: Any) -> None:
+        provider = self._make_provider(monkeypatch, model="meta-llama/llama-3-70b")
+        # Must NOT be silently swapped for the built-in fallback
+        assert provider.model == "meta-llama/llama-3-70b"
+        assert provider.model != "anthropic/claude-3.5-sonnet"
+
+    # 5b. model=None (omitted) results in the built-in default, not None
+    def test_model_none_resolves_to_default(self, monkeypatch: Any) -> None:
+        provider = self._make_provider(monkeypatch, model=None)
+        # The constructor must not leave self.model as None
+        assert provider.model is not None
+        assert provider.model == "anthropic/claude-3.5-sonnet"
+
+    # 5c. model="default" is treated the same as model=None
+    def test_model_default_string_resolves_to_fallback(self, monkeypatch: Any) -> None:
+        provider = self._make_provider(monkeypatch, model="default")
+        assert provider.model == "anthropic/claude-3.5-sonnet"
