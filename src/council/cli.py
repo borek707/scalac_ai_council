@@ -56,7 +56,7 @@ def parse_args(args: Optional[list[str]] = None) -> argparse.Namespace:
     auto_msg = f"auto-detected: {auto_platform}" if auto_platform != "cli" else "default"
 
     # Discover available templates
-    template_dir = Path(__file__).parent.parent.parent / "templates" / "companies"
+    template_dir = _resolve_template_dir()
     available_templates = []
     if template_dir.exists():
         available_templates = sorted(
@@ -105,7 +105,7 @@ Need more help? Read README.md or run: python -m council --interactive
     parser.add_argument(
         "--provider",
         default="openai",
-        choices=["openai", "anthropic", "ollama", "kimi-code", "claude-code"],
+        choices=["openai", "anthropic", "ollama", "kimi-code", "claude-code", "openrouter"],
         help="LLM provider to use (default: openai)",
     )
     parser.add_argument(
@@ -202,7 +202,45 @@ Need more help? Read README.md or run: python -m council --interactive
         action="store_true",
         help="Force the first-run onboarding wizard",
     )
+    parser.add_argument(
+        "--brief",
+        default=None,
+        help="Custom campaign brief / prompt (e.g. 'ABM campaign for CFOs in fintech')",
+    )
+    parser.add_argument(
+        "--api-key",
+        default=None,
+        help="LLM API key (overrides environment variable)",
+    )
     return parser.parse_args(args)
+
+
+def _resolve_template_dir() -> Path:
+    """Find the built-in company templates directory.
+
+    Tries several resolution strategies so that templates are found
+    whether the code runs from source, an editable install, or a
+    packaged wheel.
+    """
+    # Strategy 1: relative to this source file (development / editable)
+    src_dir = Path(__file__).parent.parent.parent / "templates" / "companies"
+    if src_dir.exists():
+        return src_dir
+
+    # Strategy 2: relative to current working directory
+    cwd_dir = Path.cwd() / "templates" / "companies"
+    if cwd_dir.exists():
+        return cwd_dir
+
+    # Strategy 3: absolute path from project root env hint
+    if root := os.environ.get("COUNCIL_ROOT"):
+        env_dir = Path(root) / "templates" / "companies"
+        if env_dir.exists():
+            return env_dir
+
+    # Fallback — return the source-derived path so the caller can
+    # produce a meaningful "not found" error.
+    return src_dir
 
 
 def _create_platform_adapter(platform: str) -> PlatformAdapter:
@@ -260,16 +298,17 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
 
     # Resolve --template to a config path
     if getattr(args, "template", None):
-        template_dir = Path(__file__).parent.parent.parent / "templates" / "companies"
+        template_dir = _resolve_template_dir()
         template_path = template_dir / f"{args.template}.json"
         if template_path.exists():
             args.config = str(template_path)
             logger.info("Using template: %s", args.template)
         else:
+            available = sorted(p.stem for p in template_dir.glob("*.json")) if template_dir.exists() else []
             raise FileNotFoundError(
                 f"Template not found: {args.template}\n"
                 f"  Looked in: {template_dir}\n"
-                f"  Available: {', '.join(p.stem for p in template_dir.glob('*.json'))}"
+                f"  Available: {', '.join(available) or '(none)'}"
             )
 
     if not args.config:
@@ -309,6 +348,27 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         )
 
     workspace.mkdir(parents=True, exist_ok=True)
+
+    # Save custom brief if provided
+    if getattr(args, "brief", None):
+        brief_path = workspace / "shared" / "brief.md"
+        brief_path.parent.mkdir(parents=True, exist_ok=True)
+        brief_path.write_text(args.brief, encoding="utf-8")
+        logger.info("Saved campaign brief to %s", brief_path)
+
+    # Set API key if provided
+    if getattr(args, "api_key", None):
+        env_map = {
+            "openai": "OPENAI_API_KEY",
+            "anthropic": "ANTHROPIC_API_KEY",
+            "ollama": "OLLAMA_API_KEY",
+            "kimi-code": "KIMI_API_KEY",
+            "claude-code": "ANTHROPIC_API_KEY",
+            "openrouter": "OPENROUTER_API_KEY",
+        }
+        env_var = env_map.get(args.provider, "OPENAI_API_KEY")
+        os.environ[env_var] = args.api_key
+        logger.info("API key set from command line for provider %s", args.provider)
 
     config_save_path = workspace / "config.json"
     config_save_path.write_text(
@@ -396,11 +456,25 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         documents.extend(loaded)
         logger.info("Loaded %d documents from %s", len(loaded), args.documents_dir)
 
+    # Auto-load Scalac data bundle when running for Scalac
+    if company_config.name and company_config.name.lower() == "scalac":
+        scalac_data_dir = _resolve_template_dir().parent / "scalac_data"
+        if scalac_data_dir.is_dir():
+            loaded = doc_loader.load_directory(scalac_data_dir, doc_type="strategy")
+            documents.extend(loaded)
+            logger.info(
+                "Loaded Scalac data bundle: %d documents from %s",
+                len(loaded),
+                scalac_data_dir,
+            )
+        else:
+            logger.warning("Scalac data directory not found at %s", scalac_data_dir)
+
     if documents:
         logger.info("Total context documents: %d", len(documents))
         for d in documents:
             logger.debug("  - %s (%s, %d chars)", d.name, d.doc_type, len(d.content))
-    
+
     # Platform adapter (auto-detected or explicit)
     adapter = _create_platform_adapter(args.platform)
     logger.info("Platform adapter: %s", adapter.get_name())
@@ -417,10 +491,10 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
     from council.orchestration.orchestrator import AsyncOrchestrator
 
     agents: list[BaseAgent] = [
-        MarcusAgent(workspace=workspace, config=company_config, provider=provider),
-        ElenaAgent(workspace=workspace, config=company_config, provider=provider),
-        KaiAgent(workspace=workspace, config=company_config, provider=provider),
-        DavidAgent(workspace=workspace, config=company_config, provider=provider),
+        MarcusAgent(workspace=workspace, config=company_config, provider=provider, documents=documents),
+        ElenaAgent(workspace=workspace, config=company_config, provider=provider, documents=documents),
+        KaiAgent(workspace=workspace, config=company_config, provider=provider, documents=documents),
+        DavidAgent(workspace=workspace, config=company_config, provider=provider, documents=documents),
     ]
 
     async def _execute_council(progress_callback=None):
@@ -535,6 +609,15 @@ def _create_provider(provider_name: str, model: Optional[str]) -> LLMProvider:
                 "  or that the 'claude' CLI is installed (npm install -g @anthropic-ai/claude-code),\n"
                 "  or that ~/.claude/.credentials.json exists."
             ) from exc
+    elif provider_name == "openrouter":
+        from council.llm.openrouter_provider import OpenRouterProvider
+        try:
+            return OpenRouterProvider(model=model)
+        except RuntimeError as exc:
+            raise RuntimeError(
+                f"Failed to initialize OpenRouter provider: {exc}\n"
+                "  Set OPENROUTER_API_KEY or pass --api-key"
+            ) from exc
     else:
         raise ValueError(f"Unknown provider: {provider_name}")
 
@@ -626,6 +709,7 @@ def main() -> None:
             dashboard = CouncilDashboard(
                 agent_names=["Marcus", "Elena", "Kai", "David"],
                 max_rounds=args.rounds,
+                workspace=Path(args.output),
             )
 
     if dashboard:
@@ -638,7 +722,10 @@ def main() -> None:
             exc = _run_async_in_thread(_run_council(args, dashboard))
             if exc:
                 council_exception = exc
-            dashboard.stop()
+                dashboard.stop()
+            else:
+                # Notify user that work is done; they can browse files and press q to exit
+                dashboard.log("✓ Council run complete — browse files and press q to exit")
 
         thread = threading.Thread(target=_council_thread, daemon=True)
         thread.start()

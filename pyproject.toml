@@ -61,6 +61,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 council = ["agents/templates/*.j2"]
+"" = ["templates/companies/*.json", "templates/companies/scalac_data/*"]
 
 [tool.mypy]
 python_version = "3.12"
