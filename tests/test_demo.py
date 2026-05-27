@@ -112,11 +112,11 @@ class TestRunDemo:
         assert "Kai" in results
         assert "David" in results
 
-        output_dir = ws / "output"
-        assert (output_dir / "marcus_offer.md").exists()
-        assert (output_dir / "elena_funnel.md").exists()
-        assert (output_dir / "kai_copy.md").exists()
-        assert (output_dir / "david_abm.md").exists()
+        agents_dir = ws / "output" / "agents"
+        assert (agents_dir / "marcus_offer.md").exists()
+        assert (agents_dir / "elena_funnel.md").exists()
+        assert (agents_dir / "kai_copy.md").exists()
+        assert (agents_dir / "david_abm.md").exists()
 
     @pytest.mark.asyncio
     async def test_run_demo_content_has_markdown(self, tmp_path: Path) -> None:

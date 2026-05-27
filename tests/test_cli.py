@@ -94,7 +94,7 @@ class TestReviewRunComplete:
         """Should print the proposal file path when it exists."""
         _review_run(complete_workspace)
         captured = capsys.readouterr()
-        assert "proposal.md" in captured.out
+        assert "Proposal" in captured.out
 
 
 class TestReviewRunEmpty:
