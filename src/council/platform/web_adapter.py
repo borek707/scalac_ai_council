@@ -145,9 +145,15 @@ class WebPlatformAdapter(PlatformAdapter):
         assert all(r == "ok" for r in results)
 
     async def _run_sequential(self, orchestrator: AsyncOrchestrator) -> None:
-        """Fallback: run one agent at a time."""
-        for agent in orchestrator.agents:
-            logger.info("Running agent: %s", agent.name)
-            for round_num in range(1, orchestrator.max_rounds + 1):
+        """Fallback: run one agent at a time.
+
+        All agents must complete a round before the barrier is checked,
+        otherwise the barrier would block waiting for agents that have
+        not run yet and deadlock until timeout.
+        """
+        for round_num in range(1, orchestrator.max_rounds + 1):
+            for agent in orchestrator.agents:
+                logger.info("Running agent %s (round %d)", agent.name, round_num)
                 await agent.run_round(round_num)
-                await orchestrator.barrier.wait(round_num)
+            # All agents have written their round files — safe to wait.
+            await orchestrator.barrier.wait(round_num)
