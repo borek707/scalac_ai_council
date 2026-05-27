@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Optional
 
@@ -64,6 +66,7 @@ class AsyncOrchestrator:
             self.state_machine.register(agent.name)
 
         self._round_results: dict[int, dict[str, Path]] = {}
+        self._final_results: dict[str, Path] = {}
 
     async def run_round(self, round_num: int) -> dict[str, Path]:
         """Run all agents in parallel for a round, with barrier synchronization.
@@ -89,14 +92,36 @@ class AsyncOrchestrator:
         tasks = [agent.run_round(round_num) for agent in self.agents]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
+        failed_agents: dict[str, Exception] = {}
         for agent, result in zip(self.agents, results):
             if isinstance(result, Exception):
                 logger.error("Agent %s failed in round %d: %s", agent.name, round_num, result)
                 self.state_machine.force_state(agent.name, AgentState.ERROR)
+                failed_agents[agent.name] = result
             else:
                 self.state_machine.force_state(agent.name, AgentState.DONE)
 
-        barrier_results = await self.barrier.wait(round_num)
+        if failed_agents:
+            # Narrow the barrier to only the agents that succeeded so we do
+            # not wait indefinitely for files that failed agents will never write.
+            self.barrier.expected_agents = [
+                a.name for a in self.agents if a.name not in failed_agents
+            ]
+
+        try:
+            barrier_results = await self.barrier.wait(round_num)
+        except TimeoutError as exc:
+            if failed_agents:
+                causes = "; ".join(
+                    f"{name}: {err}" for name, err in failed_agents.items()
+                )
+                raise TimeoutError(
+                    f"{exc} — underlying agent failures: {causes}"
+                ) from exc
+            raise
+        finally:
+            # Restore the full expected_agents list for subsequent rounds.
+            self.barrier.expected_agents = [a.name for a in self.agents]
 
         for agent in self.agents:
             if self.state_machine.get_state(agent.name) != AgentState.ERROR:
@@ -128,12 +153,40 @@ class AsyncOrchestrator:
             self.max_rounds,
         )
         for round_num in range(1, self.max_rounds + 1):
-            results = await self.run_round(round_num)
+            try:
+                results = await asyncio.wait_for(
+                    self.run_round(round_num),
+                    timeout=self.round_timeout,
+                )
+            except asyncio.TimeoutError:
+                raise TimeoutError(
+                    f"Round {round_num} exceeded the {self.round_timeout}s timeout"
+                )
             if self._check_consensus(round_num):
                 logger.info("Consensus reached at round %d, stopping early.", round_num)
                 break
 
+        self._final_results = await self._run_final_all()
         return await self._collect_final_outputs()
+
+    async def _run_final_all(self) -> dict[str, Path]:
+        """Call run_final() on every agent in parallel and return agent_name -> Path."""
+        logger.info("=== Generating final agent deliverables ===")
+        tasks = [agent.run_final() for agent in self.agents]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        final: dict[str, Path] = {}
+        for agent, result in zip(self.agents, results):
+            if isinstance(result, Exception):
+                logger.error("Agent %s failed during run_final: %s", agent.name, result)
+            else:
+                final[agent.name] = result
+                logger.info("Agent %s final deliverable: %s", agent.name, result)
+        logger.info(
+            "=== Final deliverables complete: %d/%d agents succeeded ===",
+            len(final),
+            len(self.agents),
+        )
+        return final
 
     def _check_consensus(self, round_num: int) -> bool:
         """Check if agents have reached consensus.
@@ -186,6 +239,42 @@ class AsyncOrchestrator:
             lines.append("")
 
         return "\n".join(lines)
+
+    def write_artifacts(self, output_dir: Optional[Path] = None) -> dict[str, Path]:
+        """Write proposal.md and manifest.json to output_dir after a completed run."""
+        out = output_dir or (self.workspace / "output")
+        out.mkdir(parents=True, exist_ok=True)
+
+        proposal_path = out / "proposal.md"
+        proposal_path.write_text(self.aggregate_proposal(), encoding="utf-8")
+
+        manifest: dict = {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "company": self.config.name,
+            "product": self.config.product,
+            "provider": self.provider_name,
+            "model": self.provider_model,
+            "rounds_completed": len(self._round_results),
+            "max_rounds": self.max_rounds,
+            "agents": [a.name for a in self.agents],
+            "files": {
+                "proposal": str(proposal_path),
+                "agent_outputs": {
+                    name: str(path)
+                    for round_results in self._round_results.values()
+                    for name, path in round_results.items()
+                },
+                "final_deliverables": {
+                    name: str(path)
+                    for name, path in self._final_results.items()
+                },
+            },
+        }
+        manifest_path = out / "manifest.json"
+        manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+        logger.info("Artifacts written: %s, %s", proposal_path, manifest_path)
+        return {"proposal": proposal_path, "manifest": manifest_path}
 
     def get_state_snapshot(self) -> dict[str, AgentState]:
         """Return current state snapshot of all agents."""
