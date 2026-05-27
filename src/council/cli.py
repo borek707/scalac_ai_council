@@ -183,11 +183,17 @@ Need more help? Read README.md or run: python -m council --interactive
     )
     parser.add_argument(
         "--template",
+        nargs="?",
+        const="",
         default=None,
-        choices=available_templates or None,
         metavar="NAME",
         help="Use a built-in company template (e.g. saas, fintech, ecommerce). "
              "Ignores --config. Run without value to see available templates.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Skip confirmation when the output directory already exists (for non-interactive/scripted use)",
     )
     parser.add_argument(
         "--scalac-mode",
@@ -319,14 +325,25 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         return
 
     # Resolve --template to a config path
-    if getattr(args, "template", None):
+    if getattr(args, "template", None) is not None:
         template_dir = _resolve_template_dir()
+        available = sorted(p.stem for p in template_dir.glob("*.json")) if template_dir.exists() else []
+
+        # --template with no value: print list and exit
+        if args.template == "":
+            if available:
+                console.print("[bold]Available templates:[/bold]")
+                for t in available:
+                    console.print(f"  {t:12} templates/companies/{t}.json")
+            else:
+                console.print("[yellow]No templates found.[/yellow]")
+            sys.exit(0)
+
         template_path = template_dir / f"{args.template}.json"
         if template_path.exists():
             args.config = str(template_path)
             logger.info("Using template: %s", args.template)
         else:
-            available = sorted(p.stem for p in template_dir.glob("*.json")) if template_dir.exists() else []
             raise FileNotFoundError(
                 f"Template not found: {args.template}\n"
                 f"  Looked in: {template_dir}\n"
@@ -368,11 +385,30 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
     workspace = Path(args.output)
     # Confirmation if output directory already has content
     if workspace.exists() and any(workspace.iterdir()):
-        logger.warning(
-            "Output directory %s already exists and contains files.\n"
-            "New outputs may overwrite previous results.",
-            workspace,
-        )
+        if getattr(args, "force", False):
+            logger.info(
+                "Output directory %s already exists and contains files — continuing (--force).",
+                workspace,
+            )
+        elif sys.stdin.isatty():
+            console.print(
+                f"\n[yellow]Warning:[/yellow] Output directory [bold]{workspace}[/bold] already exists "
+                "and contains files. Continuing will overwrite previous results."
+            )
+            try:
+                answer = input("Continue anyway? [y/N] ").strip().lower()
+            except EOFError:
+                answer = ""
+            if answer not in ("y", "yes"):
+                console.print("[dim]Aborted. Use --force to skip this prompt in non-interactive use.[/dim]")
+                sys.exit(0)
+        else:
+            logger.warning(
+                "Output directory %s already exists and contains files. "
+                "New outputs may overwrite previous results. "
+                "Pass --force to suppress this warning in non-interactive mode.",
+                workspace,
+            )
 
     workspace.mkdir(parents=True, exist_ok=True)
 
