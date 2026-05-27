@@ -156,7 +156,13 @@ Need more help? Read README.md or run: python -m council --interactive
     parser.add_argument(
         "--aggregate",
         action="store_true",
-        help="Aggregate final outputs into a single proposal",
+        help="(deprecated, artifacts are always written) kept for backwards compatibility",
+    )
+    parser.add_argument(
+        "--review",
+        metavar="DIR",
+        default=None,
+        help="Review a previous run from the given output directory",
     )
     parser.add_argument(
         "--verbose", "-v",
@@ -191,7 +197,7 @@ Need more help? Read README.md or run: python -m council --interactive
     parser.add_argument(
         "--dashboard",
         action="store_true",
-        help="Show real-time live dashboard with agent panels (requires 'rich')",
+        help="Show real-time live dashboard with agent panels (requires 'textual')",
     )
     parser.add_argument(
         "--demo",
@@ -218,11 +224,6 @@ Need more help? Read README.md or run: python -m council --interactive
         "--brief",
         default=None,
         help="Custom campaign brief / prompt (e.g. 'ABM campaign for CFOs in fintech')",
-    )
-    parser.add_argument(
-        "--api-key",
-        default=None,
-        help="LLM API key (overrides environment variable)",
     )
     parser.add_argument(
         "--free-tier",
@@ -309,6 +310,10 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
     """Execute the council with parsed arguments."""
     setup_logging(args.verbose)
 
+    if getattr(args, "review", None):
+        _review_run(Path(args.review))
+        return
+
     if args.demo:
         await _run_demo(args, dashboard)
         return
@@ -383,7 +388,12 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
             "claude-code": "ANTHROPIC_API_KEY",
             "openrouter": "OPENROUTER_API_KEY",
         }
-        env_var = env_map.get(args.provider, "OPENAI_API_KEY")
+        if args.provider not in env_map:
+            raise ValueError(
+                f"Unknown provider '{args.provider}': cannot determine which env var to set for --api-key.\n"
+                f"  Supported providers: {', '.join(sorted(env_map))}"
+            )
+        env_var = env_map[args.provider]
         os.environ[env_var] = args.api_key
         logger.info("API key set from command line for provider %s", args.provider)
 
@@ -532,13 +542,8 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         )
         await adapter.spawn_agents(orchestrator)
 
-        if args.aggregate:
-            proposal = orchestrator.aggregate_proposal()
-            proposal_path = workspace / "FINAL_PROPOSAL.md"
-            proposal_path.write_text(proposal, encoding="utf-8")
-            logger.info("Aggregated proposal written to %s", proposal_path)
-
-        _print_success_summary(workspace, args.rounds, args.aggregate)
+        artifacts = orchestrator.write_artifacts(workspace / "output")
+        _print_success_summary(workspace, args.rounds, artifacts)
 
     def _console_progress(agent_name: str, state: str, **kwargs) -> None:
         _AGENT_COLORS = {
@@ -667,37 +672,89 @@ def _create_provider(provider_name: str, model: Optional[str], free_tier: bool =
         raise ValueError(f"Unknown provider: {provider_name}")
 
 
-def _print_success_summary(workspace: Path, rounds: int, aggregated: bool) -> None:
+def _print_success_summary(workspace: Path, rounds: int, artifacts: dict) -> None:
     """Print a rich, human-friendly summary of what was generated."""
     output_dir = workspace / "output"
     discussion_dir = workspace / "shared" / "discussion"
 
-    output_files = list(output_dir.glob("*.md")) if output_dir.exists() else []
     round_files = list(discussion_dir.glob("*_round_*.md")) if discussion_dir.exists() else []
+    proposal_path: Optional[Path] = artifacts.get("proposal")
 
     table = Table(title="Council Run Complete", show_header=False, border_style="green")
     table.add_column("Key", style="bold cyan", width=16)
     table.add_column("Value", style="white")
     table.add_row("Rounds", str(rounds))
     table.add_row("Output dir", str(workspace))
-    table.add_row("Agent outputs", f"{len(output_files)} files")
     table.add_row("Round files", f"{len(round_files)} files")
-    if aggregated and (workspace / "FINAL_PROPOSAL.md").exists():
-        table.add_row("Proposal", str(workspace / "FINAL_PROPOSAL.md"))
+    if proposal_path and proposal_path.exists():
+        table.add_row("Proposal", str(proposal_path))
+        table.add_row("Manifest", str(artifacts.get("manifest", "")))
 
     console.print()
     console.print(table)
 
+    if proposal_path and proposal_path.exists():
+        preview_lines = proposal_path.read_text(encoding="utf-8").splitlines()[:20]
+        console.print()
+        console.print(Panel(
+            "\n".join(preview_lines) + ("\n…" if len(proposal_path.read_text(encoding="utf-8").splitlines()) > 20 else ""),
+            title="[bold green]Proposal preview[/bold green]",
+            border_style="green",
+        ))
+
     tips = Table(show_header=False, border_style="dim")
     tips.add_column(style="bold yellow")
     tips.add_column(style="dim")
-    if output_files:
-        tips.add_row("• Read outputs", f"ls {output_dir}")
-    if (workspace / "FINAL_PROPOSAL.md").exists():
-        tips.add_row("• View proposal", f"cat {workspace / 'FINAL_PROPOSAL.md'}")
+    if proposal_path and proposal_path.exists():
+        tips.add_row("• View proposal", f"cat {proposal_path}")
+        tips.add_row("• Review run", f"python -m council --review {workspace}")
     tips.add_row("• Check discussion", f"ls {discussion_dir}")
     tips.add_row("• Run again", "python -m council --config ...")
     console.print(tips)
+
+
+def _review_run(workspace: Path) -> None:
+    """Display a summary of a previous council run from its manifest."""
+    import json as _json
+
+    manifest_path = workspace / "output" / "manifest.json"
+    if not manifest_path.exists():
+        console.print(Panel(
+            f"[red]No manifest found in {workspace / 'output'}[/red]\n"
+            "Run the council first to generate artifacts.",
+            title="Review",
+            border_style="red",
+        ))
+        return
+
+    manifest = _json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    table = Table(title="Previous Run", show_header=False, border_style="blue")
+    table.add_column("Key", style="bold cyan", width=20)
+    table.add_column("Value", style="white")
+    table.add_row("Generated", manifest.get("generated_at", "unknown"))
+    table.add_row("Company", manifest.get("company", "unknown"))
+    table.add_row("Product", manifest.get("product", "unknown"))
+    table.add_row("Provider", f"{manifest.get('provider', '?')} / {manifest.get('model', '?')}")
+    table.add_row("Rounds completed", f"{manifest.get('rounds_completed', '?')} / {manifest.get('max_rounds', '?')}")
+    table.add_row("Agents", ", ".join(manifest.get("agents", [])))
+
+    files = manifest.get("files", {})
+    proposal_path = Path(files.get("proposal", ""))
+    if proposal_path.exists():
+        table.add_row("Proposal", str(proposal_path))
+
+    console.print()
+    console.print(table)
+
+    if proposal_path.exists():
+        preview_lines = proposal_path.read_text(encoding="utf-8").splitlines()[:20]
+        console.print()
+        console.print(Panel(
+            "\n".join(preview_lines) + "\n…",
+            title="[bold blue]Proposal preview[/bold blue]",
+            border_style="blue",
+        ))
 
 
 def _show_status(workspace: Path) -> None:
