@@ -302,6 +302,10 @@ class ProviderScreen(Screen):
                 yield Input(placeholder="leave empty for default", id="model-input")
                 yield Static("API Key (optional):", classes="field-label")
                 yield Input(placeholder="leave empty to use env var", id="api-key-input", password=True)
+                yield Static("Free tier (OpenRouter only):", classes="field-label")
+                with Horizontal(classes="switch-row"):
+                    yield Switch(value=False, id="free-tier-switch")
+                    yield Label("Use free-tier model fallback")
                 yield Rule()
                 yield Static("Rounds:", classes="field-label")
                 yield Input(value="3", placeholder="3", id="rounds-input")
@@ -325,6 +329,7 @@ class ProviderScreen(Screen):
         provider = _PROVIDERS[sel][0] if sel is not None else "openai"
         model = self.query_one("#model-input", Input).value.strip() or None
         api_key = self.query_one("#api-key-input", Input).value.strip() or None
+        free_tier = self.query_one("#free-tier-switch", Switch).value
         rounds_str = self.query_one("#rounds-input", Input).value or "3"
         dashboard = self.query_one("#dashboard-switch", Switch).value
         output = self.query_one("#output-input", Input).value.strip() or "./output"
@@ -332,6 +337,7 @@ class ProviderScreen(Screen):
             provider=provider,
             model=model,
             api_key=api_key,
+            free_tier=free_tier,
             rounds=int(rounds_str),
             dashboard=dashboard,
             output=output,
@@ -345,6 +351,8 @@ class ProviderScreen(Screen):
         if event.input.id == "model-input":
             self.query_one("#api-key-input", Input).focus()
         elif event.input.id == "api-key-input":
+            self.query_one("#free-tier-switch", Switch).focus()
+        elif event.input.id == "free-tier-switch":
             self.query_one("#rounds-input", Input).focus()
         elif event.input.id == "rounds-input":
             self.query_one("#output-input", Input).focus()
@@ -435,6 +443,9 @@ class ConfirmScreen(Screen):
         if api_key:
             lines.append(f"API Key:   {'*' * min(len(api_key), 20)}")
 
+        if st.get("free_tier"):
+            lines.append("Free tier: Yes (OpenRouter free-model fallback)")
+
         with Center():
             with Vertical(classes="menu-container"):
                 yield Static("\uf00c  Ready to Run", classes="title")
@@ -473,6 +484,7 @@ class ConfirmScreen(Screen):
                 demo=st.get("demo", False),
                 scenario=st.get("scenario", "saas-launch"),
                 template=st.get("template"),
+                free_tier=st.get("free_tier", False),
             )
             self.app.exit(ns)
 

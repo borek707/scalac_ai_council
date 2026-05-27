@@ -212,6 +212,11 @@ Need more help? Read README.md or run: python -m council --interactive
         default=None,
         help="LLM API key (overrides environment variable)",
     )
+    parser.add_argument(
+        "--free-tier",
+        action="store_true",
+        help="Use OpenRouter free-tier model fallback (fetches current free models)",
+    )
     return parser.parse_args(args)
 
 
@@ -480,7 +485,11 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
     logger.info("Platform adapter: %s", adapter.get_name())
 
     # Initialize LLM provider
-    provider = _create_provider(args.provider, args.model)
+    provider = _create_provider(
+        args.provider,
+        args.model,
+        getattr(args, "free_tier", False),
+    )
 
     # Create agents with optional document context
     from council.agents.base import BaseAgent
@@ -538,7 +547,7 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
     await _execute_council(_console_progress)
 
 
-def _create_provider(provider_name: str, model: Optional[str]) -> LLMProvider:
+def _create_provider(provider_name: str, model: Optional[str], free_tier: bool = False) -> LLMProvider:
     """Create an LLM provider based on the name."""
     if provider_name == "openai":
         try:
@@ -612,7 +621,7 @@ def _create_provider(provider_name: str, model: Optional[str]) -> LLMProvider:
     elif provider_name == "openrouter":
         from council.llm.openrouter_provider import OpenRouterProvider
         try:
-            return OpenRouterProvider(model=model)
+            return OpenRouterProvider(model=model, free_tier=free_tier)
         except RuntimeError as exc:
             raise RuntimeError(
                 f"Failed to initialize OpenRouter provider: {exc}\n"
