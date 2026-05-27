@@ -80,3 +80,55 @@ jobs:
 
       - name: Run pre-commit hooks
         run: uv run pre-commit run --all-files --show-diff-on-failure
+
+  smoke:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Verify python -m council --help (exit code 0)
+        run: uv run python -m council --help
+
+      - name: Verify council --help (exit code 0)
+        run: uv run council --help
+
+      - name: Run demo mode (saas-launch, 1 round, no API keys)
+        run: uv run python -m council --demo --scenario saas-launch --rounds 1
+
+      - name: Run monitor mode (no config needed)
+        run: uv run python -m council --monitor --output /tmp/test-monitor
+
+  build:
+    name: Package Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Build package
+        run: uv build
+
+      - name: Install built wheel into a clean venv
+        run: |
+          python -m venv /tmp/council-wheel-venv
+          /tmp/council-wheel-venv/bin/pip install dist/*.whl
+
+      - name: Verify council --help from installed wheel
+        run: /tmp/council-wheel-venv/bin/council --help
+
+      - name: Verify package is importable (agent templates included)
+        run: /tmp/council-wheel-venv/bin/python -c "import council; print('ok')"
