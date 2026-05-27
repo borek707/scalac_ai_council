@@ -216,6 +216,10 @@ class ClaudeCodeProvider(LLMProvider):
 
     # ── Public API ──────────────────────────────────────────────────────
 
+    # Prompts longer than this are routed to HTTP instead of subprocess
+    # to avoid ARG_MAX / CLI parsing issues.
+    _SUBPROCESS_PROMPT_LIMIT: int = 50_000
+
     @retry_with_backoff(max_retries=2, exceptions=(Exception,))
     async def generate(
         self,
@@ -225,8 +229,17 @@ class ClaudeCodeProvider(LLMProvider):
         max_tokens: int = 4000,
         system: Optional[str] = None,
     ) -> LLMResponse:
-        if self.executable_path:
+        if self.executable_path and len(prompt) < self._SUBPROCESS_PROMPT_LIMIT:
             return await self._generate_subprocess(prompt, model=model, system=system)
+
+        if len(prompt) >= self._SUBPROCESS_PROMPT_LIMIT and self.executable_path:
+            logger.warning(
+                "Prompt %d chars exceeds subprocess limit (%d); "
+                "falling back to HTTP",
+                len(prompt),
+                self._SUBPROCESS_PROMPT_LIMIT,
+            )
+
         return await self._generate_http(
             prompt, model=model, temperature=temperature, max_tokens=max_tokens, system=system
         )
