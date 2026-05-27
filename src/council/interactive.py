@@ -10,6 +10,7 @@ Provides a navigable multi-screen menu with:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -26,6 +27,7 @@ from textual.widgets import (
     Rule,
     Static,
     Switch,
+    TextArea,
 )
 from textual.widgets.option_list import Option
 
@@ -39,6 +41,7 @@ _PROVIDERS = [
     ("ollama", "Ollama (local)", "llama3"),
     ("kimi-code", "Kimi Code CLI", "kimi-for-coding"),
     ("claude-code", "Claude Code CLI / IDE", "claude-sonnet-4-6"),
+    ("openrouter", "OpenRouter", "anthropic/claude-3.5-sonnet"),
 ]
 
 
@@ -190,11 +193,26 @@ class DemoScreen(Screen):
             self._go_next()
 
 
+def _resolve_template_dir() -> Path:
+    """Find built-in company templates (src, cwd or env fallback)."""
+    src_dir = Path(__file__).parent.parent / "templates" / "companies"
+    if src_dir.exists():
+        return src_dir
+    cwd_dir = Path.cwd() / "templates" / "companies"
+    if cwd_dir.exists():
+        return cwd_dir
+    if root := os.environ.get("COUNCIL_ROOT"):
+        env_dir = Path(root) / "templates" / "companies"
+        if env_dir.exists():
+            return env_dir
+    return src_dir
+
+
 class TemplateScreen(Screen):
     """Template selection screen."""
 
     def compose(self) -> ComposeResult:
-        template_dir = Path(__file__).parent.parent / "templates" / "companies"
+        template_dir = _resolve_template_dir()
         templates = sorted(p.stem for p in template_dir.glob("*.json") if p.is_file())
         self.app.state["templates"] = templates
         with Center():
@@ -282,6 +300,8 @@ class ProviderScreen(Screen):
                 yield Rule()
                 yield Static("Model override (optional):", classes="field-label")
                 yield Input(placeholder="leave empty for default", id="model-input")
+                yield Static("API Key (optional):", classes="field-label")
+                yield Input(placeholder="leave empty to use env var", id="api-key-input", password=True)
                 yield Rule()
                 yield Static("Rounds:", classes="field-label")
                 yield Input(value="3", placeholder="3", id="rounds-input")
@@ -291,6 +311,7 @@ class ProviderScreen(Screen):
                     yield Label("Enable live terminal dashboard")
                 yield Static("Output directory:", classes="field-label")
                 yield Input(value="./output", placeholder="./output", id="output-input")
+                yield Static("[dim]Tab next · Enter submit field · Esc back[/dim]", classes="hint")
                 with Horizontal(classes="button-row"):
                     yield Button("← Back", variant="default", id="back")
                     yield Button("Next →", variant="primary", id="next")
@@ -303,26 +324,74 @@ class ProviderScreen(Screen):
         sel = ol.highlighted
         provider = _PROVIDERS[sel][0] if sel is not None else "openai"
         model = self.query_one("#model-input", Input).value.strip() or None
+        api_key = self.query_one("#api-key-input", Input).value.strip() or None
         rounds_str = self.query_one("#rounds-input", Input).value or "3"
         dashboard = self.query_one("#dashboard-switch", Switch).value
         output = self.query_one("#output-input", Input).value.strip() or "./output"
         self.app.state.update(
             provider=provider,
             model=model,
+            api_key=api_key,
             rounds=int(rounds_str),
             dashboard=dashboard,
             output=output,
         )
-        self.app.push_screen("confirm")
+        self.app.push_screen("brief")
 
     def on_option_list_option_selected(self, event) -> None:
         self._go_next()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         if event.input.id == "model-input":
+            self.query_one("#api-key-input", Input).focus()
+        elif event.input.id == "api-key-input":
             self.query_one("#rounds-input", Input).focus()
-        elif event.input.id in ("rounds-input", "output-input"):
+        elif event.input.id == "rounds-input":
+            self.query_one("#output-input", Input).focus()
+        elif event.input.id == "output-input":
             self._go_next()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "back":
+            self.app.pop_screen()
+        elif event.button.id == "next":
+            self._go_next()
+
+
+class BriefScreen(Screen):
+    """Campaign brief / custom prompt input."""
+
+    def compose(self) -> ComposeResult:
+        with Center():
+            with Vertical(classes="menu-container"):
+                yield Static("\uf0eb  Campaign Brief", classes="title")
+                yield Static(
+                    "Describe what you want the council to work on. "
+                    "This becomes the strategic brief for all agents.",
+                    classes="subtitle",
+                )
+                yield TextArea(
+                    id="brief-input",
+                    text="",
+                    language="markdown",
+                    tab_behavior="focus",
+                    classes="brief-input",
+                )
+                yield Static(
+                    "[dim]Examples:\n"
+                    "  • ABM campaign targeting CFOs in fintech\n"
+                    "  • Q3 webinar promotion on AI compliance\n"
+                    "  • Rebrand launch for Series B startup[/dim]",
+                    classes="hint",
+                )
+                with Horizontal(classes="button-row"):
+                    yield Button("← Back", variant="default", id="back")
+                    yield Button("Next →", variant="primary", id="next")
+
+    def _go_next(self) -> None:
+        brief = self.query_one("#brief-input", TextArea).text.strip()
+        self.app.state["brief"] = brief
+        self.app.push_screen("confirm")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "back":
@@ -356,6 +425,15 @@ class ConfirmScreen(Screen):
             lines.append(f"Rounds:    {st.get('rounds', 3)}")
             lines.append(f"Dashboard: {'Yes' if st.get('dashboard') else 'No'}")
             lines.append(f"Output:    {st.get('output', './output')}")
+
+        brief = st.get("brief", "")
+        if brief:
+            brief_display = brief[:70] + "..." if len(brief) > 70 else brief
+            lines.append(f"Brief:     {brief_display}")
+
+        api_key = st.get("api_key", "")
+        if api_key:
+            lines.append(f"API Key:   {'*' * min(len(api_key), 20)}")
 
         with Center():
             with Vertical(classes="menu-container"):
@@ -468,6 +546,12 @@ class CouncilMenuApp(App):
         border: solid $primary-darken-2;
         padding: 1 2;
         background: $surface-darken-1 40%;
+        overflow-y: auto;
+    }
+
+    .brief-input {
+        height: 8;
+        max-height: 12;
     }
 
     .title {
@@ -579,6 +663,7 @@ class CouncilMenuApp(App):
         self.install_screen(DemoScreen(), "demo")
         self.install_screen(TemplateScreen(), "template")
         self.install_screen(ProviderScreen(), "provider")
+        self.install_screen(BriefScreen(), "brief")
         self.install_screen(ConfigScreen(), "config")
         self.install_screen(ConfirmScreen(), "confirm")
         self.install_screen(HelpScreen(), "help")
