@@ -427,7 +427,7 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
 
     # Set API key if provided
     # Issue #4: ollama and kimi-code don't use API keys — warn and skip instead.
-    _NO_API_KEY_PROVIDERS = {"ollama", "kimi-code"}
+    _NO_API_KEY_PROVIDERS = {"ollama", "kimi-code", "claude-code"}
     if getattr(args, "api_key", None):
         if args.provider in _NO_API_KEY_PROVIDERS:
             logger.warning(
@@ -438,7 +438,6 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
             env_map = {
                 "openai": "OPENAI_API_KEY",
                 "anthropic": "ANTHROPIC_API_KEY",
-                "claude-code": "ANTHROPIC_API_KEY",
                 "openrouter": "OPENROUTER_API_KEY",
             }
             if args.provider not in env_map:

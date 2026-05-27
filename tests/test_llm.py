@@ -440,7 +440,16 @@ class TestOpenRouterProvider:
         with pytest.raises(RuntimeError, match="OpenRouter API key missing"):
             OpenRouterProvider()
 
-    # 3b. Explicit api_key argument bypasses env-var requirement
+    # 3b. OPENAI_API_KEY set but OPENROUTER_API_KEY absent — must not fall back (issue #16)
+    def test_does_not_fall_back_to_openai_api_key(self, monkeypatch: Any) -> None:
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-openai-should-not-be-used")
+        monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+        from council.llm.openrouter_provider import OpenRouterProvider
+
+        with pytest.raises(RuntimeError, match="OpenRouter API key missing"):
+            OpenRouterProvider()
+
+    # 3d. Explicit api_key argument bypasses env-var requirement
     def test_explicit_api_key_bypasses_env(self, monkeypatch: Any) -> None:
         from unittest.mock import MagicMock, patch
 

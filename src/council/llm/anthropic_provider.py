@@ -47,6 +47,12 @@ class AnthropicProvider(LLMProvider):
         self.model = model
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
 
+        if not self.api_key:
+            raise RuntimeError(
+                "Anthropic API key missing.\n"
+                "  Set ANTHROPIC_API_KEY env var or pass --api-key"
+            )
+
         if anthropic is None:
             raise ImportError(
                 "Anthropic package not installed. "
