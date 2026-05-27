@@ -66,6 +66,7 @@ class BaseAgent(ABC):
         """Create required workspace directories if missing."""
         self.discussion_dir.mkdir(parents=True, exist_ok=True)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        (self.output_dir / "agents").mkdir(parents=True, exist_ok=True)
 
     def read_discussion(self) -> str:
         """Read the full shared discussion log.
@@ -106,7 +107,7 @@ class BaseAgent(ABC):
         return path
 
     def write_final(self, content: str, filename: str) -> Path:
-        """Write final consolidated output to the output directory.
+        """Write final consolidated output to output/agents/ subdirectory.
 
         Parameters
         ----------
@@ -117,7 +118,9 @@ class BaseAgent(ABC):
         -------
         Path to the written file.
         """
-        path: Path = self.output_dir / filename
+        agents_dir: Path = self.output_dir / "agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        path: Path = agents_dir / filename
         path.write_text(content, encoding="utf-8")
         logger.info("%s wrote final → %s", self.name, path)
         return path
@@ -184,6 +187,11 @@ class BaseAgent(ABC):
             temperature=0.7,
             max_tokens=4000,
         )
+        if not response.content or not response.content.strip():
+            raise ValueError(
+                f"LLM provider returned an empty response for agent {self.name} "
+                f"(model={response.model!r})"
+            )
         return response.content
 
     async def _load_context(self, round_num: int) -> RoundContext:

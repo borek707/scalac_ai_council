@@ -746,17 +746,27 @@ def _create_provider(
 def _print_success_summary(workspace: Path, rounds: int, artifacts: dict) -> None:
     """Print a rich, human-friendly summary of what was generated."""
     output_dir = workspace / "output"
+    agents_dir = output_dir / "agents"
     discussion_dir = workspace / "shared" / "discussion"
 
     round_files = list(discussion_dir.glob("*_round_*.md")) if discussion_dir.exists() else []
+    # Collect per-agent final deliverables from output/agents/; fall back to output/ root.
+    if agents_dir.exists():
+        agent_files = list(agents_dir.glob("*.md"))
+    else:
+        agent_files = [
+            p for p in output_dir.glob("*.md")
+            if p.name != "proposal.md"
+        ]
     proposal_path: Optional[Path] = artifacts.get("proposal")
 
     table = Table(title="Council Run Complete", show_header=False, border_style="green")
-    table.add_column("Key", style="bold cyan", width=16)
+    table.add_column("Key", style="bold cyan", width=20)
     table.add_column("Value", style="white")
     table.add_row("Rounds", str(rounds))
     table.add_row("Output dir", str(workspace))
     table.add_row("Round files", f"{len(round_files)} files")
+    table.add_row("Agent deliverables", f"{len(agent_files)} files in {agents_dir}")
     if proposal_path and proposal_path.exists():
         table.add_row("Proposal", str(proposal_path))
         table.add_row("Manifest", str(artifacts.get("manifest", "")))
@@ -779,6 +789,7 @@ def _print_success_summary(workspace: Path, rounds: int, artifacts: dict) -> Non
     if proposal_path and proposal_path.exists():
         tips.add_row("• View proposal", f"cat {proposal_path}")
         tips.add_row("• Review run", f"python -m council --review {workspace}")
+    tips.add_row("• Agent deliverables", f"ls {agents_dir}")
     tips.add_row("• Check discussion", f"ls {discussion_dir}")
     tips.add_row("• Run again", "python -m council --config ...")
     console.print(tips)

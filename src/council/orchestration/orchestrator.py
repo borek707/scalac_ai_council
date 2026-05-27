@@ -197,12 +197,23 @@ class AsyncOrchestrator:
         return False
 
     async def _collect_final_outputs(self) -> dict[str, Path]:
-        """Collect final outputs from all agents."""
+        """Collect final outputs from all agents.
+
+        Looks in output/agents/ first (new layout); falls back to output/ root
+        for backward compatibility with runs produced before this change.
+        """
         outputs: dict[str, Path] = {}
         for agent in self.agents:
-            final_path = self.workspace / "output" / agent.get_output_filename()
-            if final_path.exists():
-                outputs[agent.name] = final_path
+            filename = agent.get_output_filename()
+            # Preferred location: output/agents/<filename>
+            preferred = self.workspace / "output" / "agents" / filename
+            if preferred.exists():
+                outputs[agent.name] = preferred
+                continue
+            # Backward-compatible fallback: output/<filename>
+            fallback = self.workspace / "output" / filename
+            if fallback.exists():
+                outputs[agent.name] = fallback
         return outputs
 
     def aggregate_proposal(self) -> str:
@@ -245,6 +256,9 @@ class AsyncOrchestrator:
         out = output_dir or (self.workspace / "output")
         out.mkdir(parents=True, exist_ok=True)
 
+        agents_dir = out / "agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+
         proposal_path = out / "proposal.md"
         proposal_path.write_text(self.aggregate_proposal(), encoding="utf-8")
 
@@ -259,6 +273,7 @@ class AsyncOrchestrator:
             "agents": [a.name for a in self.agents],
             "files": {
                 "proposal": str(proposal_path),
+                "agents_dir": str(agents_dir),
                 "agent_outputs": {
                     name: str(path)
                     for round_results in self._round_results.values()
@@ -274,7 +289,7 @@ class AsyncOrchestrator:
         manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
         logger.info("Artifacts written: %s, %s", proposal_path, manifest_path)
-        return {"proposal": proposal_path, "manifest": manifest_path}
+        return {"proposal": proposal_path, "manifest": manifest_path, "agents_dir": agents_dir}
 
     def get_state_snapshot(self) -> dict[str, AgentState]:
         """Return current state snapshot of all agents."""
