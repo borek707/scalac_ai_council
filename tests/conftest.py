@@ -219,3 +219,70 @@ def orchestrator(
         round_timeout=30.0,
         workspace=temp_workspace,
     )
+
+
+# ── Fixtures for workspace artifact tests (Issues #33, #34) ──
+
+_SAMPLE_MANIFEST = {
+    "generated_at": "2026-01-01T00:00:00",
+    "company": "TestCorp",
+    "product": "AI-Powered Analytics Platform",
+    "provider": "openai",
+    "model": "gpt-4o",
+    "rounds_completed": 3,
+    "max_rounds": 3,
+    "agents": ["Marcus", "Elena", "Kai", "David"],
+    "files": {},
+}
+
+
+@pytest.fixture
+def complete_workspace(tmp_path: Path) -> Path:
+    """Workspace that mirrors a finished council run.
+
+    Contains:
+      output/manifest.json  — run metadata
+      output/proposal.md    — merged proposal
+      output/agents/marcus_offer.md — individual agent artifact
+    """
+    ws = tmp_path / "complete_workspace"
+    output_dir = ws / "output"
+    agents_dir = output_dir / "agents"
+    agents_dir.mkdir(parents=True, exist_ok=True)
+
+    import json
+
+    manifest = dict(_SAMPLE_MANIFEST)
+    proposal_path = output_dir / "proposal.md"
+    manifest["files"] = {"proposal": str(proposal_path)}
+
+    (output_dir / "manifest.json").write_text(
+        json.dumps(manifest, indent=2), encoding="utf-8"
+    )
+    proposal_path.write_text(
+        "# TestCorp Marketing Proposal\n\nFull proposal content here.\n",
+        encoding="utf-8",
+    )
+    (agents_dir / "marcus_offer.md").write_text(
+        "# Marcus — Offer Architecture\n\nContent.\n", encoding="utf-8"
+    )
+    return ws
+
+
+@pytest.fixture
+def empty_workspace(tmp_path: Path) -> Path:
+    """Workspace that exists but contains no files."""
+    ws = tmp_path / "empty_workspace"
+    ws.mkdir(parents=True, exist_ok=True)
+    return ws
+
+
+@pytest.fixture
+def legacy_workspace(tmp_path: Path) -> Path:
+    """Workspace with the old layout: FINAL_PROPOSAL.md at the root."""
+    ws = tmp_path / "legacy_workspace"
+    ws.mkdir(parents=True, exist_ok=True)
+    (ws / "FINAL_PROPOSAL.md").write_text(
+        "# Final Proposal\n\nLegacy format.\n", encoding="utf-8"
+    )
+    return ws
