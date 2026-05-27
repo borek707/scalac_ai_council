@@ -30,11 +30,13 @@ from textual.widgets import (
     Footer,
     Header,
     Markdown,
+    OptionList,
     ProgressBar,
     RichLog,
     Rule,
     Static,
 )
+from textual.widgets.option_list import Option
 
 
 @dataclass
@@ -215,6 +217,7 @@ class CouncilApp(App):
         border: solid $primary-darken-2;
         padding: 0 1;
         background: $surface-darken-1 30%;
+        overflow-y: auto;
     }
 
     #sidebar .sidebar-title {
@@ -227,23 +230,37 @@ class CouncilApp(App):
     }
 
     #preview {
-        height: 45%;
+        height: 30%;
         border: solid $surface-lighten-1;
         padding: 1;
         background: $surface-darken-1 20%;
+        overflow-y: auto;
+    }
+
+    #file-list {
+        height: 18%;
+        border: solid $surface-lighten-1;
+        background: $surface-darken-1 20%;
+        padding: 0 1;
+    }
+
+    #file-list:focus {
+        border: solid $primary;
     }
 
     #logs {
-        height: 30%;
+        height: 22%;
         border: solid $surface-lighten-1;
         background: $surface-darken-1 20%;
+        overflow-y: auto;
     }
 
     #stats {
-        height: 25%;
+        height: 15%;
         border: solid $surface-lighten-1;
         padding: 1;
         background: $surface-darken-1 20%;
+        overflow-y: auto;
     }
     """
 
@@ -256,11 +273,13 @@ class CouncilApp(App):
         self,
         agent_names: list[str],
         max_rounds: int = 3,
+        workspace: Path = Path("./output"),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self._agent_names = agent_names
         self._max_rounds = max_rounds
+        self.workspace = workspace
         self._agent_cards: dict[str, AgentCard] = {}
         self._current_round = 0
         self._start_time = time.time()
@@ -304,6 +323,10 @@ class CouncilApp(App):
                     id="preview",
                 )
                 yield Rule()
+                yield Rule()
+                yield Static("\uf0c5  Files", classes="sidebar-title")
+                yield OptionList(id="file-list")
+                yield Rule()
                 yield Static("\uf02d  Event Log", classes="sidebar-title")
                 yield RichLog(id="logs", max_lines=200, highlight=True)
                 yield Rule()
@@ -316,6 +339,8 @@ class CouncilApp(App):
         self.title = "Universal AI Marketing Council"
         self.sub_title = f"Round 0/{self._max_rounds}"
         self.set_interval(0.5, self._tick_header)
+        self.set_interval(2.0, self._refresh_files)
+        self._refresh_files()
 
     def _tick_header(self) -> None:
         elapsed = time.time() - self._start_time
@@ -374,6 +399,9 @@ class CouncilApp(App):
         if state is not None:
             self._add_log(state, agent_name=name)
             self._add_timeline(name, state, agent.round_num)
+
+        if state == "DONE":
+            self._refresh_files()
 
         self._refresh_stats()
 
@@ -446,6 +474,30 @@ class CouncilApp(App):
         stats_widget = self.query_one("#stats", Static)
         stats_widget.update("\n".join(lines))
 
+    def _refresh_files(self) -> None:
+        try:
+            file_list = self.query_one("#file-list", OptionList)
+        except Exception:
+            return
+        file_list.clear_options()
+        for subpath, icon in [("output", "📄"), ("shared/discussion", "💬")]:
+            d = self.workspace / subpath
+            if d.exists():
+                for f in sorted(d.glob("*.md")):
+                    file_list.add_option(Option(f"{icon} {f.name}", id=str(f)))
+
+    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
+        option_id = getattr(event, "option_id", None)
+        if option_id:
+            path = Path(option_id)
+            if path.exists():
+                content = path.read_text(encoding="utf-8")
+                preview = self.query_one("#preview", Markdown)
+                truncated = content[:4000]
+                if len(content) > 4000:
+                    truncated += "\n\n*... (truncated)*"
+                preview.update(truncated)
+
     def action_toggle_logs(self) -> None:
         logs = self.query_one("#logs", RichLog)
         logs.toggle_class("hidden")
@@ -464,9 +516,11 @@ class CouncilDashboard:
         agent_names: list[str],
         max_rounds: int = 3,
         refresh_per_second: int = 4,  # kept for API compat, ignored
+        workspace: Path = Path("./output"),
     ) -> None:
         self.agent_names = agent_names
         self.max_rounds = max_rounds
+        self.workspace = workspace
         self._app: Optional[CouncilApp] = None
         # Back-compat: internal data structures available even before run()
         self._agents: dict[str, AgentView] = {}
@@ -495,12 +549,13 @@ class CouncilDashboard:
         self._app = CouncilApp(
             agent_names=self.agent_names,
             max_rounds=self.max_rounds,
+            workspace=self.workspace,
         )
         self._app.run(mouse=True, inline=False)
 
     def stop(self) -> None:
         """Signal the Textual app to exit."""
-        if self._app is not None and self._app.is_running:
+        if self._app is not None and self._app._mounted and self._app.is_running:
             self._app.exit()
 
     # ── Public API (same as before) ────────────────────────────────────────
@@ -581,6 +636,12 @@ class CouncilDashboard:
         self._logs.append(f"[{ts}] === Runda {round_num} ===")
         if self._app is not None and self._app._mounted:
             self._app.call_from_thread(self._app.set_round, round_num)
+
+    def log(self, message: str) -> None:
+        ts = time.strftime("%H:%M:%S")
+        self._logs.append(f"[{ts}] {message}")
+        if self._app is not None and self._app._mounted:
+            self._app.call_from_thread(self._app._add_log, message)
 
     def make_callback(self) -> Callable[..., None]:
         def _cb(agent_name: str, event: str, **kwargs: object) -> None:
