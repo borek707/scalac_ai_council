@@ -14,6 +14,7 @@ Key improvements over the old rich-based dashboard:
 
 from __future__ import annotations
 
+import html
 import json
 import time
 from collections import deque
@@ -736,25 +737,27 @@ class CouncilDashboard:
             "<h2>Agents</h2>",
         ]
         for name, a in self._agents.items():
-            cls = a.state.lower()
+            cls = html.escape(a.state.lower())
             lines.append(f'<div class="agent {cls}">')
-            lines.append(f"<h3>{a.avatar} {a.display_name} — {a.state}</h3>")
+            lines.append(
+                f"<h3>{a.avatar} {html.escape(a.display_name)} — {html.escape(a.state)}</h3>"
+            )
             lines.append(
                 f"<p>Progress: {a.progress_pct}% | "
                 f"Time: {a.stats.duration_ms:.0f}ms | "
                 f"Cost: ${a.stats.cost_usd:.4f}</p>"
             )
             if a.last_content:
-                lines.append(f"<pre>{a.last_content[:500]}</pre>")
+                lines.append(f"<pre>{html.escape(a.last_content[:500])}</pre>")
             lines.append("</div>")
         lines.append("<h2>Logs</h2><ul>")
         for log in self._logs:
-            lines.append(f"<li>{log}</li>")
+            lines.append(f"<li>{html.escape(log)}</li>")
         lines.append("</ul></body></html>")
-        html = "\n".join(lines)
+        html_output = "\n".join(lines)
         if path:
-            Path(path).write_text(html, encoding="utf-8")
-        return html
+            Path(path).write_text(html_output, encoding="utf-8")
+        return html_output
 
     # ── Back-compat rendering helpers (used by tests) ──────────────────────
 
