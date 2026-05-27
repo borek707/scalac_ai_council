@@ -88,16 +88,13 @@ class DocumentLoader:
     def load_scalac_bundle(self) -> List[Document]:
         """Return the built-in Scalac knowledge bundle.
 
-        This is a curated set of documents that give the council
-        deep context about Scalac — enough to produce authentic,
-        Scalac-specific marketing output without any hardcoding
-        in the agent source code.
+        Loads all markdown/text files from
+        ``templates/companies/scalac_data/`` so the council gets
+        deep, up-to-date context about Scalac without any
+        hardcoding in the agent source code.
 
-        To use, pass ``--company scalac`` or set
-        ``SCALAC_MODE=true``.
+        To use, pass ``--scalac-mode`` or ``--template scalac``.
         """
-        from council.config.loader import ConfigLoader
-
         bundle_dir = (
             Path(__file__).parent.parent.parent.parent
             / "templates" / "companies" / "scalac_data"
@@ -220,12 +217,19 @@ class AgentContext:
     company: "CompanyConfig"
     documents: List[Document] = field(default_factory=list)
 
-    def to_prompt_fragment(self, doc_types: Optional[List[str]] = None) -> str:
+    def to_prompt_fragment(
+        self,
+        doc_types: Optional[List[str]] = None,
+        max_total_chars: int = 30_000,
+    ) -> str:
         """Build a markdown prompt fragment from all (or filtered) documents.
 
         Args:
             doc_types: If given, only include documents whose
                 ``doc_type`` is in this list.
+            max_total_chars: Hard cap on the total character count of
+                all document contents combined.  Documents are truncated
+                proportionally when the limit is exceeded.
 
         Returns:
             A single markdown string with all documents formatted
@@ -238,10 +242,29 @@ class AgentContext:
         if not docs:
             return ""
 
+        total_content = sum(len(d.content) for d in docs)
+        if total_content > max_total_chars:
+            scale = max_total_chars / total_content
+            logger.warning(
+                "Document context %d chars exceeds limit %d; scaling to %.0f%%",
+                total_content,
+                max_total_chars,
+                scale * 100,
+            )
+        else:
+            scale = 1.0
+
         lines: List[str] = ["\n## Additional Context Documents\n"]
         for doc in docs:
+            content = doc.content
+            if scale < 1.0:
+                limit = int(len(content) * scale)
+                content = content[:limit]
+                if not content.endswith("\n"):
+                    content += "\n"
+                content += "\n*... (truncated)\n"
             lines.append(f"\n### {doc.name} ({doc.doc_type})\n")
-            lines.append(doc.content)
+            lines.append(content)
             lines.append("\n---\n")
 
         return "\n".join(lines)

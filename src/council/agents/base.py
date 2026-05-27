@@ -150,14 +150,21 @@ class BaseAgent(ABC):
         if self.documents:
             from council.config.documents import AgentContext
             agent_ctx = AgentContext(company=self.config, documents=self.documents)
-            doc_fragment = agent_ctx.to_prompt_fragment()
-        return template.render(
+            doc_fragment = agent_ctx.to_prompt_fragment(max_total_chars=30_000)
+        prompt = template.render(
             company=company_dict,
             ctx=ctx_dict,
             agent_name=self.name,
             agent_role=self.role,
             documents=doc_fragment,
         )
+        logger.info(
+            "%s prompt length: %d chars (documents: %d)",
+            self.name,
+            len(prompt),
+            len(self.documents),
+        )
+        return prompt
 
     # ── LLM-powered generation ────────────────────────────────────────────
 

@@ -22,6 +22,7 @@ class DavidAgent(BaseAgent):
         workspace: Path,
         config: CompanyConfig,
         provider: LLMProvider,
+        **kwargs,
     ) -> None:
         super().__init__(
             name="David",
@@ -29,6 +30,7 @@ class DavidAgent(BaseAgent):
             workspace=workspace,
             config=config,
             provider=provider,
+            **kwargs,
         )
 
     def get_system_prompt(self) -> str:
