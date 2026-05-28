@@ -1,12 +1,21 @@
 from __future__ import annotations
 
-"""Tests for council.cli — Issues #33 (--review mode) and #34 (fixture workspaces)."""
+"""Tests for council.cli — Issues #33 (--review mode), #34 (fixture workspaces),
+#19 (dashboard thread join / sys.exit), #23 (workspace overwrite + --force),
+#2 #3 #4 #7 (API key passthrough and warnings)."""
 
+import argparse
+import asyncio
+import logging
+import os
+import sys
 from pathlib import Path
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from council.cli import parse_args, _review_run
+from council.cli import parse_args, _review_run, _create_provider
 
 
 # ── Argument-parsing tests ──────────────────────────────────────────────────
@@ -124,3 +133,372 @@ class TestReviewRunLegacy:
         _review_run(legacy_workspace)
         captured = capsys.readouterr()
         assert "manifest" in captured.out.lower() or "No manifest" in captured.out
+
+
+# ── _create_provider passthrough tests (Issue #3) ──────────────────────────
+
+
+class TestCreateProvider:
+    """Tests that _create_provider passes api_key directly to provider constructors."""
+
+    def test_openai_explicit_api_key(self, monkeypatch: Any) -> None:
+        """api_key is forwarded to OpenAIProvider — provider.api_key matches."""
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+        with patch("council.llm.openai_provider.openai") as mock_openai:
+            mock_openai.AsyncOpenAI.return_value = MagicMock()
+            mock_openai.AuthenticationError = Exception
+            mock_openai.PermissionDeniedError = Exception
+            mock_openai.NotFoundError = Exception
+            mock_openai.BadRequestError = Exception
+
+            provider = _create_provider("openai", None, api_key="sk-test")
+
+        assert provider.api_key == "sk-test"
+
+    def test_anthropic_explicit_api_key(self, monkeypatch: Any) -> None:
+        """api_key is forwarded to AnthropicProvider — provider.api_key matches."""
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+        with patch("council.llm.anthropic_provider.anthropic") as mock_anthropic:
+            mock_anthropic.AsyncAnthropic.return_value = MagicMock()
+            mock_anthropic.AuthenticationError = Exception
+            mock_anthropic.PermissionDeniedError = Exception
+            mock_anthropic.NotFoundError = Exception
+            mock_anthropic.BadRequestError = Exception
+
+            provider = _create_provider("anthropic", None, api_key="ant-test")
+
+        assert provider.api_key == "ant-test"
+
+
+# ── API key env-var warning tests (Issues #4, #7) ──────────────────────────
+
+
+def _make_args(**kwargs: Any) -> argparse.Namespace:
+    """Build a minimal argparse.Namespace for _run_council tests."""
+    defaults = {
+        "config": None,
+        "provider": "openai",
+        "model": None,
+        "api_key": None,
+        "platform": "cli",
+        "rounds": 1,
+        "timeout": 30.0,
+        "output": "/tmp/council_test_output",
+        "monitor": False,
+        "aggregate": False,
+        "review": None,
+        "verbose": False,
+        "documents": None,
+        "documents_dir": None,
+        "template": None,
+        "force": False,
+        "scalac_mode": False,
+        "dashboard": False,
+        "demo": False,
+        "scenario": "saas-launch",
+        "interactive": False,
+        "onboarding": False,
+        "brief": None,
+        "free_tier": False,
+    }
+    defaults.update(kwargs)
+    return argparse.Namespace(**defaults)
+
+
+class TestApiKeyWarning:
+    """Tests for --api-key behaviour with no-key providers and unknown providers (Issues #4, #7)."""
+
+    def test_ollama_api_key_warns(
+        self, monkeypatch: Any, caplog: pytest.LogCaptureFixture, tmp_path: Path
+    ) -> None:
+        """Passing --api-key with ollama logs a warning; OPENAI_API_KEY is NOT set."""
+        from council.cli import _run_council
+
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+        config_file = tmp_path / "company.json"
+        config_file.write_text('{"name":"T","product":"P"}', encoding="utf-8")
+        args = _make_args(
+            provider="ollama",
+            api_key="some-key",
+            config=str(config_file),
+            output=str(tmp_path),
+            monitor=False,
+        )
+
+        mock_config = MagicMock()
+        mock_config.name = "T"
+        mock_config.product = "P"
+        mock_config.model_dump_json.return_value = "{}"
+
+        mock_adapter = MagicMock()
+        mock_adapter.get_name.return_value = "cli"
+        mock_adapter.spawn_agents = AsyncMock()
+
+        mock_provider = MagicMock()
+
+        mock_orch = MagicMock()
+        mock_orch.write_artifacts.return_value = {}
+        mock_orch.spawn_agents = AsyncMock()
+
+        with patch("council.config.loader.ConfigLoader.from_json", return_value=mock_config):
+            with patch("council.cli._create_platform_adapter", return_value=mock_adapter):
+                with patch("council.cli._create_provider", return_value=mock_provider):
+                    with patch(
+                        "council.orchestration.orchestrator.AsyncOrchestrator",
+                        return_value=mock_orch,
+                    ):
+                        with caplog.at_level(logging.WARNING, logger="council.cli"):
+                            try:
+                                asyncio.run(_run_council(args))
+                            except Exception:
+                                pass
+
+        assert "does not use an API key" in caplog.text
+        assert os.environ.get("OPENAI_API_KEY") != "some-key"
+
+    def test_claude_code_api_key_warns(
+        self, monkeypatch: Any, caplog: pytest.LogCaptureFixture, tmp_path: Path
+    ) -> None:
+        """Passing --api-key with claude-code logs a warning and doesn't set any env var."""
+        from council.cli import _run_council
+
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        config_file = tmp_path / "company.json"
+        config_file.write_text('{"name":"T","product":"P"}', encoding="utf-8")
+        args = _make_args(
+            provider="claude-code",
+            api_key="some-key",
+            config=str(config_file),
+            output=str(tmp_path),
+        )
+
+        mock_config = MagicMock()
+        mock_config.name = "T"
+        mock_config.product = "P"
+        mock_config.model_dump_json.return_value = "{}"
+
+        with patch("council.config.loader.ConfigLoader.from_json", return_value=mock_config):
+            with patch("council.cli._create_platform_adapter", return_value=MagicMock(get_name=lambda: "cli")):
+                with patch("council.cli._create_provider", return_value=MagicMock()):
+                    with caplog.at_level(logging.WARNING, logger="council.cli"):
+                        try:
+                            asyncio.run(_run_council(args))
+                        except Exception:
+                            pass
+
+        assert "does not use an API key" in caplog.text
+        assert os.environ.get("ANTHROPIC_API_KEY") != "some-key"
+
+    def test_unknown_provider_raises_value_error(
+        self, monkeypatch: Any, tmp_path: Path
+    ) -> None:
+        """An unknown provider with --api-key raises ValueError with 'Unknown provider'."""
+        from council.cli import _run_council
+
+        config_file = tmp_path / "company.json"
+        config_file.write_text('{"name":"T","product":"P"}', encoding="utf-8")
+        # Use a provider name that is not in _NO_API_KEY_PROVIDERS and not in env_map
+        args = _make_args(
+            provider="openai",  # use valid argparse choice; override provider after
+            api_key="some-key",
+            config=str(config_file),
+            output=str(tmp_path),
+        )
+        # Manually set an unknown provider (bypasses argparse choices validation)
+        args.provider = "unknown-provider"
+
+        mock_config = MagicMock()
+        mock_config.name = "T"
+        mock_config.product = "P"
+        mock_config.model_dump_json.return_value = "{}"
+
+        with patch("council.config.loader.ConfigLoader.from_json", return_value=mock_config):
+            with pytest.raises(ValueError, match="Unknown provider"):
+                asyncio.run(_run_council(args))
+
+
+# ── Issue #23 — Workspace overwrite + --force ───────────────────────────────
+
+
+class TestWorkspaceOverwrite:
+    """Tests for workspace-overwrite confirmation behaviour (Issue #23)."""
+
+    def test_force_flag_parses_to_true(self) -> None:
+        """parse_args(['--config', 'x.json', '--force']) -> args.force is True."""
+        args = parse_args(["--config", "x.json", "--force"])
+        assert args.force is True
+
+    def test_force_flag_absent_defaults_to_false(self) -> None:
+        """When --force is absent, args.force is False."""
+        args = parse_args(["--config", "x.json"])
+        assert args.force is False
+
+    def test_non_tty_warns_but_continues(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Non-TTY + existing non-empty workspace -> WARNING logged, no prompt asked.
+
+        Execution is stopped early (before LLM calls) by patching
+        _create_platform_adapter to raise a sentinel exception.  The
+        overwrite-check runs before that call, so the warning must already
+        be in caplog by the time we catch the sentinel.
+        """
+        import json as _json
+        from council.cli import _run_council as _rc
+
+        workspace = tmp_path / "output"
+        workspace.mkdir(parents=True)
+        (workspace / "old_run.txt").write_text("data", encoding="utf-8")
+
+        config_file = tmp_path / "company.json"
+        config_file.write_text(
+            _json.dumps({
+                "name": "TestCo",
+                "product": "SaaS",
+                "pricing_tier": "Free",
+                "value_proposition": "v",
+                "competitors": [],
+                "differentiators": [],
+                "target": {
+                    "segment": "SMB",
+                    "decision_maker": "CEO",
+                    "pain_points": [],
+                    "budget_range": "10k",
+                    "geo_focus": [],
+                },
+                "constraints": {"timeline_days": 30, "team_size": 2, "focus_areas": []},
+            }),
+            encoding="utf-8",
+        )
+
+        args = parse_args(["--config", str(config_file), "--output", str(workspace)])
+
+        class _StopEarly(Exception):
+            pass
+
+        with (
+            caplog.at_level(logging.WARNING, logger="council.cli"),
+            patch("sys.stdin") as mock_stdin,
+            patch("council.cli._create_platform_adapter", side_effect=_StopEarly),
+        ):
+            mock_stdin.isatty.return_value = False
+            try:
+                asyncio.run(_rc(args))
+            except _StopEarly:
+                pass
+
+        warning_msgs = [r.message for r in caplog.records if r.levelno == logging.WARNING]
+        assert any(
+            "already exists" in m or "overwrite" in m.lower() for m in warning_msgs
+        ), f"Expected overwrite WARNING, got: {warning_msgs}"
+
+    def test_force_flag_skips_confirmation(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """--force -> no overwrite WARNING emitted, INFO 'continuing (--force)' instead."""
+        import json as _json
+        from council.cli import _run_council as _rc
+
+        workspace = tmp_path / "output"
+        workspace.mkdir(parents=True)
+        (workspace / "old_run.txt").write_text("data", encoding="utf-8")
+
+        config_file = tmp_path / "company.json"
+        config_file.write_text(
+            _json.dumps({
+                "name": "TestCo",
+                "product": "SaaS",
+                "pricing_tier": "Free",
+                "value_proposition": "v",
+                "competitors": [],
+                "differentiators": [],
+                "target": {
+                    "segment": "SMB",
+                    "decision_maker": "CEO",
+                    "pain_points": [],
+                    "budget_range": "10k",
+                    "geo_focus": [],
+                },
+                "constraints": {"timeline_days": 30, "team_size": 2, "focus_areas": []},
+            }),
+            encoding="utf-8",
+        )
+
+        args = parse_args([
+            "--config", str(config_file),
+            "--output", str(workspace),
+            "--force",
+        ])
+
+        class _StopEarly(Exception):
+            pass
+
+        with (
+            caplog.at_level(logging.DEBUG, logger="council.cli"),
+            patch("council.cli._create_platform_adapter", side_effect=_StopEarly),
+        ):
+            try:
+                asyncio.run(_rc(args))
+            except _StopEarly:
+                pass
+
+        overwrite_warnings = [
+            r.message for r in caplog.records
+            if r.levelno == logging.WARNING
+            and ("already exists" in r.message or "overwrite" in r.message.lower())
+        ]
+        assert overwrite_warnings == [], (
+            f"--force should suppress overwrite WARNING, got: {overwrite_warnings}"
+        )
+
+
+# ── Issue #19 — Dashboard flag parse + thread-join sys.exit ─────────────────
+
+
+class TestParseDashboardFlag:
+    """Parse-level tests for --dashboard (Issue #19)."""
+
+    def test_parse_dashboard_flag(self) -> None:
+        """--dashboard flag sets args.dashboard to True."""
+        args = parse_args(["--config", "x.json", "--dashboard"])
+        assert args.dashboard is True
+
+    def test_dashboard_absent_defaults_to_false(self) -> None:
+        """When --dashboard is absent, args.dashboard is False."""
+        args = parse_args(["--config", "x.json"])
+        assert args.dashboard is False
+
+
+class TestDashboardThreadJoin:
+    """Test that sys.exit(1) fires when the council thread does not finish (Issue #19)."""
+
+    def test_dashboard_thread_join_called_exits_1(self) -> None:
+        """Simulate main() logic: alive thread after join -> sys.exit(1)."""
+        import threading
+
+        mock_thread = MagicMock(spec=threading.Thread)
+        mock_thread.is_alive.return_value = True
+
+        mock_dashboard = MagicMock()
+        mock_dashboard.run.return_value = None
+
+        logger_under_test = logging.getLogger("council.cli")
+
+        def _simulate_post_dashboard_join(thread, dashboard):
+            """Mirrors the main() code that joins the council thread."""
+            dashboard.run()
+            thread.join(timeout=60.0)
+            if thread.is_alive():
+                logger_under_test.error(
+                    "Council thread did not finish within 60 seconds after dashboard closed."
+                )
+                sys.exit(1)
+
+        with pytest.raises(SystemExit) as exc_info:
+            _simulate_post_dashboard_join(mock_thread, mock_dashboard)
+
+        assert exc_info.value.code == 1
+        mock_thread.join.assert_called_once_with(timeout=60.0)

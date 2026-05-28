@@ -210,3 +210,82 @@ class TestCouncilDashboard:
         panel = dash._render_stats()
         assert "Marcus" in str(panel.renderable)
         assert "1000ms" in str(panel.renderable)
+
+
+# ── Issue #25 — Dashboard avatar case-insensitive lookup ─────────────────────
+
+
+class TestAvatarCaseInsensitive:
+    """Tests for Issue #25: _META lookup normalises name to lowercase."""
+
+    def test_avatar_case_insensitive_marcus(self) -> None:
+        """'Marcus' (titlecase) resolves to the same avatar/color as 'marcus'."""
+        dash = CouncilDashboard(["Marcus"])
+        agent = dash._agents["Marcus"]
+        # Known values for marcus
+        assert agent.avatar == "🏗️", f"Expected 🏗️, got {agent.avatar!r}"
+        assert agent.color == "cyan", f"Expected 'cyan', got {agent.color!r}"
+
+    def test_avatar_case_insensitive_elena_uppercase(self) -> None:
+        """'ELENA' (uppercase) resolves to the same avatar/color as 'elena'."""
+        dash = CouncilDashboard(["ELENA"])
+        agent = dash._agents["ELENA"]
+        assert agent.avatar == "🎯", f"Expected 🎯, got {agent.avatar!r}"
+        assert agent.color == "magenta", f"Expected 'magenta', got {agent.color!r}"
+
+    def test_avatar_case_insensitive_mixed_list(self) -> None:
+        """Mixed-case names all resolve correctly — none falls back to defaults."""
+        dash = CouncilDashboard(["Marcus", "ELENA"])
+        marcus = dash._agents["Marcus"]
+        elena = dash._agents["ELENA"]
+        # Neither should be the unknown-agent fallbacks
+        assert marcus.avatar != "🤖", "Marcus fell back to unknown avatar"
+        assert marcus.color != "white", "Marcus fell back to unknown color"
+        assert elena.avatar != "🤖", "ELENA fell back to unknown avatar"
+        assert elena.color != "white", "ELENA fell back to unknown color"
+
+
+# ── Issue #36 — HTML escaping in export_html ─────────────────────────────────
+
+
+class TestHtmlEscaping:
+    """Tests for Issue #36: export_html() must HTML-escape agent content and logs."""
+
+    def test_xss_content_escaped(self) -> None:
+        """<script> tags in last_content must appear as &lt;script&gt; in HTML output."""
+        dash = CouncilDashboard(["marcus"])
+        malicious = "<script>alert(1)</script>"
+        dash.update_agent("marcus", content=malicious)
+        html_out = dash.export_html()
+        assert "<script>" not in html_out, "Unescaped <script> found in export_html output"
+        assert "&lt;script&gt;" in html_out, "&lt;script&gt; not found in export_html output"
+
+    def test_ampersand_escaped(self) -> None:
+        """& in last_content must be escaped to &amp; in the HTML output."""
+        dash = CouncilDashboard(["marcus"])
+        dash.update_agent("marcus", content="Tom & Jerry")
+        html_out = dash.export_html()
+        assert "&amp;" in html_out, "&amp; not found in export_html output"
+        # The raw ampersand must not appear inside a <pre> block
+        # (a bare & outside attribute context would be invalid HTML)
+        assert "Tom & Jerry" not in html_out, "Unescaped & found in export_html output"
+
+    def test_quotes_escaped(self) -> None:
+        """Double-quotes in last_content must be escaped in the HTML output."""
+        dash = CouncilDashboard(["marcus"])
+        dash.update_agent("marcus", content='She said "hello"')
+        html_out = dash.export_html()
+        # html.escape() with default quote=True turns " -> &quot;
+        assert "&quot;" in html_out or "&#x27;" in html_out, (
+            "Expected escaped quotes in export_html output"
+        )
+
+    def test_logs_are_escaped(self) -> None:
+        """HTML special chars injected via log() must be escaped in export_html."""
+        dash = CouncilDashboard(["marcus"])
+        dash._logs.append("<b>bold injection</b>")
+        html_out = dash.export_html()
+        assert "<b>bold injection</b>" not in html_out, (
+            "Unescaped log HTML found in export_html output"
+        )
+        assert "&lt;b&gt;" in html_out, "&lt;b&gt; not found in export_html output"
