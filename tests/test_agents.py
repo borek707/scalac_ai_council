@@ -12,6 +12,7 @@ from council.agents.elena import ElenaAgent
 from council.agents.kai import KaiAgent
 from council.agents.marcus import MarcusAgent
 from council.config.schema import CompanyConfig
+from council.config.documents import Document
 from council.llm.provider import LLMResponse
 from council.orchestration.state_machine import AgentState
 from tests.conftest import MockLLMProvider
@@ -166,6 +167,95 @@ class TestBaseAgent:
     def test_abstract_methods(self, mock_provider: MockLLMProvider) -> None:
         with pytest.raises(TypeError):
             BaseAgent("test", "role", Path("/tmp"), CompanyConfig(name="Test", product="P"), mock_provider)
+
+    @pytest.mark.asyncio
+    async def test_documents_appear_in_prompt(
+        self,
+        temp_workspace: Path,
+        sample_config: CompanyConfig,
+        mock_provider: MockLLMProvider,
+    ) -> None:
+        """#9 — Document content must appear in the rendered prompt sent to the LLM."""
+        doc = Document(
+            name="secret_doc",
+            path=Path("inline://secret_doc.md"),
+            content="SECRET_MARKER_TEXT",
+            doc_type="brief",
+        )
+        agent = MarcusAgent(
+            workspace=temp_workspace,
+            config=sample_config,
+            provider=mock_provider,
+            documents=[doc],
+        )
+        ctx = RoundContext(
+            round_num=1,
+            brief="",
+            discussion_history="",
+            company_config=sample_config,
+        )
+        await agent.generate_round(ctx)
+        assert mock_provider.calls, "provider should have been called"
+        sent_prompt = mock_provider.calls[-1]["prompt"]
+        assert "SECRET_MARKER_TEXT" in sent_prompt
+
+    @pytest.mark.asyncio
+    async def test_empty_response_raises_value_error(
+        self,
+        temp_workspace: Path,
+        sample_config: CompanyConfig,
+        mock_provider: MockLLMProvider,
+    ) -> None:
+        """#21 — Empty LLM response must raise ValueError."""
+        from typing import AsyncGenerator as _AG
+        from council.llm.provider import LLMProvider, LLMResponse
+
+        class EmptyProvider(LLMProvider):
+            async def generate(self, prompt, model=None, temperature=0.7,
+                               max_tokens=4000, system=None) -> LLMResponse:
+                return LLMResponse(content="", model="mock-model")
+
+            async def stream(self, prompt, model=None, temperature=0.7,
+                             max_tokens=4000, system=None) -> _AG[str, None]:
+                return
+                yield  # pragma: no cover — make this an async generator
+
+        agent = MarcusAgent(
+            workspace=temp_workspace,
+            config=sample_config,
+            provider=EmptyProvider(),
+        )
+        with pytest.raises(ValueError):
+            await agent.run_round(1)
+
+    @pytest.mark.asyncio
+    async def test_whitespace_only_response_raises(
+        self,
+        temp_workspace: Path,
+        sample_config: CompanyConfig,
+        mock_provider: MockLLMProvider,
+    ) -> None:
+        """#21 — Whitespace-only LLM response must also raise ValueError."""
+        from typing import AsyncGenerator as _AG
+        from council.llm.provider import LLMProvider, LLMResponse
+
+        class WhitespaceProvider(LLMProvider):
+            async def generate(self, prompt, model=None, temperature=0.7,
+                               max_tokens=4000, system=None) -> LLMResponse:
+                return LLMResponse(content="   \n  ", model="mock-model")
+
+            async def stream(self, prompt, model=None, temperature=0.7,
+                             max_tokens=4000, system=None) -> _AG[str, None]:
+                return
+                yield  # pragma: no cover — make this an async generator
+
+        agent = MarcusAgent(
+            workspace=temp_workspace,
+            config=sample_config,
+            provider=WhitespaceProvider(),
+        )
+        with pytest.raises(ValueError):
+            await agent.run_round(1)
 
 
 class TestMarcusAgent:

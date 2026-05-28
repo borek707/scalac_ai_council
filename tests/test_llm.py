@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from pathlib import Path
 from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -399,6 +401,105 @@ class TestKimiCodeProvider:
 
         with pytest.raises(RuntimeError, match="Kimi Code CLI binary not found"):
             KimiCodeProvider()
+
+    @pytest.mark.asyncio
+    async def test_prompt_not_in_debug_log(
+        self, monkeypatch: Any, fake_kimi: Any, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """The full prompt text must NOT appear in debug logs; <prompt:Nchars> MUST."""
+        from council.llm.kimi_code_provider import KimiCodeProvider
+
+        provider = KimiCodeProvider(executable_path=str(fake_kimi))
+        long_prompt = "A" * 200  # distinct long prompt
+
+        class FakeProc:
+            returncode = 0
+
+            async def communicate(self) -> tuple[bytes, bytes]:
+                return (b"response text", b"")
+
+        async def fake_exec(*args: Any, **kwargs: Any) -> FakeProc:
+            return FakeProc()
+
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+
+        with caplog.at_level(logging.DEBUG, logger="council.llm.kimi_code_provider"):
+            await provider.generate(long_prompt)
+
+        assert long_prompt not in caplog.text
+        assert "<prompt:" in caplog.text
+
+
+class TestOpenAIProvider:
+    """Tests for OpenAIProvider — issues #2 and #20."""
+
+    def test_missing_api_key_raises(self, monkeypatch: Any) -> None:
+        """RuntimeError with 'OpenAI API key missing' when env var absent and no explicit key."""
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        from council.llm.openai_provider import OpenAIProvider
+
+        with pytest.raises(RuntimeError, match="OpenAI API key missing"):
+            OpenAIProvider()
+
+    def test_explicit_api_key_bypasses_env(self, monkeypatch: Any) -> None:
+        """Explicit api_key='sk-test' skips env-var requirement — no RuntimeError raised."""
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+        with patch("council.llm.openai_provider.openai") as mock_openai:
+            mock_openai.AsyncOpenAI.return_value = MagicMock()
+            mock_openai.AuthenticationError = Exception
+            mock_openai.PermissionDeniedError = Exception
+            mock_openai.NotFoundError = Exception
+            mock_openai.BadRequestError = Exception
+            from council.llm.openai_provider import OpenAIProvider
+
+            provider = OpenAIProvider(api_key="sk-test")
+        assert provider.api_key == "sk-test"
+
+    @pytest.mark.asyncio
+    async def test_auth_error_not_retried(self, monkeypatch: Any) -> None:
+        """openai.AuthenticationError must cause immediate failure after exactly 1 attempt."""
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-fake")
+
+        import openai as real_openai
+
+        call_count = 0
+
+        async def raise_auth(*args: Any, **kwargs: Any) -> None:
+            nonlocal call_count
+            call_count += 1
+            # Build a minimal AuthenticationError compatible with the openai SDK
+            response = MagicMock()
+            response.status_code = 401
+            response.headers = {}
+            response.text = "Unauthorized"
+            body = {"error": {"message": "Invalid API key", "type": "invalid_request_error"}}
+            raise real_openai.AuthenticationError(
+                message="Invalid API key",
+                response=response,
+                body=body,
+            )
+
+        with patch("council.llm.openai_provider.openai") as mock_openai:
+            mock_openai.AuthenticationError = real_openai.AuthenticationError
+            mock_openai.PermissionDeniedError = real_openai.PermissionDeniedError
+            mock_openai.NotFoundError = real_openai.NotFoundError
+            mock_openai.BadRequestError = real_openai.BadRequestError
+
+            mock_client = MagicMock()
+            mock_client.chat = MagicMock()
+            mock_client.chat.completions = MagicMock()
+            mock_client.chat.completions.create = raise_auth
+            mock_openai.AsyncOpenAI.return_value = mock_client
+
+            from council.llm.openai_provider import OpenAIProvider
+
+            provider = OpenAIProvider(api_key="sk-fake")
+
+        with pytest.raises(real_openai.AuthenticationError):
+            await provider.generate("test prompt")
+
+        assert call_count == 1, f"Expected 1 attempt, got {call_count}"
 
 
 class TestOpenRouterProvider:

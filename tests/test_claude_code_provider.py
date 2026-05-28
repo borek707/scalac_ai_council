@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -151,3 +153,27 @@ class TestClaudeCodeProvider:
             async for chunk in provider.stream("prompt"):
                 chunks.append(chunk)
             assert chunks == ["Streamed text"]
+
+    @pytest.mark.asyncio
+    async def test_prompt_not_in_debug_log(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Full prompt text must NOT appear in debug logs; <prompt:Nchars> MUST (Issue #17)."""
+        fake_cli = tmp_path / "claude"
+        fake_cli.write_text("#!/bin/bash")
+        provider = ClaudeCodeProvider(executable_path=str(fake_cli))
+
+        long_prompt = "B" * 200  # distinct long prompt
+
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.communicate = AsyncMock(return_value=(b"response text", b""))
+
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
+            with caplog.at_level(
+                logging.DEBUG, logger="council.llm.claude_code_provider"
+            ):
+                await provider._generate_subprocess(long_prompt)
+
+        assert long_prompt not in caplog.text
+        assert "<prompt:" in caplog.text
