@@ -122,6 +122,7 @@ class ClaudeCodeProvider(LLMProvider):
         prompt: str,
         model: str | None = None,
         system: str | None = None,
+        streaming: bool = False,
     ) -> list[str]:
         """Build the subprocess command for Claude CLI."""
         assert self.executable_path
@@ -134,7 +135,10 @@ class ClaudeCodeProvider(LLMProvider):
         if explicit_model:
             cmd += ["--model", explicit_model]
 
-        # Claude CLI -p accepts the prompt as a positional arg
+        if streaming:
+            # stream-json emits one JSON line per token so we can show live output
+            cmd += ["--output-format", "stream-json", "--include-partial-messages", "--verbose"]
+
         full_prompt = prompt
         if system:
             full_prompt = f"{system}\n\n{prompt}"
@@ -277,7 +281,7 @@ class ClaudeCodeProvider(LLMProvider):
         model: str | None = None,
         system: str | None = None,
     ) -> AsyncIterator[str]:
-        cmd = self._build_cmd(prompt, model=model, system=system)
+        cmd = self._build_cmd(prompt, model=model, system=system, streaming=True)
         safe_cmd = cmd[:-1] + [f"<prompt:{len(cmd[-1])}chars>"]
         logger.debug("ClaudeCodeProvider streaming subprocess: %s", " ".join(safe_cmd))
 
@@ -290,10 +294,24 @@ class ClaudeCodeProvider(LLMProvider):
 
         try:
             while True:
-                chunk = await asyncio.wait_for(proc.stdout.read(256), timeout=120.0)
-                if not chunk:
+                line_bytes = await asyncio.wait_for(proc.stdout.readline(), timeout=120.0)
+                if not line_bytes:
                     break
-                yield chunk.decode("utf-8", errors="replace")
+                line = line_bytes.decode("utf-8", errors="replace").strip()
+                if not line:
+                    continue
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if (
+                    event.get("type") == "stream_event"
+                    and event.get("event", {}).get("type") == "content_block_delta"
+                    and event.get("event", {}).get("delta", {}).get("type") == "text_delta"
+                ):
+                    text = event["event"]["delta"].get("text", "")
+                    if text:
+                        yield text
         except TimeoutError:
             proc.kill()
             raise RuntimeError("Claude CLI streaming timed out after 120 s")
