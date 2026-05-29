@@ -1,8 +1,8 @@
 # Universal AI Marketing Council v3.2
 
 > **4 agenci AI pracujący równolegle, debatują i tworzą kompletny plan marketingowy dla dowolnej firmy.**
-> 
-> Nie szablony. Nie hardcoded Scalac. Prawdziwa integracja z LLM, równoległość przez asyncio i konfiguracja przez JSON. Teraz z trybem demo, interaktywnym menu i live dashboardem w terminalu.
+>
+> Nie szablony. Nie hardcoded Scalac. Prawdziwa integracja z LLM, równoległość przez asyncio i konfiguracja przez JSON. Teraz z trybem demo, interaktywnym menu, live dashboardem, artifact discovery, AI review i 6 providerami LLM.
 
 ---
 
@@ -73,26 +73,22 @@ cd scalac_ai_council
 pip install -e ".[dev]"
 ```
 
+> **Tip:** Projekt używa `uv` do rozwiązywania zależności w CI. Możesz też zainstalować przez `uv pip install -e ".[dev]"`.
+
 ### 2. Klucz API (lub lokalny model) — tylko dla real run
 
 ```bash
 export OPENAI_API_KEY="sk-..."
 # lub
 export ANTHROPIC_API_KEY="sk-ant-..."
+# lub
+export OPENROUTER_API_KEY="sk-or-..."
 # lub użyj lokalnego Ollama (darmowe)
 # lub użyj Kimi Code CLI (działa natywnie w IDE Kimi)
+# lub użyj Claude Code CLI / IDE (auto-detect credentials)
 ```
 
-### 3. Konfiguracja firmy — tylko dla real run
-
-```bash
-# Skopiuj gotowy template
-cp templates/companies/fintech.json my_company.json
-
-# Lub stwórz własny — patrz sekcja "Konfiguracja firmy" poniżej
-```
-
-### 4. Uruchom
+### 3. Uruchom
 
 ```bash
 # Interaktywne menu (bez flag)
@@ -101,11 +97,20 @@ python -m council
 # Demo mode — pre-built scenariusze, bez API
 python -m council --demo --scenario fintech-scale --rounds 3 --dashboard
 
-# OpenAI (domyślnie)
+# Real run z gotowym templatem
+python -m council --template saas --rounds 3 --dashboard
+
+# Real run z własnym configiem (OpenAI domyślnie)
 python -m council --config my_company.json --rounds 3
 
 # Anthropic Claude
 python -m council --config my_company.json --provider anthropic
+
+# OpenRouter (universal proxy — 200+ modeli)
+python -m council --config my_company.json --provider openrouter
+
+# OpenRouter free tier (auto-wybór darmowego modelu)
+python -m council --config my_company.json --provider openrouter --free-tier
 
 # Lokalny Ollama (darmowe, bez internetu)
 python -m council --config my_company.json --provider ollama --model llama3
@@ -122,21 +127,26 @@ python -m council --config my_company.json --dashboard
 # Wyświetl status
 python -m council --config my_company.json --monitor
 
-# Agreguj finalny proposal
-python -m council --config my_company.json --aggregate
+# Przegląd wygenerowanych artefaktów po runie
+python -m council --config my_company.json --review
+
+# Nadpisz istniejący output bez pytania
+python -m council --config my_company.json --force
 ```
 
-### 5. Wynik
+### 4. Wynik
 
 Po zakończeniu w katalogu `output/`:
 
 | Plik | Zawartość |
 |------|-----------|
-| `marcus_offer.md` | Oferta: Gap Analysis, BrandScript, Pricing, Challenger Pitch |
-| `elena_funnel.md` | Lejek: Stages, MEDDIC, JOLT, Three Pipelines, Forecast |
-| `kai_copy.md` | Landing Page + Email Sequence + LinkedIn Ads |
-| `david_abm.md` | ABM: Dream 100, Sequences, Tools |
-| `FINAL_PROPOSAL.md` | Wszystko razem w jednym dokumencie |
+| `agents/marcus_offer.md` | Oferta: Gap Analysis, BrandScript, Pricing, Challenger Pitch |
+| `agents/elena_funnel.md` | Lejek: Stages, MEDDIC, JOLT, Three Pipelines, Forecast |
+| `agents/kai_copy.md` | Landing Page + Email Sequence + LinkedIn Ads |
+| `agents/david_abm.md` | ABM: Dream 100, Sequences, Tools |
+| `proposal.md` | Wszystko razem w jednym dokumencie |
+| `manifest.json` | Manifest wszystkich artefaktów z metadanymi |
+| `artifacts/reviews/review.md` | AI-assisted quality review (z `--review`) |
 
 ---
 
@@ -166,9 +176,11 @@ python -m council --demo --scenario fintech-scale --rounds 2 --dashboard
 python -m council --demo --scenario healthcare-app --rounds 1
 ```
 
+---
+
 ## Interaktywne Menu
 
-Uruchomienie bez flag otwiera interaktywne menu w terminalu (wymaga `rich` i `textual`):
+Uruchomienie bez flag otwiera interaktywne menu w terminalu (Textual TUI):
 
 ```bash
 python -m council
@@ -176,7 +188,7 @@ python -m council
 
 ### Onboarding (pierwsze uruchomienie)
 
-Przy pierwszym uruchomieniu (`python -m council`) zobaczysz **onboarding wizard**:
+Przy pierwszym uruchomieniu zobaczysz **onboarding wizard**:
 
 ```
 👋 Welcome! This tool runs 4 AI marketing specialists who debate in rounds
@@ -208,17 +220,40 @@ Po onboardingu (lub przy `--interactive` / `-i`):
 
 1. **Wybór trybu**: Demo Mode 🎮 lub Real Council Run ▶️
 2. **Demo**: wybór scenariusza, liczby rund, dashboard on/off
-3. **Real Run**: ścieżka do configu, provider LLM, model, rounds, dashboard
+3. **Real Run**: ścieżka do configu / template, provider LLM, model, rounds, dashboard
 
-## Autentykacja per Provider
+---
 
-| Provider | Wymagane | Jak |
-|----------|----------|-----|
-| **OpenAI** | `OPENAI_API_KEY` | `export OPENAI_API_KEY='sk-...'` |
-| **Anthropic** | `ANTHROPIC_API_KEY` | `export ANTHROPIC_API_KEY='sk-ant-...'` |
-| **Ollama** | Brak | Po prostu uruchom `ollama run llama3` |
-| **Kimi Code** | Brak | Auto-detekcja sesji IDE / CLI (`~/.kimi/credentials/`) |
-| **Claude Code** | Brak | Auto-detect OAuth z `~/.claude/.credentials.json` lub `claude -p` CLI |
+## Providerzy LLM
+
+| Provider | Flaga | Domyślny model | Wymagania |
+|----------|-------|----------------|-----------|
+| **OpenAI** | `--provider openai` | `gpt-4o` | `OPENAI_API_KEY` |
+| **Anthropic** | `--provider anthropic` | `claude-sonnet-4-6` | `ANTHROPIC_API_KEY` |
+| **OpenRouter** | `--provider openrouter` | auto-select | `OPENROUTER_API_KEY` |
+| **Ollama** | `--provider ollama` | `llama3` | Lokalny Ollama |
+| **Kimi Code** | `--provider kimi-code` | `kimi-for-coding` | Zainstalowane Kimi Code CLI |
+| **Claude Code** | `--provider claude-code` | `claude-sonnet-4-6` | Zainstalowane Claude Code CLI lub IDE |
+
+### OpenRouter — 200+ modeli, jeden klucz
+
+OpenRouter to uniwersalny proxy do modeli LLM. Jedna zmienna środowiskowa daje dostęp do GPT-4o, Claude, Llama, Mistral i ponad 200 innych.
+
+```bash
+export OPENROUTER_API_KEY="sk-or-..."
+python -m council --config firm.json --provider openrouter
+```
+
+**Free tier** — automatyczny wybór aktualnie dostępnego darmowego modelu:
+
+```bash
+python -m council --config firm.json --provider openrouter --free-tier
+```
+
+**Nadpisanie modelu**:
+```bash
+python -m council --config firm.json --provider openrouter --model anthropic/claude-sonnet-4
+```
 
 ### Kimi Code — bez klucza API
 
@@ -228,8 +263,14 @@ Jeśli pracujesz w **Kimi Code IDE** (VS Code extension):
 python -m council --config firm.json --provider kimi-code
 ```
 
-Provider uruchamia lokalny `kimi` CLI jako subprocess (`kimi --quiet --yolo --prompt`).
-Nie potrzebujesz żadnego klucza API — używa zalogowanej sesji IDE.
+Provider uruchamia lokalny `kimi` CLI jako subprocess (`kimi --quiet --yolo --prompt`). Nie potrzebujesz żadnego klucza API — używa zalogowanej sesji IDE.
+
+**Auto-detekcja binarki** (w tej kolejności):
+1. `KIMI_CLI_PATH` — zmienna środowiskowa
+2. `shutil.which("kimi")` — PATH
+3. Domyślna ścieżka instalacji VS Code extension
+
+**Uwaga:** Kimi Code to pełny agent AI, nie surowy endpoint LLM. W trybie `--yolo` automatycznie zatwierdza akcje (czytanie plików, komendy terminala). Używaj świadomie.
 
 ### Claude Code — bez klucza API
 
@@ -241,29 +282,28 @@ python -m council --config firm.json --provider claude-code
 
 Provider działa na dwa sposoby (próbuje kolejno):
 1. **Subprocess** — `claude -p "prompt"` (jeśli masz CLI)
-2. **HTTP fallback** — odczytuje OAuth token z `~/.claude/.credentials.json` i woła API Anthropic
+2. **HTTP fallback** — dla promptów >50k znaków lub gdy CLI nie jest dostępne, odczytuje OAuth token z `~/.claude/.credentials.json` i woła API Anthropic
 
 W obu przypadkach **nie potrzebujesz `ANTHROPIC_API_KEY`**.
 
-## VS Code / Cursor / IDE
+---
 
-Rada działa w każdym IDE z terminalem:
+## Platformy IDE
 
-```bash
-# VS Code / Cursor — otwórz terminal (Ctrl+`) i uruchom:
-python -m council --config firm.json --dashboard
+Rada działa na każdej platformie z terminalem i Pythonem 3.12+:
 
-# Pliki generują się w output/ — odśwież eksplorator żeby je zobaczyć
-```
-
-Wbudowana auto-detekcja platformy rozpoznaje:
-- **VS Code / Cursor** — zwykły terminal
-- **Kimi Code** — `KIMI_SESSION_ID`
-- **Claude Code** — brak specyficznych zmiennych, ale `--provider claude-code` działa
-- **GitHub Codespaces** — `CODESPACES`
-- **Google IDX** — `GOOGLE_CLOUD_WORKSTATIONS`
+| Platforma | Flaga | Auto-detekcja |
+|-----------|-------|---------------|
+| **Terminal lokalny** | `--platform cli` | domyślny |
+| **Kimi Code** | `--platform kimi` | `KIMI_SESSION_ID` |
+| **Cursor** | `--platform cursor` | `CURSOR_TRACE_ID` |
+| **GitHub Codespaces** | `--platform copilot` | `CODESPACES` |
+| **Google IDX** | `--platform idx` | `GOOGLE_CLOUD_WORKSTATIONS` |
+| **Bolt / Lovable / Replit** | `--platform web` | `BOLT_ENV`, `LOVABLE_ENV`, `REPL_ID` |
 
 Szczegóły: [PLATFORM_ADAPTERS.md](PLATFORM_ADAPTERS.md)
+
+---
 
 ## Live Dashboard
 
@@ -274,6 +314,7 @@ Dashboard w terminalu pokazuje w czasie rzeczywistym:
 - Statystyki per agent (czas, tokeny, koszt)
 - ASCII bar chart porównawczy
 - Podgląd treści markdown w czasie rzeczywistym
+- File browser i workspace preview
 
 ```bash
 # Dashboard z demo
@@ -288,6 +329,109 @@ Funkcje dashboardu:
 - Animowane stany (`WRITING...` z kropkami)
 - Alert dźwiękowy + flash przy błędzie agenta
 - Export do JSON i HTML po zakończeniu
+- Case-insensitive lookup agentów
+- Escape'owanie user-generated content w HTML export
+
+---
+
+## Tryb Review
+
+Po zakończeniu rady możesz przejrzeć wygenerowane artefakty bezpośrednio w terminalu:
+
+```bash
+# Auto-review po zakończeniu runu
+python -m council --config firm.json --review
+
+# Review istniejącego workspace
+python -m council --review ./output
+```
+
+Review pokazuje:
+- Podsumowanie runu (firma, provider, rundy, agenci)
+- Preview proposal (pierwsze 20 linii)
+- Ścieżki do wszystkich artefaktów
+
+### AI-assisted Artifact Review
+
+System może dodatkowo ocenić jakość każdego artefaktu przy użyciu LLM:
+
+- **Clarity** — czytelność i precyzja języka
+- **Completeness** — kompletność treści
+- **Actionability** — czy da się działać na podstawie dokumentu
+- **Overall quality** — ocena ogólna 1-10
+
+Wyniki zapisywane są w:
+- `output/artifacts/reviews/review.md` — podsumowanie czytelne dla człowieka
+- `output/artifacts/reviews/review.json` — strukturyzowane dane
+- `output/manifest.json` — klucz `"reviews"`
+
+---
+
+## Artifact Discovery
+
+System używa **manifest-first discovery** — każdy run generuje `output/manifest.json` z pełną listą artefaktów i metadanymi.
+
+```json
+{
+  "generated_at": "2026-05-29T01:34:56+00:00",
+  "company": "Acme Corp",
+  "product": "API-first payment platform",
+  "provider": "openai",
+  "model": "gpt-4o",
+  "rounds_completed": 3,
+  "agents": ["Marcus", "Elena", "Kai", "David"],
+  "files": {
+    "proposal": "output/proposal.md",
+    "final_deliverables": {
+      "Marcus": "output/agents/marcus_offer.md",
+      "Elena": "output/agents/elena_funnel.md",
+      "Kai": "output/agents/kai_copy.md",
+      "David": "output/agents/david_abm.md"
+    },
+    "agent_outputs": { ... }
+  }
+}
+```
+
+Jeśli manifest nie istnieje, system automatycznie fallbackuje do skanowania filesystemu (wspiera też legacy `FINAL_PROPOSAL.md` z v2).
+
+---
+
+## Dokumenty kontekstowe
+
+Możesz wstrzyknąć dodatkowy kontekst (briefy, research, notatki) do wszystkich agentów:
+
+```bash
+# Pojedyncze pliki
+python -m council --config firm.json -d brief.md research.md
+
+# Cały katalog
+python -m council --config firm.json --documents-dir ./docs/
+
+# Custom brief inline
+python -m council --config firm.json --brief "ABM campaign for CFOs in fintech"
+```
+
+Agenci widzą ten kontekst w swoich promptach i mogą się do niego odnosić w debacie.
+
+---
+
+## Tryb Scalac
+
+Wbudowany config Scalac — zero setupu, jedna flaga:
+
+```bash
+python -m council --scalac-mode --rounds 3 --dashboard
+```
+
+To samo co:
+```bash
+python -m council --config templates/companies/scalac.json --rounds 3
+```
+
+Automatycznie ładuje też wbudowany bundle danych (`templates/companies/scalac_data/`) jako kontekst dokumentowy.
+
+---
 
 ## Konfiguracja firmy
 
@@ -320,7 +464,7 @@ System przyjmuje dowolną konfigurację przez JSON. Schemat jest walidowany prze
 
 ### Gotowe template'y
 
-W `templates/companies/` znajdziesz gotowe configi dla:
+W `templates/companies/` znajdziesz gotowe configi:
 
 | Template | Firma | Segment |
 |----------|-------|---------|
@@ -328,8 +472,12 @@ W `templates/companies/` znajdziesz gotowe configi dla:
 | `fintech.json` | PayStream | Fintech Series B |
 | `ecommerce.json` | CartLoop | Platforma e-commerce |
 | `consulting.json` | NexTech Advisors | Konsulting IT |
+| `scalac.json` | Scalac | Software development (Scala, Blockchain, ML) |
 
-Aby użyć: `python -m council --config templates/companies/fintech.json`
+Aby użyć:
+```bash
+python -m council --template saas --rounds 3 --dashboard
+```
 
 ### Pełny schemat (CompanyConfig)
 
@@ -361,7 +509,8 @@ System składa się z 4 warstw:
 
 ```
 Layer 4: Platform Layer
-  CLIAdapter | KimiAdapter
+  CLIAdapter | KimiAdapter | CursorAdapter | GoogleIDXAdapter
+  | GitHubCopilotAdapter | WebPlatformAdapter
 
 Layer 3: Orchestration Layer
   AsyncOrchestrator | FilesystemBarrier | AgentStateMachine
@@ -371,7 +520,7 @@ Layer 2: Agent Layer
   PromptGenerator (Jinja2) | LLMProvider(ABC)
 
 Layer 1: Data Layer
-  CompanyConfig (Pydantic) | ConfigLoader | JSON Schema
+  CompanyConfig (Pydantic) | ConfigLoader | DocumentLoader | JSON Schema
 ```
 
 ### Równoległość — jak to działa
@@ -382,10 +531,10 @@ Runda 1:                     Runda 2:                     Runda 3:
   Elena  (LLM call)     -->    Elena czyta innych      -->   Finalne outputy
   Kai    (LLM call)            Kai czyta innych
   David  (LLM call)            David czyta innych
-  
-  <-- asyncio.gather() -->     <-- asyncio.gather() -->     
+
+  <-- asyncio.gather() -->     <-- asyncio.gather() -->
   <-- FilesystemBarrier -->    <-- FilesystemBarrier -->
-  
+
   Czas: ~15s                   Czas: ~15s                    Czas: ~15s
   (zamiast 60s sekwencyjnie)   (zamiast 60s sekwencyjnie)
 ```
@@ -417,17 +566,28 @@ python -m council --onboarding
 python -m council --demo
 python -m council --demo --scenario healthcare-app --rounds 2 --dashboard
 
-# Podstawowe użycie (real run)
+# Podstawowe użycie (real run z templatem)
+python -m council --template saas
+
+# Real run z własnym configiem
 python -m council --config firm.json
 
 # Wybór providera LLM
 python -m council --config firm.json --provider openai       # GPT-4o (domyślny)
 python -m council --config firm.json --provider anthropic    # Claude Sonnet
+python -m council --config firm.json --provider openrouter   # Universal proxy
 python -m council --config firm.json --provider ollama       # Llama3 (lokalny)
 python -m council --config firm.json --provider kimi-code    # Kimi Code CLI
+python -m council --config firm.json --provider claude-code  # Claude Code CLI
 
 # Nadpisanie modelu
 python -m council --config firm.json --provider openai --model gpt-4o-mini
+
+# API key inline (zamiast env var)
+python -m council --config firm.json --provider openai --api-key sk-...
+
+# OpenRouter free tier
+python -m council --config firm.json --provider openrouter --free-tier
 
 # Więcej rund debaty
 python -m council --config firm.json --rounds 5
@@ -441,11 +601,26 @@ python -m council --config firm.json --dashboard
 # Tylko status dyskusji
 python -m council --config firm.json --monitor
 
-# Agreguj finalny proposal
+# Przegląd wygenerowanych artefaktów
+python -m council --config firm.json --review
+python -m council --review ./output
+
+# Agreguj finalny proposal (deprecated — zawsze generowany)
 python -m council --config firm.json --aggregate
 
 # Wyjściowy katalog
 python -m council --config firm.json --output ./results
+
+# Wymuś nadpisanie bez potwierdzenia
+python -m council --config firm.json --force
+
+# Dokumenty kontekstowe
+python -m council --config firm.json -d brief.md notes.md
+python -m council --config firm.json --documents-dir ./research/
+python -m council --config firm.json --brief "CFO-targeted ABM in EU fintech"
+
+# Tryb Scalac (wbudowany config)
+python -m council --scalac-mode --rounds 3 --dashboard
 
 # Tryb verbose (debug)
 python -m council --config firm.json --verbose
@@ -453,59 +628,16 @@ python -m council --config firm.json --verbose
 
 ---
 
-## Providerzy LLM
-
-| Provider | Flaga | Domyślny model | Wymagania |
-|----------|-------|----------------|-----------|
-| **OpenAI** | `--provider openai` | `gpt-4o` | `OPENAI_API_KEY` |
-| **Anthropic** | `--provider anthropic` | `claude-sonnet-4-6` | `ANTHROPIC_API_KEY` |
-| **Ollama** | `--provider ollama` | `llama3` | Lokalny Ollama |
-| **Kimi Code** | `--provider kimi-code` | `kimi-for-coding` | Zainstalowane Kimi Code CLI |
-| **Claude Code** | `--provider claude-code` | `claude-sonnet-4-6` | Zainstalowane Claude Code CLI lub IDE |
-
-### Kimi Code Provider
-
-Provider `kimi-code` uruchamia lokalny **Kimi Code CLI** w trybie non-interactive:
-
-```bash
-kimi --quiet --yolo --prompt "Twój prompt"
-```
-
-**Auto-detekcja binarki** (w tej kolejności):
-1. `KIMI_CLI_PATH` — zmienna środowiskowa
-2. `shutil.which("kimi")` — PATH
-3. Domyślna ścieżka instalacji VS Code extension
-
-**Uwaga:** Kimi Code to pełny agent AI, nie surowy endpoint LLM. W trybie `--yolo` automatycznie zatwierdza akcje (czytanie plików, komendy terminala). Używaj świadomie.
-
-### Claude Code Provider
-
-Provider `claude-code` działa na dwa sposoby (próbuje w tej kolejności):
-
-1. **Subprocess** — jeśli masz zainstalowany `claude` CLI (`npm install -g @anthropic-ai/claude-code`):
-   ```bash
-   claude -p "Twój prompt"
-   ```
-
-2. **HTTP fallback** — jeśli CLI nie jest zainstalowane, ale używasz Claude Code IDE:
-   - Odczytuje OAuth token z `~/.claude/.credentials.json`
-   - Woła API Anthropic bezpośrednio przez `anthropic` SDK
-   - Nie wymaga `ANTHROPIC_API_KEY`
-
-Dzięki temu w środowisku Claude Code IDE nie musisz podawać żadnego klucza API — provider automatycznie używa credentials zalogowanej sesji.
-
----
-
 ## Testy i CI
 
 ```bash
-# Wszystkie testy (162 testów)
+# Wszystkie testy (256 testów)
 pytest tests/ -v
 
 # Z coverage (target: 80%+)
 pytest tests/ --cov=council --cov-report=html
 
-# Type checking
+# Type checking (44 pliki źródłowe, zero błędów)
 mypy --strict src/council
 
 # Linting
@@ -518,14 +650,41 @@ black src/council
 ### GitHub Actions
 
 Pipeline uruchamia się na każdym PR:
-1. `mypy --strict` — zero błędów typów
+1. `mypy --strict` — zero błędów typów (44 pliki)
 2. `ruff check` — zero błędów lintera
 3. `black --check` — formatowanie
 4. `pytest --cov=council --cov-fail-under=80` — testy z coverage
+5. **Smoke tests** — weryfikacja CLI entry points i demo run
+6. **Package build check** — czy wheel się buduje poprawnie
+
+CI używa `uv` do deterministycznego rozwiązywania zależności.
 
 ---
 
 ## Changelog
+
+### v3.2.x (2026-05) — OpenRouter, Review Mode, Artifact Discovery
+
+**Nowości:**
+- **OpenRouter provider** — uniwersalny proxy do 200+ modeli LLM (`--provider openrouter`)
+- **OpenRouter free tier** — `--free-tier` auto-wybiera aktualny darmowy model
+- **Tryb Review** — `--review` przegląda wygenerowane artefakty w terminalu
+- **AI-assisted artifact review** — ocena jakości artefaktów przez LLM (clarity, completeness, actionability, score 1-10)
+- **Artifact Discovery** — manifest-first (`output/manifest.json`) + filesystem fallback + legacy `FINAL_PROPOSAL` support
+- **Dokumenty kontekstowe** — `--documents`, `--documents-dir`, `--brief` wstrzykują kontekst do agentów
+- **Tryb Scalac** — `--scalac-mode` wbudowany config bez pliku JSON
+- **6 platform IDE** — Kimi, Cursor, Google IDX, GitHub Codespaces, Bolt/Lovable/Replit, CLI
+- **Smart prompt truncation** — przycinanie z szacunkiem do granic słów i code fences
+- **256 testów** (z 162), 44 pliki źródłowe, mypy zero błędów
+
+**Poprawki:**
+- Retry policy: fails fast na deterministycznych błędach auth/validation
+- API key: poprawne przekazywanie do konstruktorów providerów, warning dla providerów bez klucza
+- Dashboard: case-insensitive lookup agentów, poprawiony markdown preview, escape HTML w export
+- Workspace layout: standard `output/agents/` subdirectory
+- `--force` flaga do pominięcia potwierdzenia nadpisania
+- `--template` bez wartości wyświetla listę dostępnych template'ów
+- `uv` w CI zamiast pip
 
 ### v3.2.0 (2026-04-22) — Demo Mode, Interactive Menu & Dashboard
 
@@ -606,21 +765,24 @@ Pipeline uruchamia się na każdym PR:
 
 ## Porównanie wersji
 
-| Cecha | v1 | v2 | v3.0 | v3.1 | v3.2 |
-|-------|-----|-----|------|------|------|
-| Agenci | 1 | 4 | 4 | 4 | 4 |
-| Integracja LLM | ❌ | ❌ | ✅ Multi-provider | ✅ + Kimi Code CLI | ✅ + Demo Provider |
-| Równoległość | ❌ | ❌ (for loop) | ✅ (asyncio) | ✅ (asyncio) | ✅ (asyncio) |
-| Uniwersalność | ❌ | ❌ (hardcoded Scalac) | ✅ (JSON config) | ✅ (JSON config) | ✅ (JSON config) |
-| Demo Mode | ❌ | ❌ | ❌ | ❌ | ✅ (4 scenariusze) |
-| Interactive Menu | ❌ | ❌ | ❌ | ❌ | ✅ (rich + textual) |
-| Live Dashboard | ❌ | ❌ | ❌ | ❌ | ✅ (real-time) |
-| Type hints | ❌ | ❌ | ✅ (100%) | ✅ (100%) | ✅ (100%) |
-| Testy | ❌ | ❌ | ✅ (80+) | ✅ (80+) | ✅ (162+) |
-| CI/CD | ❌ | ❌ | ✅ (GitHub Actions) | ✅ (GitHub Actions) | ✅ (GitHub Actions) |
-| State machine | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Retry logic | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Cost tracking | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Cecha | v1 | v2 | v3.0 | v3.1 | v3.2 | v3.2.x |
+|-------|-----|-----|------|------|------|--------|
+| Agenci | 1 | 4 | 4 | 4 | 4 | 4 |
+| Integracja LLM | ❌ | ❌ | ✅ Multi-provider | ✅ + Kimi Code | ✅ + Demo Provider | ✅ + OpenRouter |
+| Równoległość | ❌ | ❌ (for loop) | ✅ (asyncio) | ✅ (asyncio) | ✅ (asyncio) | ✅ (asyncio) |
+| Uniwersalność | ❌ | ❌ (hardcoded Scalac) | ✅ (JSON config) | ✅ (JSON config) | ✅ (JSON config) | ✅ + templates |
+| Demo Mode | ❌ | ❌ | ❌ | ❌ | ✅ (4 scenariusze) | ✅ (4 scenariusze) |
+| Interactive Menu | ❌ | ❌ | ❌ | ❌ | ✅ (rich + textual) | ✅ (rich + textual) |
+| Live Dashboard | ❌ | ❌ | ❌ | ❌ | ✅ (real-time) | ✅ (real-time) |
+| Artifact Discovery | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ (manifest-first) |
+| AI Review | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Document Context | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Type hints | ❌ | ❌ | ✅ (100%) | ✅ (100%) | ✅ (100%) | ✅ (100%) |
+| Testy | ❌ | ❌ | ✅ (80+) | ✅ (80+) | ✅ (162+) | ✅ (256+) |
+| CI/CD | ❌ | ❌ | ✅ (GitHub Actions) | ✅ (GitHub Actions) | ✅ (GitHub Actions) | ✅ + uv + smoke |
+| State machine | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Retry logic | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ (+ fails fast) |
+| Cost tracking | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
@@ -634,16 +796,20 @@ scalac_ai_council/
 ├── .pre-commit-config.yaml        # pre-commit hooks
 ├── .github/
 │   └── workflows/
-│       └── ci.yml                 # GitHub Actions
-├── src/council/                   # Kod źródłowy v3
+│       └── ci.yml                 # GitHub Actions (uv, smoke tests, build)
+├── src/council/                   # Kod źródłowy v3 (44 pliki)
 │   ├── __init__.py
 │   ├── __main__.py                # python -m council
-│   ├── cli.py                     # argparse entrypoint
+│   ├── cli.py                     # argparse entrypoint + review
+│   ├── agent_runner.py            # Single-agent runner dla Kimi sessions
 │   ├── demo.py                    # Demo mode + 4 scenarios
-│   ├── interactive.py             # Interactive TUI menu
+│   ├── interactive.py             # Interactive Textual TUI menu
+│   ├── review.py                  # AI-assisted artifact quality review
+│   ├── artifacts.py               # Artifact discovery (manifest-first)
 │   ├── config/                    # Layer 1: Data
 │   │   ├── schema.py              # CompanyConfig (Pydantic)
-│   │   └── loader.py              # ConfigLoader
+│   │   ├── loader.py              # ConfigLoader
+│   │   └── documents.py           # DocumentLoader (context injection)
 │   ├── agents/                    # Layer 2: Agents
 │   │   ├── base.py                # BaseAgent(ABC)
 │   │   ├── marcus.py              # MarcusAgent
@@ -659,8 +825,10 @@ scalac_ai_council/
 │   │   ├── provider.py            # LLMProvider(ABC)
 │   │   ├── openai_provider.py     # OpenAI GPT-4o
 │   │   ├── anthropic_provider.py  # Anthropic Claude
+│   │   ├── openrouter_provider.py # OpenRouter (universal proxy)
 │   │   ├── ollama_provider.py     # Ollama (lokalny)
 │   │   ├── kimi_code_provider.py  # Kimi Code CLI
+│   │   ├── claude_code_provider.py# Claude Code CLI / IDE
 │   │   ├── retry.py               # Exponential backoff
 │   │   └── cost_tracker.py        # Cost per agent/round/run
 │   ├── orchestration/             # Layer 3: Orchestration
@@ -674,22 +842,30 @@ scalac_ai_council/
 │   └── platform/                  # Layer 4: Platform
 │       ├── base.py                # PlatformAdapter(ABC)
 │       ├── cli_adapter.py         # Default: local asyncio
-│       └── kimi_adapter.py        # Kimi Code: sessions_spawn
-├── tests/                         # Testy (162+, pytest)
+│       ├── kimi_adapter.py        # Kimi Code: sessions_spawn
+│       ├── cursor_adapter.py      # Cursor IDE
+│       ├── idx_adapter.py         # Google IDX
+│       ├── copilot_adapter.py     # GitHub Copilot / Codespaces
+│       └── web_adapter.py         # Bolt / Lovable / Replit
+├── tests/                         # Testy (256+, pytest)
 │   ├── conftest.py
 │   ├── test_config.py
 │   ├── test_agents.py
-│   ├── test_dashboard.py          # 26 tests
-│   ├── test_demo.py               # 19 tests
+│   ├── test_dashboard.py          # 26+ tests
+│   ├── test_demo.py               # 19+ tests
 │   ├── test_llm.py
 │   ├── test_orchestration.py
-│   └── test_prompts.py
+│   ├── test_prompts.py
+│   ├── test_artifacts.py          # Artifact discovery tests
+│   └── test_review.py             # Review mode tests
 ├── templates/
 │   └── companies/                 # Gotowe configi firm
 │       ├── saas.json
 │       ├── fintech.json
 │       ├── ecommerce.json
-│       └── consulting.json
+│       ├── consulting.json
+│       ├── scalac.json
+│       └── scalac_data/           # Wbudowany kontekst Scalac
 ├── scalac_council_v2/             # v2 (legacy, dla referencji)
 │   ├── orchestrator.py
 │   ├── agents/
@@ -705,16 +881,17 @@ scalac_ai_council/
 
 - Python 3.12+
 - `pydantic>=2.0`
-- `jinja2>=3.1`
-- `aiohttp>=3.9` (dla Ollama providera)
+- `jinja2>=3.1.0`
+- `aiohttp>=3.9.0` (dla Ollama i OpenRouter providera)
+- `openai>=1.0` (dla OpenAI i OpenRouter)
+- `anthropic>=0.20.0` (dla Anthropic i Claude Code HTTP fallback)
+- `rich>=13.0` (interaktywne menu)
+- `textual>=0.52.0` (live dashboard)
 
-Opcjonalne (wybierz jedno lub więcej):
-- `openai>=1.0` — dla GPT-4o
-- `anthropic>=0.20` — dla Claude
+Opcjonalne:
 - `ollama` lokalnie — dla darmowych modeli
 - `kimi` CLI — dla Kimi Code providera (auto-detect w IDE)
-- `rich>=13` — dla interaktywnego menu (zalecane)
-- `textual>=0.52` — dla live dashboardu (wymagane przy `--dashboard`)
+- `claude` CLI — dla Claude Code providera (auto-detect w IDE)
 
 ---
 
