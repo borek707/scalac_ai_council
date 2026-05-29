@@ -646,6 +646,8 @@ class ConfirmScreen(Screen):
                 template=st.get("template"),
                 free_tier=st.get("free_tier", False),
                 stream=True,
+                brief=st.get("brief"),
+                review=None,
             )
             self.app.exit(ns)
 

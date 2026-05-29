@@ -118,22 +118,103 @@ class TestClaudeCodeProvider:
 
     @pytest.mark.asyncio
     async def test_stream_yields_content(self, tmp_path: Path) -> None:
+        """stream() parses stream-json lines and yields only text_delta chunks."""
         fake_cli = tmp_path / "claude"
         fake_cli.write_text("#!/bin/bash")
         provider = ClaudeCodeProvider(executable_path=str(fake_cli))
 
+        # Build realistic stream-json lines the CLI emits
+        text_delta = json.dumps({
+            "type": "stream_event",
+            "event": {
+                "type": "content_block_delta",
+                "index": 1,
+                "delta": {"type": "text_delta", "text": "Hello"},
+            },
+        }).encode() + b"\n"
+        text_delta2 = json.dumps({
+            "type": "stream_event",
+            "event": {
+                "type": "content_block_delta",
+                "index": 1,
+                "delta": {"type": "text_delta", "text": " world"},
+            },
+        }).encode() + b"\n"
+        # Non-text event that should be ignored
+        rate_limit = json.dumps({"type": "rate_limit_event"}).encode() + b"\n"
+
         mock_proc = MagicMock()
         mock_proc.returncode = 0
         mock_proc.stdout = MagicMock()
-        mock_proc.stdout.read = AsyncMock(side_effect=[b"Streamed text", b""])
+        mock_proc.stdout.readline = AsyncMock(
+            side_effect=[text_delta, rate_limit, text_delta2, b""]
+        )
+        mock_proc.stderr = MagicMock()
         mock_proc.wait = AsyncMock(return_value=0)
-        mock_proc.communicate = AsyncMock(return_value=(b"Streamed text", b""))
 
         with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
             chunks = []
             async for chunk in provider.stream("prompt"):
                 chunks.append(chunk)
-            assert chunks == ["Streamed text"]
+        assert chunks == ["Hello", " world"]
+
+    @pytest.mark.asyncio
+    async def test_stream_ignores_non_text_events(self, tmp_path: Path) -> None:
+        """stream() skips thinking_delta, rate_limit, system, and result events."""
+        fake_cli = tmp_path / "claude"
+        fake_cli.write_text("#!/bin/bash")
+        provider = ClaudeCodeProvider(executable_path=str(fake_cli))
+
+        non_text_events = [
+            json.dumps({"type": "system", "subtype": "init"}).encode() + b"\n",
+            json.dumps({
+                "type": "stream_event",
+                "event": {"type": "content_block_delta", "index": 0,
+                          "delta": {"type": "thinking_delta", "thinking": "thoughts"}},
+            }).encode() + b"\n",
+            json.dumps({"type": "result", "subtype": "success", "result": "final"}).encode() + b"\n",
+            json.dumps({
+                "type": "stream_event",
+                "event": {"type": "content_block_delta", "index": 1,
+                          "delta": {"type": "text_delta", "text": "actual output"}},
+            }).encode() + b"\n",
+            b"",
+        ]
+
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.stdout = MagicMock()
+        mock_proc.stdout.readline = AsyncMock(side_effect=non_text_events)
+        mock_proc.stderr = MagicMock()
+        mock_proc.wait = AsyncMock(return_value=0)
+
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
+            chunks = []
+            async for chunk in provider.stream("prompt"):
+                chunks.append(chunk)
+        assert chunks == ["actual output"]
+
+    @pytest.mark.asyncio
+    async def test_stream_subprocess_uses_stream_json_flags(self, tmp_path: Path) -> None:
+        """_build_cmd with streaming=True includes the stream-json flags."""
+        fake_cli = tmp_path / "claude"
+        fake_cli.write_text("#!/bin/bash")
+        provider = ClaudeCodeProvider(executable_path=str(fake_cli))
+        cmd = provider._build_cmd("prompt", streaming=True)
+        assert "--output-format" in cmd
+        assert "stream-json" in cmd
+        assert "--include-partial-messages" in cmd
+        assert "--verbose" in cmd
+
+    @pytest.mark.asyncio
+    async def test_stream_subprocess_default_no_stream_flags(self, tmp_path: Path) -> None:
+        """_build_cmd without streaming=True does NOT include stream-json flags."""
+        fake_cli = tmp_path / "claude"
+        fake_cli.write_text("#!/bin/bash")
+        provider = ClaudeCodeProvider(executable_path=str(fake_cli))
+        cmd = provider._build_cmd("prompt")
+        assert "--output-format" not in cmd
+        assert "--include-partial-messages" not in cmd
 
     @pytest.mark.asyncio
     async def test_prompt_not_in_debug_log(
