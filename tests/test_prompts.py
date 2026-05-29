@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -11,7 +12,7 @@ from council.prompts.generator import PromptGenerator
 class TestPromptGenerator:
     """Tests for PromptGenerator."""
 
-    @pytest.fixture
+    @pytest.fixture  # type: ignore[misc]
     def template_dir(self, tmp_path: Path) -> Path:
         """Create a temporary template directory with test templates."""
         templates = tmp_path / "templates"
@@ -50,7 +51,7 @@ class TestPromptGenerator:
 
         return templates
 
-    @pytest.fixture
+    @pytest.fixture  # type: ignore[misc]
     def generator(self, template_dir: Path) -> PromptGenerator:
         return PromptGenerator(template_dir)
 
@@ -146,7 +147,7 @@ class TestPromptGenerator:
         generator: PromptGenerator,
         sample_config: CompanyConfig,
     ) -> None:
-        ctx = generator._build_context(sample_config, 2, "some history")
+        ctx: dict[str, Any] = generator._build_context(sample_config, 2, "some history")
         assert ctx["company"]["name"] == "TestCorp"
         assert ctx["company"]["product"] == "AI-Powered Analytics Platform"
         assert ctx["round"] == 2
@@ -162,7 +163,7 @@ class TestPromptGenerator:
         generator: PromptGenerator,
         sample_config: CompanyConfig,
     ) -> None:
-        ctx = generator._build_context(sample_config, 1)
+        ctx: dict[str, Any] = generator._build_context(sample_config, 1)
         assert ctx["company"]["case_studies"] == [
             {"name": "ClientA", "result": "3x ROI in 6 months"},
         ]

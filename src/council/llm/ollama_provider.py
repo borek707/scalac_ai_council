@@ -8,7 +8,7 @@ from collections.abc import AsyncIterator
 try:
     import aiohttp
 except ImportError:
-    aiohttp = None  # type: ignore[assignment]
+    aiohttp = None  # type: ignore
 
 from council.llm.provider import LLMProvider, LLMResponse
 from council.llm.retry import retry_with_backoff

@@ -8,7 +8,7 @@ from collections.abc import AsyncIterator
 try:
     import anthropic
 except ImportError:
-    anthropic = None  # type: ignore[assignment]
+    anthropic = None  # type: ignore
 
 from council.llm.provider import LLMProvider, LLMResponse
 from council.llm.retry import retry_with_backoff

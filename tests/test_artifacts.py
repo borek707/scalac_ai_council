@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 from council.artifacts import Artifact, ArtifactKind, discover_artifacts, get_default_artifact
 
@@ -17,7 +18,7 @@ from council.artifacts import Artifact, ArtifactKind, discover_artifacts, get_de
 # ---------------------------------------------------------------------------
 
 
-def _write_manifest(output_dir: Path, files: dict) -> Path:
+def _write_manifest(output_dir: Path, files: dict[str, Any]) -> Path:
     """Write a minimal manifest.json to *output_dir* and return its path."""
     manifest = {
         "generated_at": "2026-01-01T00:00:00+00:00",

@@ -47,7 +47,7 @@ class PromptGenerator:
         """
         template = self._load_template(agent_name)
         context = self._build_context(company_config, round_num, discussion_history)
-        return template.render(**context)
+        return str(template.render(**context))
 
     def _load_template(self, agent_name: str) -> Template:
         """Load a Jinja2 template for the specified agent."""

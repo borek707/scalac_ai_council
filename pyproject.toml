@@ -111,8 +111,6 @@ select = [
 ]
 ignore = [
     "E501",   # line too long (handled by formatter)
-    "ASYNC240",  # pathlib in async — project uses asyncio, not trio/anyio
-    "ASYNC250",  # blocking input() in async — intentional CLI pattern
     "E402",   # module level import not at top — needed for conditional/lazy imports
     "N806",   # variable in function should be lowercase — false positive on type aliases
     "N818",   # exception name should end with Error — pre-existing naming
