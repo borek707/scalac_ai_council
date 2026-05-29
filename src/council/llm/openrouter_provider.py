@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-import urllib.request
+import time
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -50,37 +50,21 @@ class OpenRouterProvider(OpenAIProvider):
         self._free_tier = free_tier
         self._fallback_models: list[str] = []
         self.auto_selected = False
+        self._resolved_key = resolved_key
+        self._resolved_url = resolved_url
+        self._needs_model_resolution = False
 
         if model in (None, "default"):
             if free_tier:
-                try:
-                    resolved_model = self._pick_free_model(resolved_key, resolved_url)
-                    logger.info("OpenRouter: auto-selected free model %s", resolved_model)
-                    self.auto_selected = True
-                except Exception as exc:
-                    logger.warning(
-                        "OpenRouter: could not fetch free models (%s), falling back", exc
-                    )
-                    resolved_model = "anthropic/claude-3-5-sonnet-20241022"
-            else:
-                resolved_model = "anthropic/claude-3-5-sonnet-20241022"
+                self._needs_model_resolution = True
+            resolved_model = "anthropic/claude-3-5-sonnet-20241022"
         else:
             assert model is not None
             resolved_model = model
 
-        if free_tier:
-            self._fallback_models = self._fetch_free_models(resolved_key, resolved_url)
-            if self._fallback_models:
-                logger.info(
-                    "OpenRouter free-tier fallback models (%d): %s",
-                    len(self._fallback_models),
-                    ", ".join(self._fallback_models[:5])
-                    + ("..." if len(self._fallback_models) > 5 else ""),
-                )
-
         logger.info(
             "OpenRouterProvider: model=%s, base_url=%s, free_tier=%s",
-            resolved_model,
+            resolved_model or "(lazy-resolve)",
             resolved_url,
             free_tier,
         )
@@ -90,20 +74,48 @@ class OpenRouterProvider(OpenAIProvider):
             model=resolved_model,
         )
 
-    @staticmethod
-    def _fetch_free_models(api_key: str, base_url: str) -> list[str]:
-        """Fetch current free-tier models from OpenRouter API."""
-        url = f"{base_url}/models"
-        req = urllib.request.Request(
-            url,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-        )
+    async def _resolve_model(self) -> None:
+        """Lazy-resolve free-tier model on first use to avoid blocking the event loop."""
+        if not self._needs_model_resolution:
+            return
+        self._needs_model_resolution = False
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
+            resolved_model = await self._pick_free_model(self._resolved_key, self._resolved_url)
+            logger.info("OpenRouter: auto-selected free model %s", resolved_model)
+            self.auto_selected = True
+            self.model = resolved_model
+        except Exception as exc:
+            logger.warning("OpenRouter: could not fetch free models (%s), falling back", exc)
+            self.model = "anthropic/claude-3-5-sonnet-20241022"
+
+        self._fallback_models = await self._fetch_free_models(
+            self._resolved_key, self._resolved_url
+        )
+        if self._fallback_models:
+            logger.info(
+                "OpenRouter free-tier fallback models (%d): %s",
+                len(self._fallback_models),
+                ", ".join(self._fallback_models[:5])
+                + ("..." if len(self._fallback_models) > 5 else ""),
+            )
+
+    @staticmethod
+    async def _fetch_free_models(api_key: str, base_url: str) -> list[str]:
+        """Fetch current free-tier models from OpenRouter API (async)."""
+        import aiohttp
+
+        url = f"{base_url}/models"
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    url,
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    timeout=aiohttp.ClientTimeout(total=15),
+                ) as resp:
+                    data = json.loads(await resp.text())
         except Exception as exc:
             logger.warning("Failed to fetch free models from OpenRouter: %s", exc)
             return []
@@ -116,9 +128,9 @@ class OpenRouterProvider(OpenAIProvider):
         return free
 
     @staticmethod
-    def _pick_free_model(api_key: str, base_url: str) -> str:
+    async def _pick_free_model(api_key: str, base_url: str) -> str:
         """Fetch model list and return the best free one from preferred list."""
-        free_models = OpenRouterProvider._fetch_free_models(api_key, base_url)
+        free_models = await OpenRouterProvider._fetch_free_models(api_key, base_url)
         for pref in _PREFERRED_FREE:
             if pref in free_models:
                 return pref
@@ -141,7 +153,7 @@ class OpenRouterProvider(OpenAIProvider):
         system: str | None = None,
     ) -> LLMResponse:
         """Generate a response using OpenRouter API with optional free-tier fallbacks."""
-        import time
+        await self._resolve_model()
 
         model_name = model or self.model
         messages: list[dict[str, str]] = []
@@ -195,6 +207,8 @@ class OpenRouterProvider(OpenAIProvider):
         system: str | None = None,
     ) -> AsyncIterator[str]:
         """Stream response chunks from OpenRouter API with optional free-tier fallbacks."""
+        await self._resolve_model()
+
         model_name = model or self.model
         messages: list[dict[str, str]] = []
         if system:
