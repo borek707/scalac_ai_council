@@ -620,7 +620,9 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
 
     stream_output = getattr(args, "stream", False)
     if stream_output:
-        console.print("[dim]Streaming mode:[/dim] [green]ON[/green] — you will see agent output as it generates")
+        console.print(
+            "[dim]Streaming mode:[/dim] [green]ON[/green] — you will see agent output as it generates"
+        )
 
     agents: list[BaseAgent] = [
         MarcusAgent(

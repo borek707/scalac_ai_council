@@ -91,6 +91,7 @@ class AgentCard(Static):
     AgentCard {
         width: 100%;
         height: 100%;
+        min-width: 22;
         border: solid $surface-darken-1;
         padding: 1 2;
         transition: border 300ms in_out_cubic, background 300ms in_out_cubic, tint 300ms in_out_cubic;
@@ -198,8 +199,9 @@ class CouncilApp(App):
 
     #main-grid {
         grid-size: 2;
-        grid-columns: 2fr 1fr;
+        grid-columns: 3fr 1fr;
         grid-rows: 1fr;
+        width: 100%;
         height: 100%;
         grid-gutter: 1;
     }
@@ -209,12 +211,14 @@ class CouncilApp(App):
         grid-columns: 1fr 1fr;
         grid-rows: 1fr 1fr;
         grid-gutter: 1;
+        width: 100%;
         height: 100%;
     }
 
     #sidebar {
         width: 100%;
         height: 100%;
+        min-width: 26;
         border: solid $primary-darken-2;
         padding: 0 1;
         background: $surface-darken-1 30%;

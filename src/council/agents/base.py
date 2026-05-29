@@ -203,9 +203,7 @@ class BaseAgent(ABC):
             content = response.content
 
         if not content or not content.strip():
-            raise ValueError(
-                f"LLM provider returned an empty response for agent {self.name}"
-            )
+            raise ValueError(f"LLM provider returned an empty response for agent {self.name}")
         return content
 
     async def _generate_streaming(self, prompt: str, system_prompt: str) -> str:
@@ -216,8 +214,11 @@ class BaseAgent(ABC):
         prefix = f"\033[1m[{self.name}]\033[0m "
         # ANSI color codes for terminal output
         color_codes = {
-            "cyan": "\033[36m", "green": "\033[32m",
-            "yellow": "\033[33m", "magenta": "\033[35m", "white": "\033[37m",
+            "cyan": "\033[36m",
+            "green": "\033[32m",
+            "yellow": "\033[33m",
+            "magenta": "\033[35m",
+            "white": "\033[37m",
         }
         reset = "\033[0m"
         colored_prefix = f"{color_codes.get(color, '')}{prefix}{reset}"

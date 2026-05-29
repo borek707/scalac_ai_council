@@ -409,9 +409,7 @@ class ProviderScreen(Screen):
             )
             yield Rule()
             yield Static("Model override (optional):", classes="field-label")
-            yield Input(
-                placeholder="leave empty to use the default model", id="model-input"
-            )
+            yield Input(placeholder="leave empty to use the default model", id="model-input")
             yield Static("Free tier (OpenRouter only):", classes="field-label")
             with Horizontal(classes="switch-row"):
                 yield Switch(value=False, id="free-tier-switch", disabled=True)
@@ -434,6 +432,12 @@ class ProviderScreen(Screen):
         ol = self.query_one(OptionList)
         ol.highlighted = 0
         ol.focus()
+        # Initialise free-tier switch based on default provider (openai → disabled)
+        provider_key = _PROVIDERS[0][0]
+        free_switch = self.query_one("#free-tier-switch", Switch)
+        is_openrouter = provider_key == "openrouter"
+        free_switch.disabled = not is_openrouter
+        free_switch.value = is_openrouter
 
     def _go_next(self) -> None:
         ol = self.query_one(OptionList)
@@ -477,7 +481,8 @@ class ProviderScreen(Screen):
         # Update model placeholder to show actual default
         model_input = self.query_one("#model-input", Input)
         model_input.placeholder = (
-            "leave empty — auto-picks free model" if is_openrouter
+            "leave empty — auto-picks free model"
+            if is_openrouter
             else f"leave empty — default: {default_model}"
         )
 
@@ -579,7 +584,11 @@ class ConfirmScreen(Screen):
         if st.get("model"):
             model_display = st["model"]
         elif provider_key == "openrouter":
-            model_display = "[green]auto (free)[/green]" if st.get("free_tier") else f"[dim]{default_model}[/dim]"
+            model_display = (
+                "[green]auto (free)[/green]"
+                if st.get("free_tier")
+                else f"[dim]{default_model}[/dim]"
+            )
         else:
             model_display = f"[dim]{default_model}[/dim]"
         lines.append(f"[bold]Model:[/bold]     {model_display}")
@@ -791,8 +800,16 @@ class CouncilMenuApp(App):
     }
 
     .switch-row {
+        width: 100%;
         height: auto;
-        padding: 1 0;
+        align: left middle;
+        margin: 1 0;
+    }
+    .switch-row Switch {
+        margin: 0 1 0 0;
+    }
+    .switch-row Label {
+        content-align: left middle;
     }
 
     .button-row {

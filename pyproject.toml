@@ -125,8 +125,6 @@ ignore = [
     "E741",   # ambiguous variable name — pre-existing
     "F821",   # undefined name — false positive in conditional imports
     "F841",   # local variable assigned but never used — pre-existing
-    "ASYNC240", # Path methods in async — cli.py uses stdlib Path intentionally
-    "ASYNC250", # blocking input() in async — cli.py prompts user intentionally
 ]
 
 [tool.ruff.lint.pydocstyle]

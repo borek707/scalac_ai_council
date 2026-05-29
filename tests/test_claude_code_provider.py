@@ -124,6 +124,9 @@ class TestClaudeCodeProvider:
 
         mock_proc = MagicMock()
         mock_proc.returncode = 0
+        mock_proc.stdout = MagicMock()
+        mock_proc.stdout.read = AsyncMock(side_effect=[b"Streamed text", b""])
+        mock_proc.wait = AsyncMock(return_value=0)
         mock_proc.communicate = AsyncMock(return_value=(b"Streamed text", b""))
 
         with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
