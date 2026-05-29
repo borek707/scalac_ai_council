@@ -663,9 +663,13 @@ CI używa `uv` do deterministycznego rozwiązywania zależności.
 
 ## Changelog
 
-### v3.2.x (2026-05) — OpenRouter, Review Mode, Artifact Discovery
+### v3.2.0 (2026-04-22 → 2026-05-29) — Demo Mode, Interactive Menu, Dashboard & OpenRouter
 
 **Nowości:**
+- **Tryb Demo** — 4 pre-built scenariusze (SaaS, e-commerce, fintech, healthcare) z deterministycznymi odpowiedziami. Zero kluczy API, zero configu.
+- **Interaktywne menu TUI** — uruchom `python -m council` i wybieraj scenariusz / provider / opcje z rich-text menu
+- **Live Dashboard** — real-time Textual TUI z 4 panelami agentów, logami, timeline, statystykami, ASCII bar chart i exportem JSON/HTML
+- **DemoProvider** — mock LLM provider z scripted responses per agent / round
 - **OpenRouter provider** — uniwersalny proxy do 200+ modeli LLM (`--provider openrouter`)
 - **OpenRouter free tier** — `--free-tier` auto-wybiera aktualny darmowy model
 - **Tryb Review** — `--review` przegląda wygenerowane artefakty w terminalu
@@ -678,6 +682,10 @@ CI używa `uv` do deterministycznego rozwiązywania zależności.
 - **256 testów** (z 162), 44 pliki źródłowe, mypy zero błędów
 
 **Poprawki:**
+- Naprawiono wszystkie broken testy (21 fail + 8 error → 162/162 ✅)
+- Usunięto duplikat `AgentState` enuma (jeden source of truth w `config.schema`)
+- Usunięto blokujący `asyncio.sleep(15)` w orchestratorze (przywrócono równoległość przez `asyncio.gather`)
+- Zsynchronizowano nazewnictwo plików rund (`marcus_round_1.md`) między kodem a testami
 - Retry policy: fails fast na deterministycznych błędach auth/validation
 - API key: poprawne przekazywanie do konstruktorów providerów, warning dla providerów bez klucza
 - Dashboard: case-insensitive lookup agentów, poprawiony markdown preview, escape HTML w export
@@ -685,8 +693,6 @@ CI używa `uv` do deterministycznego rozwiązywania zależności.
 - `--force` flaga do pominięcia potwierdzenia nadpisania
 - `--template` bez wartości wyświetla listę dostępnych template'ów
 - `uv` w CI zamiast pip
-
-### v3.2.0 (2026-04-22) — Demo Mode, Interactive Menu & Dashboard
 
 **Nowości:**
 - **Tryb Demo** — 4 pre-built scenariusze (SaaS, e-commerce, fintech, healthcare) z deterministycznymi odpowiedziami. Zero kluczy API, zero configu.
@@ -765,24 +771,24 @@ CI używa `uv` do deterministycznego rozwiązywania zależności.
 
 ## Porównanie wersji
 
-| Cecha | v1 | v2 | v3.0 | v3.1 | v3.2 | v3.2.x |
-|-------|-----|-----|------|------|------|--------|
-| Agenci | 1 | 4 | 4 | 4 | 4 | 4 |
-| Integracja LLM | ❌ | ❌ | ✅ Multi-provider | ✅ + Kimi Code | ✅ + Demo Provider | ✅ + OpenRouter |
-| Równoległość | ❌ | ❌ (for loop) | ✅ (asyncio) | ✅ (asyncio) | ✅ (asyncio) | ✅ (asyncio) |
-| Uniwersalność | ❌ | ❌ (hardcoded Scalac) | ✅ (JSON config) | ✅ (JSON config) | ✅ (JSON config) | ✅ + templates |
-| Demo Mode | ❌ | ❌ | ❌ | ❌ | ✅ (4 scenariusze) | ✅ (4 scenariusze) |
-| Interactive Menu | ❌ | ❌ | ❌ | ❌ | ✅ (rich + textual) | ✅ (rich + textual) |
-| Live Dashboard | ❌ | ❌ | ❌ | ❌ | ✅ (real-time) | ✅ (real-time) |
-| Artifact Discovery | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ (manifest-first) |
-| AI Review | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Document Context | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Type hints | ❌ | ❌ | ✅ (100%) | ✅ (100%) | ✅ (100%) | ✅ (100%) |
-| Testy | ❌ | ❌ | ✅ (80+) | ✅ (80+) | ✅ (162+) | ✅ (256+) |
-| CI/CD | ❌ | ❌ | ✅ (GitHub Actions) | ✅ (GitHub Actions) | ✅ (GitHub Actions) | ✅ + uv + smoke |
-| State machine | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
-| Retry logic | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ (+ fails fast) |
-| Cost tracking | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Cecha | v1 | v2 | v3.0 | v3.1 | v3.2 |
+|-------|-----|-----|------|------|------|
+| Agenci | 1 | 4 | 4 | 4 | 4 |
+| Integracja LLM | ❌ | ❌ | ✅ Multi-provider | ✅ + Kimi Code | ✅ + OpenRouter + Demo |
+| Równoległość | ❌ | ❌ (for loop) | ✅ (asyncio) | ✅ (asyncio) | ✅ (asyncio) |
+| Uniwersalność | ❌ | ❌ (hardcoded Scalac) | ✅ (JSON config) | ✅ (JSON config) | ✅ + templates + Scalac mode |
+| Demo Mode | ❌ | ❌ | ❌ | ❌ | ✅ (4 scenariusze) |
+| Interactive Menu | ❌ | ❌ | ❌ | ❌ | ✅ (rich + textual) |
+| Live Dashboard | ❌ | ❌ | ❌ | ❌ | ✅ (real-time) |
+| Artifact Discovery | ❌ | ❌ | ❌ | ❌ | ✅ (manifest-first) |
+| AI Review | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Document Context | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Type hints | ❌ | ❌ | ✅ (100%) | ✅ (100%) | ✅ (100%) |
+| Testy | ❌ | ❌ | ✅ (80+) | ✅ (80+) | ✅ (256+) |
+| CI/CD | ❌ | ❌ | ✅ (GitHub Actions) | ✅ (GitHub Actions) | ✅ + uv + smoke |
+| State machine | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Retry logic | ❌ | ❌ | ✅ | ✅ | ✅ (+ fails fast) |
+| Cost tracking | ❌ | ❌ | ✅ | ✅ | ✅ |
 
 ---
 
