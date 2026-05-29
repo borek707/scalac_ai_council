@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 from jinja2 import Environment, FileSystemLoader, Template
 
@@ -77,9 +76,7 @@ class PromptGenerator:
                 "pricing_tier": company_config.pricing_tier,
                 "value_proposition": company_config.value_proposition,
                 "differentiators": company_config.differentiators,
-                "competitors": [
-                    c.model_dump() for c in company_config.competitors
-                ],
+                "competitors": [c.model_dump() for c in company_config.competitors],
                 "target": company_config.target.model_dump(),
                 "constraints": company_config.constraints.model_dump(),
                 "case_studies": company_config.case_studies,

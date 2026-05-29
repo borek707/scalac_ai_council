@@ -1,25 +1,25 @@
 from __future__ import annotations
 
 import asyncio
-import tempfile
+from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import Any, AsyncGenerator, Optional
+from typing import Any
 
 import pytest
 
 from council.agents.base import BaseAgent
-from council.config.schema import RoundContext
 from council.config.schema import (
     CompanyConfig,
     Competitor,
     Constraints,
+    RoundContext,
     TargetSegment,
 )
 from council.llm.provider import LLMProvider, LLMResponse
 from council.orchestration.orchestrator import AsyncOrchestrator
 
-
 # ── Fixtures for configuration ──
+
 
 @pytest.fixture
 def sample_config() -> CompanyConfig:
@@ -75,13 +75,14 @@ def temp_workspace(tmp_path: Path) -> Path:
 
 # ── Fixtures for LLM ──
 
+
 class MockLLMProvider(LLMProvider):
     """Mock LLM provider for testing."""
 
     def __init__(
         self,
         response_text: str = "Mock response",
-        fail_nth_call: Optional[int] = None,
+        fail_nth_call: int | None = None,
         delay: float = 0.0,
     ) -> None:
         self.response_text = response_text
@@ -93,19 +94,21 @@ class MockLLMProvider(LLMProvider):
     async def generate(
         self,
         prompt: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4000,
-        system: Optional[str] = None,
+        system: str | None = None,
     ) -> LLMResponse:
         self._call_count += 1
-        self.calls.append({
-            "prompt": prompt,
-            "model": model,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "system": system,
-        })
+        self.calls.append(
+            {
+                "prompt": prompt,
+                "model": model,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "system": system,
+            }
+        )
 
         if self.delay:
             await asyncio.sleep(self.delay)
@@ -125,10 +128,10 @@ class MockLLMProvider(LLMProvider):
     async def stream(
         self,
         prompt: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4000,
-        system: Optional[str] = None,
+        system: str | None = None,
     ) -> AsyncGenerator[str, None]:
         yield self.response_text
 
@@ -147,6 +150,7 @@ def failing_provider() -> MockLLMProvider:
 
 # ── Fixtures for agents ──
 
+
 class DummyAgent(BaseAgent):
     """Minimal agent implementation for testing."""
 
@@ -155,7 +159,7 @@ class DummyAgent(BaseAgent):
         name: str,
         workspace: Path,
         config: CompanyConfig,
-        provider: Optional[MockLLMProvider] = None,
+        provider: MockLLMProvider | None = None,
         delay: float = 0.0,
     ) -> None:
         super().__init__(
@@ -256,9 +260,7 @@ def complete_workspace(tmp_path: Path) -> Path:
     proposal_path = output_dir / "proposal.md"
     manifest["files"] = {"proposal": str(proposal_path)}
 
-    (output_dir / "manifest.json").write_text(
-        json.dumps(manifest, indent=2), encoding="utf-8"
-    )
+    (output_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     proposal_path.write_text(
         "# TestCorp Marketing Proposal\n\nFull proposal content here.\n",
         encoding="utf-8",
@@ -282,7 +284,5 @@ def legacy_workspace(tmp_path: Path) -> Path:
     """Workspace with the old layout: FINAL_PROPOSAL.md at the root."""
     ws = tmp_path / "legacy_workspace"
     ws.mkdir(parents=True, exist_ok=True)
-    (ws / "FINAL_PROPOSAL.md").write_text(
-        "# Final Proposal\n\nLegacy format.\n", encoding="utf-8"
-    )
+    (ws / "FINAL_PROPOSAL.md").write_text("# Final Proposal\n\nLegacy format.\n", encoding="utf-8")
     return ws

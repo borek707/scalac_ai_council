@@ -4,19 +4,18 @@ Covers:
   - discover_artifacts() — manifest-first path and filesystem fallback
   - get_default_artifact() — priority logic
 """
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
-import pytest
-
 from council.artifacts import Artifact, ArtifactKind, discover_artifacts, get_default_artifact
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _write_manifest(output_dir: Path, files: dict) -> Path:
     """Write a minimal manifest.json to *output_dir* and return its path."""
@@ -39,6 +38,7 @@ def _write_manifest(output_dir: Path, files: dict) -> Path:
 # ---------------------------------------------------------------------------
 # TestDiscoverArtifacts — manifest-based discovery
 # ---------------------------------------------------------------------------
+
 
 class TestDiscoverArtifacts:
 
@@ -194,9 +194,7 @@ class TestDiscoverArtifacts:
 
         artifacts = discover_artifacts(tmp_path)
 
-        agent_artifact = next(
-            (a for a in artifacts if a.path == agent_file.resolve()), None
-        )
+        agent_artifact = next((a for a in artifacts if a.path == agent_file.resolve()), None)
         assert agent_artifact is not None
         assert agent_artifact.agent == "Marcus"
 
@@ -207,9 +205,7 @@ class TestDiscoverArtifacts:
 
         artifacts = discover_artifacts(tmp_path)
 
-        legacy_artifacts = [
-            a for a in artifacts if a.path == legacy.resolve()
-        ]
+        legacy_artifacts = [a for a in artifacts if a.path == legacy.resolve()]
         assert len(legacy_artifacts) == 1
         assert legacy_artifacts[0].kind == "proposal"
         assert legacy_artifacts[0].exists is True
@@ -271,6 +267,7 @@ class TestDiscoverArtifacts:
 # TestGetDefaultArtifact — priority logic
 # ---------------------------------------------------------------------------
 
+
 class TestGetDefaultArtifact:
 
     def _make(
@@ -293,7 +290,9 @@ class TestGetDefaultArtifact:
     def test_default_prefers_proposal(self) -> None:
         """When list contains proposal and agent_output, returns proposal."""
         artifacts = [
-            self._make("/ws/output/agents/marcus_offer.md", "agent", "marcus_offer", agent="Marcus"),
+            self._make(
+                "/ws/output/agents/marcus_offer.md", "agent", "marcus_offer", agent="Marcus"
+            ),
             self._make("/ws/output/proposal.md", "proposal", "proposal"),
         ]
         result = get_default_artifact(artifacts)
@@ -304,8 +303,12 @@ class TestGetDefaultArtifact:
     def test_default_falls_back_to_agent_output(self) -> None:
         """No proposal in list, agent artifact present → returns agent artifact."""
         artifacts = [
-            self._make("/ws/output/agents/marcus_offer.md", "agent", "marcus_offer", agent="Marcus"),
-            self._make("/ws/output/agents/elena_strategy.md", "agent", "elena_strategy", agent="Elena"),
+            self._make(
+                "/ws/output/agents/marcus_offer.md", "agent", "marcus_offer", agent="Marcus"
+            ),
+            self._make(
+                "/ws/output/agents/elena_strategy.md", "agent", "elena_strategy", agent="Elena"
+            ),
         ]
         result = get_default_artifact(artifacts)
         assert result is not None
@@ -315,7 +318,9 @@ class TestGetDefaultArtifact:
         """No standard proposal.md, but FINAL_PROPOSAL exists → returns it."""
         artifacts = [
             self._make("/ws/FINAL_PROPOSAL.md", "proposal", "FINAL_PROPOSAL"),
-            self._make("/ws/output/agents/marcus_offer.md", "agent", "marcus_offer", agent="Marcus"),
+            self._make(
+                "/ws/output/agents/marcus_offer.md", "agent", "marcus_offer", agent="Marcus"
+            ),
         ]
         result = get_default_artifact(artifacts)
         assert result is not None
@@ -362,7 +367,9 @@ class TestGetDefaultArtifact:
         # discover_artifacts sorts by title, so feeding already-sorted list
         artifacts = [
             self._make("/ws/output/agents/elena_offer.md", "agent", "elena_offer", agent="Elena"),
-            self._make("/ws/output/agents/marcus_offer.md", "agent", "marcus_offer", agent="Marcus"),
+            self._make(
+                "/ws/output/agents/marcus_offer.md", "agent", "marcus_offer", agent="Marcus"
+            ),
         ]
         result = get_default_artifact(artifacts)
         assert result is not None
@@ -372,6 +379,7 @@ class TestGetDefaultArtifact:
 # ---------------------------------------------------------------------------
 # Integration tests using conftest fixtures
 # ---------------------------------------------------------------------------
+
 
 class TestWithConftestFixtures:
     """Smoke tests re-using fixtures already defined in conftest.py."""

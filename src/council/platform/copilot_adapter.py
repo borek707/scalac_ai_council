@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from council.platform.base import PlatformAdapter
 
@@ -38,12 +38,11 @@ class GitHubCopilotAdapter(PlatformAdapter):
         - https://github.com/features/codespaces
     """
 
-    def __init__(self, workspace_root: Optional[str] = None) -> None:
+    def __init__(self, workspace_root: str | None = None) -> None:
         self.workspace_root = Path(workspace_root) if workspace_root else Path.cwd()
         self._codespaces = os.environ.get("CODESPACES") == "true"
         self._copilot = any(
-            os.environ.get(v)
-            for v in ["GITHUB_COPILOT", "COPILOT_AGENT", "COPILOT_TOKEN"]
+            os.environ.get(v) for v in ["GITHUB_COPILOT", "COPILOT_AGENT", "COPILOT_TOKEN"]
         )
 
     def get_name(self) -> str:
@@ -73,9 +72,7 @@ class GitHubCopilotAdapter(PlatformAdapter):
                 "Running via GitHub Codespaces (workspace: %s)",
                 self.workspace_root,
             )
-            logger.info(
-                "Output will be saved to Codespaces persistent storage"
-            )
+            logger.info("Output will be saved to Codespaces persistent storage")
         else:
             logger.info(
                 "Running via GitHub Copilot adapter (workspace: %s)",

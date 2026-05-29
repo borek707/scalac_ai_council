@@ -6,13 +6,11 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Optional
 
 from rich.console import Console
 from rich.panel import Panel
 from rich.rule import Rule
 from rich.table import Table
-from rich.text import Text
 
 from council.config.loader import ConfigLoader
 from council.llm.provider import LLMProvider
@@ -57,7 +55,7 @@ def auto_detect_platform() -> str:
     return "cli"
 
 
-def parse_args(args: Optional[list[str]] = None) -> argparse.Namespace:
+def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     """Parse command line arguments."""
     auto_platform = auto_detect_platform()
     auto_msg = f"auto-detected: {auto_platform}" if auto_platform != "cli" else "default"
@@ -66,9 +64,7 @@ def parse_args(args: Optional[list[str]] = None) -> argparse.Namespace:
     template_dir = _resolve_template_dir()
     available_templates = []
     if template_dir.exists():
-        available_templates = sorted(
-            p.stem for p in template_dir.glob("*.json") if p.is_file()
-        )
+        available_templates = sorted(p.stem for p in template_dir.glob("*.json") if p.is_file())
 
     parser = argparse.ArgumentParser(
         description="Universal AI Marketing Council v3.2 — 4 AI agents debate and create a marketing plan for your company.",
@@ -105,7 +101,8 @@ Need more help? Read README.md or run: python -m council --interactive
         """,
     )
     parser.add_argument(
-        "--config", "-c",
+        "--config",
+        "-c",
         default=None,
         help="Path to company JSON config file (not needed in --demo mode)",
     )
@@ -144,7 +141,8 @@ Need more help? Read README.md or run: python -m council --interactive
         help="Round timeout in seconds (default: 300)",
     )
     parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         default="./output",
         help="Output directory (default: ./output)",
     )
@@ -165,19 +163,20 @@ Need more help? Read README.md or run: python -m council --interactive
         metavar="DIR",
         default=None,
         help="Review a previous run: pass a DIR to review that directory standalone, "
-             "or pass without a value to auto-review after a successful council run",
+        "or pass without a value to auto-review after a successful council run",
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Enable verbose logging",
     )
     parser.add_argument(
-        "--documents", "-d",
+        "--documents",
+        "-d",
         nargs="+",
         default=None,
-        help="Markdown/text files to inject as agent context "
-             "(e.g. -d brief.md research.md)",
+        help="Markdown/text files to inject as agent context " "(e.g. -d brief.md research.md)",
     )
     parser.add_argument(
         "--documents-dir",
@@ -191,7 +190,7 @@ Need more help? Read README.md or run: python -m council --interactive
         default=None,
         metavar="NAME",
         help="Use a built-in company template (e.g. saas, fintech, ecommerce). "
-             "Ignores --config. Run without value to see available templates.",
+        "Ignores --config. Run without value to see available templates.",
     )
     parser.add_argument(
         "--force",
@@ -220,7 +219,8 @@ Need more help? Read README.md or run: python -m council --interactive
         help="Demo scenario to run (default: saas-launch)",
     )
     parser.add_argument(
-        "--interactive", "-i",
+        "--interactive",
+        "-i",
         action="store_true",
         help="Launch interactive menu (no flags needed)",
     )
@@ -276,18 +276,23 @@ def _create_platform_adapter(platform: str) -> PlatformAdapter:
 
     if platform == "kimi":
         from council.platform.kimi_adapter import KimiAdapter
+
         return KimiAdapter()
     elif platform == "idx":
         from council.platform.idx_adapter import GoogleIDXAdapter
+
         return GoogleIDXAdapter()
     elif platform == "cursor":
         from council.platform.cursor_adapter import CursorAdapter
+
         return CursorAdapter()
     elif platform == "copilot":
         from council.platform.copilot_adapter import GitHubCopilotAdapter
+
         return GitHubCopilotAdapter()
     elif platform == "web":
         from council.platform.web_adapter import WebPlatformAdapter
+
         return WebPlatformAdapter()
     else:
         return CLIAdapter()
@@ -301,7 +306,9 @@ async def _run_demo(args: argparse.Namespace, dashboard=None) -> None:
     workspace.mkdir(parents=True, exist_ok=True)
 
     scenario = get_scenario(args.scenario)
-    logger.info("Demo mode: scenario='%s' (%s), rounds=%d", scenario.key, scenario.name, args.rounds)
+    logger.info(
+        "Demo mode: scenario='%s' (%s), rounds=%d", scenario.key, scenario.name, args.rounds
+    )
 
     progress_callback = dashboard.make_callback() if dashboard else None
     await run_demo(
@@ -312,7 +319,7 @@ async def _run_demo(args: argparse.Namespace, dashboard=None) -> None:
     )
 
     logger.info("Demo run complete. Output: %s", workspace)
-    _print_success_summary(workspace, args.rounds, False)
+    _print_success_summary(workspace, args.rounds, {})
 
 
 async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
@@ -330,7 +337,9 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
     # Resolve --template to a config path
     if getattr(args, "template", None) is not None:
         template_dir = _resolve_template_dir()
-        available = sorted(p.stem for p in template_dir.glob("*.json")) if template_dir.exists() else []
+        available = (
+            sorted(p.stem for p in template_dir.glob("*.json")) if template_dir.exists() else []
+        )
 
         # --template with no value: print list and exit
         if args.template == "":
@@ -406,7 +415,9 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
             except EOFError:
                 answer = ""
             if answer not in ("y", "yes"):
-                console.print("[dim]Aborted. Use --force to skip this prompt in non-interactive use.[/dim]")
+                console.print(
+                    "[dim]Aborted. Use --force to skip this prompt in non-interactive use.[/dim]"
+                )
                 sys.exit(0)
         else:
             logger.warning(
@@ -468,6 +479,7 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
 
     # Load documents (markdown context for agents)
     from council.config.documents import DocumentLoader
+
     doc_loader = DocumentLoader()
     documents: list = []
 
@@ -477,22 +489,48 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         # Auto-generate Scalac config if no --config provided
         if args.config == "scalac.json" or not Path(args.config).exists():
             from council.config.schema import (
-                CompanyConfig, Competitor, Constraints, TargetSegment,
+                CompanyConfig,
+                Competitor,
+                Constraints,
+                TargetSegment,
             )
+
             company_config = CompanyConfig(
                 name="Scalac",
                 product="Software development (Scala, Blockchain, ML, Data)",
                 pricing_tier="Team Extension EUR 6-8K/engineer/month",
                 value_proposition="Europe's largest Scala team (150+ engineers) with blockchain & ML expertise",
                 competitors=[
-                    Competitor(name="VirtusLab", threat="HIGH", pricing="PLN 800-1200/day", weakness="Smaller blockchain practice", clients=["Comcast", "Hazelcast"]),
-                    Competitor(name="SoftwareMill", threat="MEDIUM", pricing="PLN 700-1000/day", weakness="No ML/blockchain focus", clients=["Virgin"]),
-                    Competitor(name="EPAM", threat="HIGH", pricing="$50-80/h", weakness="Generalist, not Scala-focused", clients=["Google", "Microsoft"]),
+                    Competitor(
+                        name="VirtusLab",
+                        threat="HIGH",
+                        pricing="PLN 800-1200/day",
+                        weakness="Smaller blockchain practice",
+                        clients=["Comcast", "Hazelcast"],
+                    ),
+                    Competitor(
+                        name="SoftwareMill",
+                        threat="MEDIUM",
+                        pricing="PLN 700-1000/day",
+                        weakness="No ML/blockchain focus",
+                        clients=["Virgin"],
+                    ),
+                    Competitor(
+                        name="EPAM",
+                        threat="HIGH",
+                        pricing="$50-80/h",
+                        weakness="Generalist, not Scala-focused",
+                        clients=["Google", "Microsoft"],
+                    ),
                 ],
                 target=TargetSegment(
                     segment="Series A-C startups & enterprises adopting Scala/blockchain",
                     decision_maker="CTO / VP Engineering",
-                    pain_points=["Can't hire Scala talent", "Blockchain projects stall", "Need to scale engineering fast"],
+                    pain_points=[
+                        "Can't hire Scala talent",
+                        "Blockchain projects stall",
+                        "Need to scale engineering fast",
+                    ],
                     budget_range="EUR 50-500K/year",
                     geo_focus=["EU", "UK", "US East Coast"],
                 ),
@@ -510,16 +548,17 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
                 case_studies=[
                     {"client": "SwissBorg", "result": "30+ engineers, 3 years, $4.5B AUM"},
                     {"client": "Colossus", "result": "NFT marketplace, 20 engineers, 18 months"},
-                    {"client": "Billie", "result": "BNPL fintech migration, 10 engineers, 12 months"},
+                    {
+                        "client": "Billie",
+                        "result": "BNPL fintech migration, 10 engineers, 12 months",
+                    },
                 ],
             )
             logger.info("Generated Scalac company config from built-in bundle")
             args.config = str(workspace / "scalac_config.json")
             # Save config for agents to reference
             config_save_path = Path(args.config)
-            config_save_path.write_text(
-                company_config.model_dump_json(indent=2), encoding="utf-8"
-            )
+            config_save_path.write_text(company_config.model_dump_json(indent=2), encoding="utf-8")
 
     if args.documents:
         loaded = doc_loader.load_files([Path(f) for f in args.documents])
@@ -564,17 +603,25 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
 
     # Create agents with optional document context
     from council.agents.base import BaseAgent
-    from council.agents.marcus import MarcusAgent
+    from council.agents.david import DavidAgent
     from council.agents.elena import ElenaAgent
     from council.agents.kai import KaiAgent
-    from council.agents.david import DavidAgent
+    from council.agents.marcus import MarcusAgent
     from council.orchestration.orchestrator import AsyncOrchestrator
 
     agents: list[BaseAgent] = [
-        MarcusAgent(workspace=workspace, config=company_config, provider=provider, documents=documents),
-        ElenaAgent(workspace=workspace, config=company_config, provider=provider, documents=documents),
-        KaiAgent(workspace=workspace, config=company_config, provider=provider, documents=documents),
-        DavidAgent(workspace=workspace, config=company_config, provider=provider, documents=documents),
+        MarcusAgent(
+            workspace=workspace, config=company_config, provider=provider, documents=documents
+        ),
+        ElenaAgent(
+            workspace=workspace, config=company_config, provider=provider, documents=documents
+        ),
+        KaiAgent(
+            workspace=workspace, config=company_config, provider=provider, documents=documents
+        ),
+        DavidAgent(
+            workspace=workspace, config=company_config, provider=provider, documents=documents
+        ),
     ]
 
     async def _execute_council(progress_callback=None):
@@ -609,14 +656,20 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
             pct = f" {progress:.0f}%" if progress is not None else ""
             console.print(f"  [bold {color}]{agent_name}[/bold {color}] drafting[pct]{pct}[/pct]")
         elif state == "done":
-            console.print(f"  [bold green]✓[/bold green] [bold {color}]{agent_name}[/bold {color}] [green]done[/green]")
+            console.print(
+                f"  [bold green]✓[/bold green] [bold {color}]{agent_name}[/bold {color}] [green]done[/green]"
+            )
         elif state == "error":
             err = kwargs.get("message", kwargs.get("error", "unknown error"))
-            console.print(f"  [bold red]✗[/bold red] [bold {color}]{agent_name}[/bold {color}] [red]error: {err}[/red]")
+            console.print(
+                f"  [bold red]✗[/bold red] [bold {color}]{agent_name}[/bold {color}] [red]error: {err}[/red]"
+            )
         elif state == "round_start":
             round_num = kwargs.get("round_num", "?")
             console.print()
-            console.print(Rule(title=f"[bold blue]Round {round_num}/{args.rounds}[/bold blue]", style="blue"))
+            console.print(
+                Rule(title=f"[bold blue]Round {round_num}/{args.rounds}[/bold blue]", style="blue")
+            )
 
     await _execute_council(_console_progress)
 
@@ -627,9 +680,9 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
 
 def _create_provider(
     provider_name: str,
-    model: Optional[str],
+    model: str | None,
     free_tier: bool = False,
-    api_key: Optional[str] = None,
+    api_key: str | None = None,
 ) -> LLMProvider:
     """Create an LLM provider based on the name.
 
@@ -717,6 +770,7 @@ def _create_provider(
             ) from exc
     elif provider_name == "kimi-code":
         from council.llm.kimi_code_provider import KimiCodeProvider
+
         try:
             # Kimi Code uses subprocess/session — no API key is used.
             return KimiCodeProvider(model=model or "kimi-for-coding")
@@ -728,6 +782,7 @@ def _create_provider(
             ) from exc
     elif provider_name == "claude-code":
         from council.llm.claude_code_provider import ClaudeCodeProvider
+
         try:
             # Claude Code uses the local 'claude' CLI — no API key is used.
             return ClaudeCodeProvider(model=model or "claude-sonnet-4-6")
@@ -753,11 +808,8 @@ def _print_success_summary(workspace: Path, rounds: int, artifacts: dict) -> Non
     if agents_dir.exists():
         agent_files = list(agents_dir.glob("*.md"))
     else:
-        agent_files = [
-            p for p in output_dir.glob("*.md")
-            if p.name != "proposal.md"
-        ]
-    proposal_path: Optional[Path] = artifacts.get("proposal")
+        agent_files = [p for p in output_dir.glob("*.md") if p.name != "proposal.md"]
+    proposal_path: Path | None = artifacts.get("proposal")
 
     table = Table(title="Council Run Complete", show_header=False, border_style="green")
     table.add_column("Key", style="bold cyan", width=20)
@@ -776,11 +828,18 @@ def _print_success_summary(workspace: Path, rounds: int, artifacts: dict) -> Non
     if proposal_path and proposal_path.exists():
         preview_lines = proposal_path.read_text(encoding="utf-8").splitlines()[:20]
         console.print()
-        console.print(Panel(
-            "\n".join(preview_lines) + ("\n…" if len(proposal_path.read_text(encoding="utf-8").splitlines()) > 20 else ""),
-            title="[bold green]Proposal preview[/bold green]",
-            border_style="green",
-        ))
+        console.print(
+            Panel(
+                "\n".join(preview_lines)
+                + (
+                    "\n…"
+                    if len(proposal_path.read_text(encoding="utf-8").splitlines()) > 20
+                    else ""
+                ),
+                title="[bold green]Proposal preview[/bold green]",
+                border_style="green",
+            )
+        )
 
     tips = Table(show_header=False, border_style="dim")
     tips.add_column(style="bold yellow")
@@ -800,12 +859,14 @@ def _review_run(workspace: Path) -> None:
 
     manifest_path = workspace / "output" / "manifest.json"
     if not manifest_path.exists():
-        console.print(Panel(
-            f"[red]No manifest found in {workspace / 'output'}[/red]\n"
-            "Run the council first to generate artifacts.",
-            title="Review",
-            border_style="red",
-        ))
+        console.print(
+            Panel(
+                f"[red]No manifest found in {workspace / 'output'}[/red]\n"
+                "Run the council first to generate artifacts.",
+                title="Review",
+                border_style="red",
+            )
+        )
         return
 
     manifest = _json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -817,7 +878,10 @@ def _review_run(workspace: Path) -> None:
     table.add_row("Company", manifest.get("company", "unknown"))
     table.add_row("Product", manifest.get("product", "unknown"))
     table.add_row("Provider", f"{manifest.get('provider', '?')} / {manifest.get('model', '?')}")
-    table.add_row("Rounds completed", f"{manifest.get('rounds_completed', '?')} / {manifest.get('max_rounds', '?')}")
+    table.add_row(
+        "Rounds completed",
+        f"{manifest.get('rounds_completed', '?')} / {manifest.get('max_rounds', '?')}",
+    )
     table.add_row("Agents", ", ".join(manifest.get("agents", [])))
 
     files = manifest.get("files", {})
@@ -831,23 +895,29 @@ def _review_run(workspace: Path) -> None:
     if proposal_path.exists():
         preview_lines = proposal_path.read_text(encoding="utf-8").splitlines()[:20]
         console.print()
-        console.print(Panel(
-            "\n".join(preview_lines) + "\n…",
-            title="[bold blue]Proposal preview[/bold blue]",
-            border_style="blue",
-        ))
+        console.print(
+            Panel(
+                "\n".join(preview_lines) + "\n…",
+                title="[bold blue]Proposal preview[/bold blue]",
+                border_style="blue",
+            )
+        )
 
 
 def _show_status(workspace: Path) -> None:
     """Display current discussion status."""
     discussion_dir = workspace / "shared" / "discussion"
     if not discussion_dir.exists():
-        console.print(Panel("[dim]No discussion found.[/dim]", title="Status", border_style="yellow"))
+        console.print(
+            Panel("[dim]No discussion found.[/dim]", title="Status", border_style="yellow")
+        )
         return
 
     files = sorted(discussion_dir.glob("*_round_*.md"))
     if not files:
-        console.print(Panel("[dim]No round files found.[/dim]", title="Status", border_style="yellow"))
+        console.print(
+            Panel("[dim]No round files found.[/dim]", title="Status", border_style="yellow")
+        )
         return
 
     table = Table(title=f"Discussion in {discussion_dir}", border_style="blue")
@@ -902,7 +972,7 @@ def main() -> None:
     if dashboard:
         import threading
 
-        council_exception: Optional[Exception] = None
+        council_exception: Exception | None = None
 
         def _council_thread() -> None:
             nonlocal council_exception
@@ -921,9 +991,7 @@ def main() -> None:
         # Issue #19: exit with an error if the council thread is still running
         # after the dashboard has closed.
         if thread.is_alive():
-            logger.error(
-                "Council thread did not finish within 60 seconds after dashboard closed."
-            )
+            logger.error("Council thread did not finish within 60 seconds after dashboard closed.")
             sys.exit(1)
         if council_exception:
             _handle_error(council_exception)
@@ -933,7 +1001,9 @@ def main() -> None:
     try:
         asyncio.run(_run_council(args))
     except KeyboardInterrupt:
-        console.print("\n\n[yellow]Interrupted by user. Partial results may be in the workspace.[/yellow]")
+        console.print(
+            "\n\n[yellow]Interrupted by user. Partial results may be in the workspace.[/yellow]"
+        )
         sys.exit(130)
     except FileNotFoundError as exc:
         console.print()
@@ -954,7 +1024,9 @@ def main() -> None:
         sys.exit(1)
     except Exception as exc:
         console.print()
-        console.print(Panel(f"[bold red]Council execution failed[/bold red]\n{exc}", border_style="red"))
+        console.print(
+            Panel(f"[bold red]Council execution failed[/bold red]\n{exc}", border_style="red")
+        )
         console.print()
         console.print("[dim]If this looks like a bug, run with --verbose and file an issue.[/dim]")
         sys.exit(1)
@@ -974,7 +1046,9 @@ def _handle_error(exc: Exception) -> None:
         console.print("  • Interactive menu:         [cyan]python -m council[/cyan]")
         console.print("  • Full help:                [cyan]python -m council --help[/cyan]")
     else:
-        console.print(Panel(f"[bold red]Council execution failed[/bold red]\n{exc}", border_style="red"))
+        console.print(
+            Panel(f"[bold red]Council execution failed[/bold red]\n{exc}", border_style="red")
+        )
         console.print("[dim]If this looks like a bug, run with --verbose and file an issue.[/dim]")
 
 

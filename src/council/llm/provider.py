@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import AsyncGenerator, Optional
 
 
 @dataclass
@@ -24,22 +24,22 @@ class LLMProvider(ABC):
     async def generate(
         self,
         prompt: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4000,
-        system: Optional[str] = None,
+        system: str | None = None,
     ) -> LLMResponse:
         """Generate a complete response from the LLM."""
         ...
 
     @abstractmethod
-    async def stream(
+    def stream(
         self,
         prompt: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4000,
-        system: Optional[str] = None,
-    ) -> AsyncGenerator[str, None]:
+        system: str | None = None,
+    ) -> AsyncIterator[str]:
         """Stream response chunks from the LLM."""
         ...

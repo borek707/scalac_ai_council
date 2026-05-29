@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
-import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from council.platform.base import PlatformAdapter
 
@@ -46,7 +44,7 @@ class KimiAdapter(PlatformAdapter):
         - Kimi Code API docs (internal)
     """
 
-    def __init__(self, session: Optional[Any] = None) -> None:
+    def __init__(self, session: Any | None = None) -> None:
         self.session = session
         self._kimi_detected = self._detect_kimi()
 
@@ -85,14 +83,10 @@ class KimiAdapter(PlatformAdapter):
 
         # Try sessions_spawn for true parallelism
         if self._has_sessions_spawn():
-            logger.info(
-                "Running via Kimi Code sessions_spawn (parallel sessions)"
-            )
+            logger.info("Running via Kimi Code sessions_spawn (parallel sessions)")
             await self._spawn_via_sessions(orchestrator)
         else:
-            logger.info(
-                "Running via Kimi Code (asyncio fallback in single session)"
-            )
+            logger.info("Running via Kimi Code (asyncio fallback in single session)")
             await orchestrator.run()
 
     def _has_sessions_spawn(self) -> bool:
@@ -101,7 +95,8 @@ class KimiAdapter(PlatformAdapter):
             return hasattr(self.session, "sessions_spawn")
         # Try importing Kimi Code internal module
         try:
-            import kimi  # type: ignore[import-untyped]
+            import kimi  # noqa: F401
+
             return hasattr(kimi, "sessions_spawn")
         except ImportError:
             return False
@@ -119,6 +114,11 @@ class KimiAdapter(PlatformAdapter):
                 value = os.environ.get(key)
                 if value:
                     env[key] = value
+        elif provider_name == "openrouter":
+            for key in ["OPENROUTER_API_KEY", "OPENROUTER_BASE_URL"]:
+                value = os.environ.get(key)
+                if value:
+                    env[key] = value
         elif provider_name == "ollama":
             for key in ["OLLAMA_API_KEY", "OLLAMA_SERVER_URL"]:
                 value = os.environ.get(key)
@@ -133,7 +133,6 @@ class KimiAdapter(PlatformAdapter):
 
     async def _spawn_via_sessions(self, orchestrator: AsyncOrchestrator) -> None:
         """Spawn each agent in its own Kimi session."""
-        from council.agents.base import BaseAgent
 
         agents: list[BaseAgent] = orchestrator.agents
         workspace = orchestrator.workspace
@@ -157,11 +156,13 @@ class KimiAdapter(PlatformAdapter):
                 "COUNCIL_PROVIDER_MODEL": orchestrator.provider_model or "",
             }
             env.update(provider_env)
-            spawn_commands.append({
-                "name": f"council-{agent.name.lower()}",
-                "command": cmd,
-                "env": env,
-            })
+            spawn_commands.append(
+                {
+                    "name": f"council-{agent.name.lower()}",
+                    "command": cmd,
+                    "env": env,
+                }
+            )
 
         logger.info(
             "Spawning %d parallel agent sessions via Kimi",
@@ -172,7 +173,8 @@ class KimiAdapter(PlatformAdapter):
             if self.session is not None:
                 self.session.sessions_spawn(spawn_commands)
             else:
-                import kimi  # type: ignore[import-untyped]
+                import kimi  # noqa: F401
+
                 kimi.sessions_spawn(spawn_commands)
 
             # Wait for all agents to complete via barrier
@@ -222,15 +224,14 @@ class KimiAdapter(PlatformAdapter):
 
         Reads configuration from the workspace to rebuild the agent.
         """
-        import json
 
         config_path = workspace / "config.json"
         if not config_path.exists():
             logger.error("Config not found in workspace: %s", config_path)
             return None
 
-        from council.config.loader import ConfigLoader
         from council.cli import _create_provider
+        from council.config.loader import ConfigLoader
 
         provider_name = os.environ.get("COUNCIL_PROVIDER", "openai")
         provider_model = os.environ.get("COUNCIL_PROVIDER_MODEL") or None

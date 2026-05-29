@@ -4,7 +4,10 @@ import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from council.config.schema import CompanyConfig
 
 logger = logging.getLogger(__name__)
 
@@ -54,39 +57,37 @@ class DocumentLoader:
         self,
         directory: Path | str,
         doc_type: str = "generic",
-    ) -> List[Document]:
+    ) -> list[Document]:
         """Load every supported file inside *directory* (recursive)."""
         dir_path = Path(directory)
         if not dir_path.is_dir():
             logger.warning("Document directory not found: %s", dir_path)
             return []
 
-        documents: List[Document] = []
+        documents: list[Document] = []
         for ext in self.SUPPORTED_EXTENSIONS:
             for file_path in dir_path.rglob(f"*{ext}"):
                 doc = self._load_file(file_path, doc_type)
                 if doc:
                     documents.append(doc)
 
-        logger.info(
-            "Loaded %d documents from %s", len(documents), dir_path
-        )
+        logger.info("Loaded %d documents from %s", len(documents), dir_path)
         return documents
 
     def load_files(
         self,
-        files: List[Path | str],
+        files: list[Path | str],
         doc_type: str = "generic",
-    ) -> List[Document]:
+    ) -> list[Document]:
         """Load an explicit list of file paths."""
-        documents: List[Document] = []
+        documents: list[Document] = []
         for f in files:
             doc = self._load_file(Path(f), doc_type)
             if doc:
                 documents.append(doc)
         return documents
 
-    def load_scalac_bundle(self) -> List[Document]:
+    def load_scalac_bundle(self) -> list[Document]:
         """Return the built-in Scalac knowledge bundle.
 
         Loads all markdown/text files from
@@ -97,8 +98,7 @@ class DocumentLoader:
         To use, pass ``--scalac-mode`` or ``--template scalac``.
         """
         bundle_dir = (
-            Path(__file__).parent.parent.parent.parent
-            / "templates" / "companies" / "scalac_data"
+            Path(__file__).parent.parent.parent.parent / "templates" / "companies" / "scalac_data"
         )
         if bundle_dir.is_dir():
             return self.load_directory(bundle_dir, doc_type="scalac")
@@ -113,7 +113,7 @@ class DocumentLoader:
         self,
         file_path: Path,
         doc_type: str,
-    ) -> Optional[Document]:
+    ) -> Document | None:
         """Load a single file, skipping oversized or unreadable ones."""
         if file_path.suffix.lower() not in self.SUPPORTED_EXTENSIONS:
             return None
@@ -123,7 +123,9 @@ class DocumentLoader:
             if size > self.max_size_bytes:
                 logger.warning(
                     "Skipping oversized file %s (%d bytes > %d limit)",
-                    file_path, size, self.max_size_bytes,
+                    file_path,
+                    size,
+                    self.max_size_bytes,
                 )
                 return None
 
@@ -139,7 +141,7 @@ class DocumentLoader:
             return None
 
     @staticmethod
-    def _inline_scalac_bundle() -> List[Document]:
+    def _inline_scalac_bundle() -> list[Document]:
         """Minimal inline Scalac context when data directory is absent.
 
         This is **not** hardcoding in agent source — it is data loaded
@@ -226,7 +228,7 @@ def _smart_truncate(content: str, limit: int) -> str:
     fence_pattern = re.compile(r"^[ \t]*(?:```|~~~)", re.MULTILINE)
     # Collect all fence positions within the content up to `limit`
     # We need to know whether the truncation point is *inside* an open fence.
-    fence_starts: List[int] = [m.start() for m in fence_pattern.finditer(content)]
+    fence_starts: list[int] = [m.start() for m in fence_pattern.finditer(content)]
 
     # Count how many fences open before `limit`; if the count is odd
     # the truncation point is inside a fence block.
@@ -259,12 +261,12 @@ class AgentContext:
     studies, research) into a single coherent context string.
     """
 
-    company: "CompanyConfig"
-    documents: List[Document] = field(default_factory=list)
+    company: CompanyConfig
+    documents: list[Document] = field(default_factory=list)
 
     def to_prompt_fragment(
         self,
-        doc_types: Optional[List[str]] = None,
+        doc_types: list[str] | None = None,
         max_total_chars: int = 30_000,
     ) -> str:
         """Build a markdown prompt fragment from all (or filtered) documents.
@@ -299,7 +301,7 @@ class AgentContext:
         else:
             scale = 1.0
 
-        lines: List[str] = ["\n## Additional Context Documents\n"]
+        lines: list[str] = ["\n## Additional Context Documents\n"]
         for doc in docs:
             content = doc.content
             if scale < 1.0:

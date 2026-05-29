@@ -168,7 +168,7 @@ python -m council --demo --scenario healthcare-app --rounds 1
 
 ## Interaktywne Menu
 
-Uruchomienie bez flag otwiera interaktywne menu w terminalu (wymaga `rich`):
+Uruchomienie bez flag otwiera interaktywne menu w terminalu (wymaga `rich` i `textual`):
 
 ```bash
 python -m council
@@ -532,9 +532,9 @@ Pipeline uruchamia się na każdym PR:
 **Nowości:**
 - **Tryb Demo** — 4 pre-built scenariusze (SaaS, e-commerce, fintech, healthcare) z deterministycznymi odpowiedziami. Zero kluczy API, zero configu.
 - **Interaktywne menu TUI** — uruchom `python -m council` i wybieraj scenariusz / provider / opcje z rich-text menu
-- **Live Dashboard** — real-time terminal dashboard z 4 panelami agentów, logami, timeline, statystykami, ASCII bar chart i exportem JSON/HTML
+- **Live Dashboard** — real-time Textual TUI z 4 panelami agentów, logami, timeline, statystykami, ASCII bar chart i exportem JSON/HTML
 - **DemoProvider** — mock LLM provider z scripted responses per agent / round
-- **9 nowych funkcji dashboardu**: emoji avatars, colored logs, markdown preview, animated states, mini-timeline, per-agent stats, bar chart, alert flash + bell, JSON/HTML export
+- **9 nowych funkcji dashboardu**: emoji avatars, colored logs, markdown preview, animated states, mini-timeline, per-agent stats, bar chart, JSON/HTML export
 
 **Naprawy:**
 - Naprawiono wszystkie broken testy (21 fail + 8 error → 162/162 ✅)
@@ -613,7 +613,7 @@ Pipeline uruchamia się na każdym PR:
 | Równoległość | ❌ | ❌ (for loop) | ✅ (asyncio) | ✅ (asyncio) | ✅ (asyncio) |
 | Uniwersalność | ❌ | ❌ (hardcoded Scalac) | ✅ (JSON config) | ✅ (JSON config) | ✅ (JSON config) |
 | Demo Mode | ❌ | ❌ | ❌ | ❌ | ✅ (4 scenariusze) |
-| Interactive Menu | ❌ | ❌ | ❌ | ❌ | ✅ (rich TUI) |
+| Interactive Menu | ❌ | ❌ | ❌ | ❌ | ✅ (rich + textual) |
 | Live Dashboard | ❌ | ❌ | ❌ | ❌ | ✅ (real-time) |
 | Type hints | ❌ | ❌ | ✅ (100%) | ✅ (100%) | ✅ (100%) |
 | Testy | ❌ | ❌ | ✅ (80+) | ✅ (80+) | ✅ (162+) |
@@ -670,7 +670,7 @@ scalac_ai_council/
 │   ├── prompts/                   # PromptGenerator
 │   │   └── generator.py
 │   ├── vis/                       # Visualization
-│   │   └── dashboard.py           # Live terminal dashboard (rich)
+│   │   └── dashboard.py           # Live terminal dashboard (textual)
 │   └── platform/                  # Layer 4: Platform
 │       ├── base.py                # PlatformAdapter(ABC)
 │       ├── cli_adapter.py         # Default: local asyncio
@@ -713,7 +713,8 @@ Opcjonalne (wybierz jedno lub więcej):
 - `anthropic>=0.20` — dla Claude
 - `ollama` lokalnie — dla darmowych modeli
 - `kimi` CLI — dla Kimi Code providera (auto-detect w IDE)
-- `rich>=13` — dla dashboardu i interaktywnego menu (zalecane)
+- `rich>=13` — dla interaktywnego menu (zalecane)
+- `textual>=0.52` — dla live dashboardu (wymagane przy `--dashboard`)
 
 ---
 

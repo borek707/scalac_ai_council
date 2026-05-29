@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import time
-from typing import AsyncGenerator, Optional
+from collections.abc import AsyncIterator
 
 try:
     import aiohttp
@@ -35,8 +34,7 @@ class OllamaProvider(LLMProvider):
     ) -> None:
         if aiohttp is None:
             raise ImportError(
-                "aiohttp is required for OllamaProvider. "
-                "Install with: pip install aiohttp"
+                "aiohttp is required for OllamaProvider. " "Install with: pip install aiohttp"
             )
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -49,10 +47,10 @@ class OllamaProvider(LLMProvider):
     async def generate(
         self,
         prompt: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4000,
-        system: Optional[str] = None,
+        system: str | None = None,
     ) -> LLMResponse:
         """Generate a response using Ollama API."""
         model_name = model or self.model
@@ -106,11 +104,11 @@ class OllamaProvider(LLMProvider):
     async def stream(
         self,
         prompt: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4000,
-        system: Optional[str] = None,
-    ) -> AsyncGenerator[str, None]:
+        system: str | None = None,
+    ) -> AsyncIterator[str]:
         """Stream response chunks from Ollama API."""
         model_name = model or self.model
         url = f"{self.base_url}/api/generate"

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 
 import pytest
@@ -11,7 +10,6 @@ from council.demo import (
     list_scenarios,
     run_demo,
 )
-from council.llm.provider import LLMResponse
 
 
 class TestScenarios:
@@ -138,7 +136,9 @@ class TestRunDemo:
         def callback(name: str, event: str, **kwargs: object) -> None:
             events.append((name, event))
 
-        await run_demo("healthcare-app", rounds=1, workspace=ws, progress_callback=callback, delay=0, breath=0)
+        await run_demo(
+            "healthcare-app", rounds=1, workspace=ws, progress_callback=callback, delay=0, breath=0
+        )
 
         # Should see at least generating/done events for each agent
         names = {n for n, _ in events}

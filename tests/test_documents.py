@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import pytest
-
 from council.config.documents import _smart_truncate
 
 
@@ -34,9 +32,7 @@ class TestSmartTruncate:
         words_in_body = body.split()
         original_words = text.split()
         for word in words_in_body:
-            assert word in original_words, (
-                f"Truncated body contains unexpected fragment: {word!r}"
-            )
+            assert word in original_words, f"Truncated body contains unexpected fragment: {word!r}"
         # The last token of the body must be a complete word (not a partial fragment).
         # A fragment would be a string that is a strict prefix of a word in the original.
         last_token = words_in_body[-1] if words_in_body else ""
@@ -61,7 +57,7 @@ class TestSmartTruncate:
 
         result = _smart_truncate(text, limit)
         # The result must not contain any part of the code fence
-        assert "```" not in result, (
-            "Result must not contain backticks — truncation should occur before the fence"
-        )
+        assert (
+            "```" not in result
+        ), "Result must not contain backticks — truncation should occur before the fence"
         assert "[... content truncated ...]" in result

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from council.agents.base import BaseAgent
 
@@ -22,7 +22,7 @@ class ElenaAgent(BaseAgent):
         workspace: Path,
         config: CompanyConfig,
         provider: LLMProvider,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super().__init__(
             name="Elena",

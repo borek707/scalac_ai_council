@@ -8,9 +8,10 @@ CI smoke tests, and onboarding.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, AsyncGenerator, Callable, Optional
+from typing import Any
 
 from council.agents.david import DavidAgent
 from council.agents.elena import ElenaAgent
@@ -18,7 +19,6 @@ from council.agents.kai import KaiAgent
 from council.agents.marcus import MarcusAgent
 from council.config.schema import CompanyConfig, Competitor, Constraints, TargetSegment
 from council.llm.provider import LLMProvider, LLMResponse
-
 
 
 @dataclass
@@ -43,7 +43,7 @@ class DemoProvider(LLMProvider):
     def __init__(
         self,
         responses: dict[str, list[str]],
-        progress_callback: Optional[Callable[..., None]] = None,
+        progress_callback: Callable[..., None] | None = None,
         delay: float = 0.18,
         chunk_size: int = 28,
     ) -> None:
@@ -57,10 +57,10 @@ class DemoProvider(LLMProvider):
     async def generate(
         self,
         prompt: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4000,
-        system: Optional[str] = None,
+        system: str | None = None,
     ) -> LLMResponse:
         self.calls.append({"prompt": prompt, "system": system})
         agent = self._detect_agent(system or prompt)
@@ -101,11 +101,11 @@ class DemoProvider(LLMProvider):
     async def stream(
         self,
         prompt: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4000,
-        system: Optional[str] = None,
-    ) -> AsyncGenerator[str, None]:
+        system: str | None = None,
+    ) -> AsyncIterator[str]:
         response = await self.generate(prompt, model, temperature, max_tokens, system)
         yield response.content
 
@@ -158,7 +158,7 @@ def _saas_launch_responses() -> dict[str, list[str]]:
         "Kai": [
             "# Copy & Content — Round 1\n\n"
             "## Headline\n"
-            "*\"The project tool your engineers will actually use.\"*\n\n"
+            '*"The project tool your engineers will actually use."*\n\n'
             "## CTA\n"
             "[Start free pilot — no credit card]\n\n"
             "## Email subject line A/B test\n"
@@ -383,7 +383,7 @@ def _healthcare_app_responses() -> dict[str, list[str]]:
         "Kai": [
             "# Healthcare Copy — Round 1\n\n"
             "## Headline\n"
-            "*\"A doctor in your pocket, without the waiting room.\"*\n\n"
+            '*"A doctor in your pocket, without the waiting room."*\n\n'
             "## Subhead\n"
             "Board-certified physicians. Same-day appointments. Clear pricing.\n\n"
             "## Trust line\n"
@@ -441,19 +441,46 @@ SCENARIOS: list[Scenario] = [
             pricing_tier="Freemium / $29–49 per user per month",
             value_proposition="Cut status-meeting time by 70 % with AI-generated standups and smart prioritisation",
             competitors=[
-                Competitor(name="Asana", threat="HIGH", pricing="$24/user/mo", weakness="Slow, cluttered UI"),
-                Competitor(name="Monday", threat="MEDIUM", pricing="$27/user/mo", weakness="Generic, not dev-focused"),
-                Competitor(name="Linear", threat="MEDIUM", pricing="$8/user/mo", weakness="No AI features yet"),
+                Competitor(
+                    name="Asana",
+                    threat="HIGH",
+                    pricing="$24/user/mo",
+                    weakness="Slow, cluttered UI",
+                ),
+                Competitor(
+                    name="Monday",
+                    threat="MEDIUM",
+                    pricing="$27/user/mo",
+                    weakness="Generic, not dev-focused",
+                ),
+                Competitor(
+                    name="Linear",
+                    threat="MEDIUM",
+                    pricing="$8/user/mo",
+                    weakness="No AI features yet",
+                ),
             ],
             target=TargetSegment(
                 segment="Series A–C SaaS startups with 20–200 engineers",
                 decision_maker="VP Engineering or CTO",
-                pain_points=["Too many status meetings", "Context switching between tools", "Missed deadlines"],
+                pain_points=[
+                    "Too many status meetings",
+                    "Context switching between tools",
+                    "Missed deadlines",
+                ],
                 budget_range="$500–2 000/month",
                 geo_focus=["US", "UK", "Germany"],
             ),
-            constraints=Constraints(timeline_days=90, team_size=4, focus_areas=["product-led growth", "developer evangelism"]),
-            differentiators=["AI standup generation", "GitHub/Jira auto-sync", "Sub-50ms load time"],
+            constraints=Constraints(
+                timeline_days=90,
+                team_size=4,
+                focus_areas=["product-led growth", "developer evangelism"],
+            ),
+            differentiators=[
+                "AI standup generation",
+                "GitHub/Jira auto-sync",
+                "Sub-50ms load time",
+            ],
         ),
         responses=_saas_launch_responses(),
     ),
@@ -467,19 +494,44 @@ SCENARIOS: list[Scenario] = [
             pricing_tier="€29–199 per item",
             value_proposition="Build a versatile wardrobe with fewer, better pieces",
             competitors=[
-                Competitor(name="Zalando", threat="HIGH", pricing="€15–80/item", weakness="Fast fashion image"),
-                Competitor(name="Everlane", threat="MEDIUM", pricing="$40–150/item", weakness="Limited EU presence"),
-                Competitor(name="Reformation", threat="MEDIUM", pricing="$80–300/item", weakness="Narrow sizing"),
+                Competitor(
+                    name="Zalando",
+                    threat="HIGH",
+                    pricing="€15–80/item",
+                    weakness="Fast fashion image",
+                ),
+                Competitor(
+                    name="Everlane",
+                    threat="MEDIUM",
+                    pricing="$40–150/item",
+                    weakness="Limited EU presence",
+                ),
+                Competitor(
+                    name="Reformation",
+                    threat="MEDIUM",
+                    pricing="$80–300/item",
+                    weakness="Narrow sizing",
+                ),
             ],
             target=TargetSegment(
                 segment="Urban professionals aged 28–40, household income €60k+",
                 decision_maker="Individual consumer (B2C)",
-                pain_points=["Closet full of clothes, nothing to wear", "Guilt about fast fashion", "Overwhelming choice online"],
+                pain_points=[
+                    "Closet full of clothes, nothing to wear",
+                    "Guilt about fast fashion",
+                    "Overwhelming choice online",
+                ],
                 budget_range="€200–500 per quarter",
                 geo_focus=["Germany", "Netherlands", "UK"],
             ),
-            constraints=Constraints(timeline_days=120, team_size=5, focus_areas=["brand awareness", "retention"]),
-            differentiators=["Capsule curation algorithm", "60-day free returns", "Designer collaboration drops"],
+            constraints=Constraints(
+                timeline_days=120, team_size=5, focus_areas=["brand awareness", "retention"]
+            ),
+            differentiators=[
+                "Capsule curation algorithm",
+                "60-day free returns",
+                "Designer collaboration drops",
+            ],
         ),
         responses=_ecommerce_rebrand_responses(),
     ),
@@ -493,9 +545,24 @@ SCENARIOS: list[Scenario] = [
             pricing_tier="€0.08–0.10 per transaction + platform fees",
             value_proposition="Sub-100ms authorisation with built-in regulatory compliance",
             competitors=[
-                Competitor(name="Stripe", threat="HIGH", pricing="2.9 % + 30¢", weakness="US-centric, expensive for volume"),
-                Competitor(name="Adyen", threat="HIGH", pricing="Interchange++", weakness="Complex pricing, long onboarding"),
-                Competitor(name="Mangopay", threat="MEDIUM", pricing="1.9 % + 20¢", weakness="Marketplace-only focus"),
+                Competitor(
+                    name="Stripe",
+                    threat="HIGH",
+                    pricing="2.9 % + 30¢",
+                    weakness="US-centric, expensive for volume",
+                ),
+                Competitor(
+                    name="Adyen",
+                    threat="HIGH",
+                    pricing="Interchange++",
+                    weakness="Complex pricing, long onboarding",
+                ),
+                Competitor(
+                    name="Mangopay",
+                    threat="MEDIUM",
+                    pricing="1.9 % + 20¢",
+                    weakness="Marketplace-only focus",
+                ),
             ],
             target=TargetSegment(
                 segment="Neobanks, Tier-2 banks, and cross-border fintechs in EU/UK",
@@ -504,7 +571,11 @@ SCENARIOS: list[Scenario] = [
                 budget_range="€100k–1M annual contract",
                 geo_focus=["EU", "UK"],
             ),
-            constraints=Constraints(timeline_days=180, team_size=6, focus_areas=["enterprise sales", "developer relations"]),
+            constraints=Constraints(
+                timeline_days=180,
+                team_size=6,
+                focus_areas=["enterprise sales", "developer relations"],
+            ),
             differentiators=["Sub-100ms latency", "PSD2-native", "Sandbox + solution architects"],
         ),
         responses=_fintech_scale_responses(),
@@ -519,18 +590,41 @@ SCENARIOS: list[Scenario] = [
             pricing_tier="$19–39/month or $199/provider seat for clinics",
             value_proposition="See a board-certified doctor within 15 minutes, 24/7",
             competitors=[
-                Competitor(name="Teladoc", threat="HIGH", pricing="$75/visit", weakness="Impersonal, long waits"),
-                Competitor(name="Babylon", threat="MEDIUM", pricing="Subscription + NHS", weakness="AI-only, no human option"),
-                Competitor(name="Kry", threat="MEDIUM", pricing="€25/visit", weakness="Limited to EU, no family plan"),
+                Competitor(
+                    name="Teladoc",
+                    threat="HIGH",
+                    pricing="$75/visit",
+                    weakness="Impersonal, long waits",
+                ),
+                Competitor(
+                    name="Babylon",
+                    threat="MEDIUM",
+                    pricing="Subscription + NHS",
+                    weakness="AI-only, no human option",
+                ),
+                Competitor(
+                    name="Kry",
+                    threat="MEDIUM",
+                    pricing="€25/visit",
+                    weakness="Limited to EU, no family plan",
+                ),
             ],
             target=TargetSegment(
                 segment="Busy parents and self-insured employers in US/UK",
                 decision_maker="Parent or CHRO",
-                pain_points=["Can't get GP appointment", "ER visits for minor issues", "High insurance premiums"],
+                pain_points=[
+                    "Can't get GP appointment",
+                    "ER visits for minor issues",
+                    "High insurance premiums",
+                ],
                 budget_range="$50–200/month (family) or $10k–50k/year (employer)",
                 geo_focus=["US", "UK"],
             ),
-            constraints=Constraints(timeline_days=90, team_size=4, focus_areas=["patient acquisition", "B2B employer sales"]),
+            constraints=Constraints(
+                timeline_days=90,
+                team_size=4,
+                focus_areas=["patient acquisition", "B2B employer sales"],
+            ),
             differentiators=["15-minute guarantee", "Family plan", "HIPAA + GDPR compliant"],
         ),
         responses=_healthcare_app_responses(),
@@ -555,7 +649,7 @@ async def run_demo(
     scenario_key: str,
     rounds: int,
     workspace: Path,
-    progress_callback: Optional[Callable[..., None]] = None,
+    progress_callback: Callable[..., None] | None = None,
     delay: float = 0.18,
     breath: float = 0.4,
 ) -> dict[str, Path]:
@@ -633,7 +727,4 @@ async def run_demo(
         if breath > 0:
             await asyncio.sleep(min(breath, 0.3))
 
-    return {
-        agent.name: workspace / "output" / agent.get_output_filename()
-        for agent in agents
-    }
+    return {agent.name: workspace / "output" / agent.get_output_filename() for agent in agents}

@@ -15,8 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from council.cli import parse_args, _review_run, _create_provider
-
+from council.cli import _create_provider, _review_run, parse_args
 
 # ── Argument-parsing tests ──────────────────────────────────────────────────
 
@@ -50,8 +49,9 @@ class TestParseArgsTemplate:
             # only parse.  The listing + sys.exit(0) happens inside
             # _run_council, not parse_args itself — so we call the runner
             # directly via the same path the CLI uses.
-            from council.cli import _run_council
             import asyncio
+
+            from council.cli import _run_council
 
             asyncio.run(_run_council(parse_args(["--template"])))
         assert exc_info.value.code == 0
@@ -88,9 +88,7 @@ class TestReviewRunComplete:
         captured = capsys.readouterr()
         assert "TestCorp" in captured.out
 
-    def test_displays_rounds(
-        self, complete_workspace: Path, capsys: pytest.CaptureFixture
-    ) -> None:
+    def test_displays_rounds(self, complete_workspace: Path, capsys: pytest.CaptureFixture) -> None:
         """Should print completed / max rounds information."""
         _review_run(complete_workspace)
         captured = capsys.readouterr()
@@ -281,7 +279,10 @@ class TestApiKeyWarning:
         mock_config.model_dump_json.return_value = "{}"
 
         with patch("council.config.loader.ConfigLoader.from_json", return_value=mock_config):
-            with patch("council.cli._create_platform_adapter", return_value=MagicMock(get_name=lambda: "cli")):
+            with patch(
+                "council.cli._create_platform_adapter",
+                return_value=MagicMock(get_name=lambda: "cli"),
+            ):
                 with patch("council.cli._create_provider", return_value=MagicMock()):
                     with caplog.at_level(logging.WARNING, logger="council.cli"):
                         try:
@@ -292,9 +293,7 @@ class TestApiKeyWarning:
         assert "does not use an API key" in caplog.text
         assert os.environ.get("ANTHROPIC_API_KEY") != "some-key"
 
-    def test_unknown_provider_raises_value_error(
-        self, monkeypatch: Any, tmp_path: Path
-    ) -> None:
+    def test_unknown_provider_raises_value_error(self, monkeypatch: Any, tmp_path: Path) -> None:
         """An unknown provider with --api-key raises ValueError with 'Unknown provider'."""
         from council.cli import _run_council
 
@@ -347,6 +346,7 @@ class TestWorkspaceOverwrite:
         be in caplog by the time we catch the sentinel.
         """
         import json as _json
+
         from council.cli import _run_council as _rc
 
         workspace = tmp_path / "output"
@@ -355,22 +355,24 @@ class TestWorkspaceOverwrite:
 
         config_file = tmp_path / "company.json"
         config_file.write_text(
-            _json.dumps({
-                "name": "TestCo",
-                "product": "SaaS",
-                "pricing_tier": "Free",
-                "value_proposition": "v",
-                "competitors": [],
-                "differentiators": [],
-                "target": {
-                    "segment": "SMB",
-                    "decision_maker": "CEO",
-                    "pain_points": [],
-                    "budget_range": "10k",
-                    "geo_focus": [],
-                },
-                "constraints": {"timeline_days": 30, "team_size": 2, "focus_areas": []},
-            }),
+            _json.dumps(
+                {
+                    "name": "TestCo",
+                    "product": "SaaS",
+                    "pricing_tier": "Free",
+                    "value_proposition": "v",
+                    "competitors": [],
+                    "differentiators": [],
+                    "target": {
+                        "segment": "SMB",
+                        "decision_maker": "CEO",
+                        "pain_points": [],
+                        "budget_range": "10k",
+                        "geo_focus": [],
+                    },
+                    "constraints": {"timeline_days": 30, "team_size": 2, "focus_areas": []},
+                }
+            ),
             encoding="utf-8",
         )
 
@@ -400,6 +402,7 @@ class TestWorkspaceOverwrite:
     ) -> None:
         """--force -> no overwrite WARNING emitted, INFO 'continuing (--force)' instead."""
         import json as _json
+
         from council.cli import _run_council as _rc
 
         workspace = tmp_path / "output"
@@ -408,30 +411,36 @@ class TestWorkspaceOverwrite:
 
         config_file = tmp_path / "company.json"
         config_file.write_text(
-            _json.dumps({
-                "name": "TestCo",
-                "product": "SaaS",
-                "pricing_tier": "Free",
-                "value_proposition": "v",
-                "competitors": [],
-                "differentiators": [],
-                "target": {
-                    "segment": "SMB",
-                    "decision_maker": "CEO",
-                    "pain_points": [],
-                    "budget_range": "10k",
-                    "geo_focus": [],
-                },
-                "constraints": {"timeline_days": 30, "team_size": 2, "focus_areas": []},
-            }),
+            _json.dumps(
+                {
+                    "name": "TestCo",
+                    "product": "SaaS",
+                    "pricing_tier": "Free",
+                    "value_proposition": "v",
+                    "competitors": [],
+                    "differentiators": [],
+                    "target": {
+                        "segment": "SMB",
+                        "decision_maker": "CEO",
+                        "pain_points": [],
+                        "budget_range": "10k",
+                        "geo_focus": [],
+                    },
+                    "constraints": {"timeline_days": 30, "team_size": 2, "focus_areas": []},
+                }
+            ),
             encoding="utf-8",
         )
 
-        args = parse_args([
-            "--config", str(config_file),
-            "--output", str(workspace),
-            "--force",
-        ])
+        args = parse_args(
+            [
+                "--config",
+                str(config_file),
+                "--output",
+                str(workspace),
+                "--force",
+            ]
+        )
 
         class _StopEarly(Exception):
             pass
@@ -446,13 +455,14 @@ class TestWorkspaceOverwrite:
                 pass
 
         overwrite_warnings = [
-            r.message for r in caplog.records
+            r.message
+            for r in caplog.records
             if r.levelno == logging.WARNING
             and ("already exists" in r.message or "overwrite" in r.message.lower())
         ]
-        assert overwrite_warnings == [], (
-            f"--force should suppress overwrite WARNING, got: {overwrite_warnings}"
-        )
+        assert (
+            overwrite_warnings == []
+        ), f"--force should suppress overwrite WARNING, got: {overwrite_warnings}"
 
 
 # ── Issue #19 — Dashboard flag parse + thread-join sys.exit ─────────────────

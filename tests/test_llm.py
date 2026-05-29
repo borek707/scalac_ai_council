@@ -4,12 +4,12 @@ import asyncio
 import logging
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from council.llm.cost_tracker import CostTracker
-from council.llm.provider import LLMProvider, LLMResponse
+from council.llm.provider import LLMResponse
 from council.llm.retry import retry_with_backoff
 
 
@@ -100,9 +100,7 @@ class TestMockLLMProvider:
 
     @pytest.mark.asyncio
     async def test_generate_with_params(self, mock_provider: Any) -> None:
-        await mock_provider.generate(
-            "test", temperature=0.5, max_tokens=500
-        )
+        await mock_provider.generate("test", temperature=0.5, max_tokens=500)
         assert mock_provider.calls[0]["temperature"] == 0.5
         assert mock_provider.calls[0]["max_tokens"] == 500
 
@@ -243,7 +241,9 @@ class TestRetryWithBackoff:
     async def test_delay_increases(self) -> None:
         delays: list[float] = []
 
-        @retry_with_backoff(max_retries=2, base_delay=0.01, max_delay=1.0, exceptions=(RuntimeError,))
+        @retry_with_backoff(
+            max_retries=2, base_delay=0.01, max_delay=1.0, exceptions=(RuntimeError,)
+        )
         async def timing_fail() -> str:
             raise RuntimeError("fail")
 
@@ -394,9 +394,7 @@ class TestKimiCodeProvider:
     def test_missing_executable_raises(self, monkeypatch: Any) -> None:
         from council.llm.kimi_code_provider import KimiCodeProvider
 
-        monkeypatch.setattr(
-            KimiCodeProvider, "_detect_executable", staticmethod(lambda: None)
-        )
+        monkeypatch.setattr(KimiCodeProvider, "_detect_executable", staticmethod(lambda: None))
         monkeypatch.delenv("KIMI_CLI_PATH", raising=False)
 
         with pytest.raises(RuntimeError, match="Kimi Code CLI binary not found"):
@@ -520,6 +518,7 @@ class TestOpenRouterProvider:
         with patch("council.llm.openai_provider.openai") as mock_openai:
             mock_openai.AsyncOpenAI.return_value = MagicMock()
             from council.llm.openrouter_provider import OpenRouterProvider
+
             return OpenRouterProvider(**kwargs)
 
     # 1. Happy-path initialisation with OPENROUTER_API_KEY set
@@ -560,6 +559,7 @@ class TestOpenRouterProvider:
         with patch("council.llm.openai_provider.openai") as mock_openai:
             mock_openai.AsyncOpenAI.return_value = MagicMock()
             from council.llm.openrouter_provider import OpenRouterProvider
+
             provider = OpenRouterProvider(api_key="explicit-key")
         assert provider.api_key == "explicit-key"
 

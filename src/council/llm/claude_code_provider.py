@@ -6,8 +6,8 @@ import logging
 import os
 import shutil
 import time
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import AsyncGenerator, Optional
 
 from council.llm.provider import LLMProvider, LLMResponse
 from council.llm.retry import retry_with_backoff
@@ -50,13 +50,13 @@ class ClaudeCodeProvider(LLMProvider):
 
     def __init__(
         self,
-        executable_path: Optional[str] = None,
-        model: Optional[str] = None,
-        work_dir: Optional[str] = None,
+        executable_path: str | None = None,
+        model: str | None = None,
+        work_dir: str | None = None,
     ) -> None:
         self.model = model or "claude-sonnet-4-6"
         self.work_dir = work_dir
-        self._http_client: Optional[object] = None
+        self._http_client: object | None = None
 
         # Try subprocess first
         self.executable_path = executable_path or self._detect_executable()
@@ -78,7 +78,7 @@ class ClaudeCodeProvider(LLMProvider):
         )
 
     @staticmethod
-    def _detect_executable() -> Optional[str]:
+    def _detect_executable() -> str | None:
         """Try to locate the ``claude`` binary."""
         env_path = os.environ.get("CLAUDE_CLI_PATH")
         if env_path and os.path.isfile(env_path):
@@ -91,7 +91,7 @@ class ClaudeCodeProvider(LLMProvider):
         return None
 
     @staticmethod
-    def _read_oauth_token() -> Optional[str]:
+    def _read_oauth_token() -> str | None:
         """Read the OAuth access token from Claude Code's credential store."""
         creds_path = Path.home() / ".claude" / ".credentials.json"
         if not creds_path.is_file():
@@ -99,7 +99,8 @@ class ClaudeCodeProvider(LLMProvider):
 
         try:
             data = json.loads(creds_path.read_text(encoding="utf-8"))
-            return data.get("claudeAiOauth", {}).get("accessToken")
+            token = data.get("claudeAiOauth", {}).get("accessToken")
+            return str(token) if token is not None else None
         except (json.JSONDecodeError, OSError, KeyError) as exc:
             logger.debug("Could not read Claude OAuth token: %s", exc)
             return None
@@ -119,8 +120,8 @@ class ClaudeCodeProvider(LLMProvider):
     def _build_cmd(
         self,
         prompt: str,
-        model: Optional[str] = None,
-        system: Optional[str] = None,
+        model: str | None = None,
+        system: str | None = None,
     ) -> list[str]:
         """Build the subprocess command for Claude CLI."""
         assert self.executable_path
@@ -151,8 +152,8 @@ class ClaudeCodeProvider(LLMProvider):
     async def _generate_subprocess(
         self,
         prompt: str,
-        model: Optional[str] = None,
-        system: Optional[str] = None,
+        model: str | None = None,
+        system: str | None = None,
     ) -> LLMResponse:
         cmd = self._build_cmd(prompt, model=model, system=system)
         start = time.time()
@@ -168,9 +169,7 @@ class ClaudeCodeProvider(LLMProvider):
         )
 
         # Cap single subprocess call at 2 minutes to avoid hanging forever
-        stdout_bytes, stderr_bytes = await asyncio.wait_for(
-            proc.communicate(), timeout=120.0
-        )
+        stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=120.0)
         latency = (time.time() - start) * 1000
 
         stdout = stdout_bytes.decode("utf-8", errors="replace")
@@ -182,9 +181,7 @@ class ClaudeCodeProvider(LLMProvider):
                 proc.returncode,
                 stderr[:500],
             )
-            raise RuntimeError(
-                f"Claude CLI failed (exit {proc.returncode}): {stderr[:500]}"
-            )
+            raise RuntimeError(f"Claude CLI failed (exit {proc.returncode}): {stderr[:500]}")
 
         tokens_prompt = len(prompt) // 4
         tokens_completion = len(stdout) // 4
@@ -208,16 +205,16 @@ class ClaudeCodeProvider(LLMProvider):
     async def _generate_http(
         self,
         prompt: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4000,
-        system: Optional[str] = None,
+        system: str | None = None,
     ) -> LLMResponse:
         if self._http_client is None:
             raise RuntimeError("HTTP client not initialised")
 
         start = time.time()
-        msg = await self._http_client.messages.create(
+        msg = await self._http_client.messages.create(  # type: ignore[attr-defined]
             model=model or self.model,
             max_tokens=max_tokens,
             temperature=temperature,
@@ -228,7 +225,9 @@ class ClaudeCodeProvider(LLMProvider):
 
         content = ""
         if msg.content:
-            content = msg.content[0].text if hasattr(msg.content[0], "text") else str(msg.content[0])
+            content = (
+                msg.content[0].text if hasattr(msg.content[0], "text") else str(msg.content[0])
+            )
 
         return LLMResponse(
             content=content,
@@ -253,18 +252,17 @@ class ClaudeCodeProvider(LLMProvider):
     async def generate(
         self,
         prompt: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4000,
-        system: Optional[str] = None,
+        system: str | None = None,
     ) -> LLMResponse:
         if self.executable_path and len(prompt) < self._SUBPROCESS_PROMPT_LIMIT:
             return await self._generate_subprocess(prompt, model=model, system=system)
 
         if len(prompt) >= self._SUBPROCESS_PROMPT_LIMIT and self.executable_path:
             logger.warning(
-                "Prompt %d chars exceeds subprocess limit (%d); "
-                "falling back to HTTP",
+                "Prompt %d chars exceeds subprocess limit (%d); " "falling back to HTTP",
                 len(prompt),
                 self._SUBPROCESS_PROMPT_LIMIT,
             )
@@ -276,11 +274,11 @@ class ClaudeCodeProvider(LLMProvider):
     async def stream(
         self,
         prompt: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4000,
-        system: Optional[str] = None,
-    ) -> AsyncGenerator[str, None]:
+        system: str | None = None,
+    ) -> AsyncIterator[str]:
         response = await self.generate(
             prompt=prompt,
             model=model,

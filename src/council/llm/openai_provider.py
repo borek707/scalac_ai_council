@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import AsyncGenerator, Optional
+from collections.abc import AsyncIterator
 
 try:
     import openai
@@ -41,8 +41,8 @@ class OpenAIProvider(LLMProvider):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
         model: str = "gpt-4o",
     ) -> None:
         self.model = model
@@ -51,15 +51,11 @@ class OpenAIProvider(LLMProvider):
 
         if not self.api_key:
             raise RuntimeError(
-                "OpenAI API key missing.\n"
-                "  Set OPENAI_API_KEY env var or pass --api-key"
+                "OpenAI API key missing.\n" "  Set OPENAI_API_KEY env var or pass --api-key"
             )
 
         if openai is None:
-            raise ImportError(
-                "OpenAI package not installed. "
-                "Install with: pip install openai"
-            )
+            raise ImportError("OpenAI package not installed. " "Install with: pip install openai")
 
         self._client = openai.AsyncOpenAI(
             api_key=self.api_key,
@@ -74,10 +70,10 @@ class OpenAIProvider(LLMProvider):
     async def generate(
         self,
         prompt: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4000,
-        system: Optional[str] = None,
+        system: str | None = None,
     ) -> LLMResponse:
         """Generate a response using OpenAI API."""
         model_name = model or self.model
@@ -90,7 +86,7 @@ class OpenAIProvider(LLMProvider):
         try:
             response = await self._client.chat.completions.create(
                 model=model_name,
-                messages=messages,
+                messages=messages,  # type: ignore[arg-type]
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
@@ -121,11 +117,11 @@ class OpenAIProvider(LLMProvider):
     async def stream(
         self,
         prompt: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4000,
-        system: Optional[str] = None,
-    ) -> AsyncGenerator[str, None]:
+        system: str | None = None,
+    ) -> AsyncIterator[str]:
         """Stream response chunks from OpenAI API."""
         model_name = model or self.model
         messages: list[dict[str, str]] = []
@@ -136,12 +132,12 @@ class OpenAIProvider(LLMProvider):
         try:
             stream = await self._client.chat.completions.create(
                 model=model_name,
-                messages=messages,
+                messages=messages,  # type: ignore[arg-type]
                 temperature=temperature,
                 max_tokens=max_tokens,
                 stream=True,
             )
-            async for chunk in stream:
+            async for chunk in stream:  # type: ignore[union-attr]
                 delta = chunk.choices[0].delta.content
                 if delta:
                     yield delta

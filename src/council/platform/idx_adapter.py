@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
 import os
-import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING
 
 from council.platform.base import PlatformAdapter
 
@@ -38,7 +35,7 @@ class GoogleIDXAdapter(PlatformAdapter):
         - https://developers.google.com/idx
     """
 
-    def __init__(self, workspace_root: Optional[str] = None) -> None:
+    def __init__(self, workspace_root: str | None = None) -> None:
         self.workspace_root = Path(workspace_root) if workspace_root else Path.cwd()
         self._idx_detected = self._detect_idx()
 

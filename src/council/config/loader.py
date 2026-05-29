@@ -41,7 +41,7 @@ class ConfigLoader:
             pydantic.ValidationError: If the JSON data fails schema validation.
         """
         resolved = path.resolve()
-        with open(resolved, "r", encoding="utf-8") as fh:
+        with open(resolved, encoding="utf-8") as fh:
             data: dict[str, Any] = json.load(fh)
         return CompanyConfig.model_validate(data)
 
@@ -65,7 +65,7 @@ class ConfigLoader:
             pydantic.ValidationError: If the YAML data fails schema validation.
         """
         try:
-            import yaml  # type: ignore[import-untyped]
+            import yaml
         except ImportError as exc:
             raise ImportError(
                 "PyYAML is required for YAML config loading. "
@@ -73,7 +73,7 @@ class ConfigLoader:
             ) from exc
 
         resolved = path.resolve()
-        with open(resolved, "r", encoding="utf-8") as fh:
+        with open(resolved, encoding="utf-8") as fh:
             data: dict[str, Any] = yaml.safe_load(fh)
         return CompanyConfig.model_validate(data)
 

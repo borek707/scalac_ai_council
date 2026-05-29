@@ -4,7 +4,8 @@ import json
 import logging
 import os
 import urllib.request
-from typing import AsyncGenerator, Optional
+from collections.abc import AsyncIterator
+from typing import Any
 
 from council.llm.openai_provider import OpenAIProvider
 from council.llm.provider import LLMResponse
@@ -31,19 +32,20 @@ class OpenRouterProvider(OpenAIProvider):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
-        model: Optional[str] = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        model: str | None = None,
         free_tier: bool = False,
     ) -> None:
         resolved_key = api_key or os.environ.get("OPENROUTER_API_KEY")
         if not resolved_key:
             raise RuntimeError(
-                "OpenRouter API key missing.\n"
-                "  Set OPENROUTER_API_KEY env var or pass --api-key"
+                "OpenRouter API key missing.\n" "  Set OPENROUTER_API_KEY env var or pass --api-key"
             )
 
-        resolved_url = base_url or os.environ.get("OPENROUTER_BASE_URL") or "https://openrouter.ai/api/v1"
+        resolved_url = (
+            base_url or os.environ.get("OPENROUTER_BASE_URL") or "https://openrouter.ai/api/v1"
+        )
         self._free_tier = free_tier
         self._fallback_models: list[str] = []
         self.auto_selected = False
@@ -55,11 +57,14 @@ class OpenRouterProvider(OpenAIProvider):
                     logger.info("OpenRouter: auto-selected free model %s", resolved_model)
                     self.auto_selected = True
                 except Exception as exc:
-                    logger.warning("OpenRouter: could not fetch free models (%s), falling back", exc)
+                    logger.warning(
+                        "OpenRouter: could not fetch free models (%s), falling back", exc
+                    )
                     resolved_model = "anthropic/claude-3.5-sonnet"
             else:
                 resolved_model = "anthropic/claude-3.5-sonnet"
         else:
+            assert model is not None
             resolved_model = model
 
         if free_tier:
@@ -68,7 +73,8 @@ class OpenRouterProvider(OpenAIProvider):
                 logger.info(
                     "OpenRouter free-tier fallback models (%d): %s",
                     len(self._fallback_models),
-                    ", ".join(self._fallback_models[:5]) + ("..." if len(self._fallback_models) > 5 else ""),
+                    ", ".join(self._fallback_models[:5])
+                    + ("..." if len(self._fallback_models) > 5 else ""),
                 )
 
         logger.info(
@@ -119,7 +125,7 @@ class OpenRouterProvider(OpenAIProvider):
             return free_models[0]
         raise RuntimeError("No free models available on OpenRouter")
 
-    def _extra_body(self) -> dict | None:
+    def _extra_body(self) -> dict[str, Any] | None:
         """Return extra_body with fallback models if free-tier is enabled."""
         if self._free_tier and self._fallback_models:
             return {"models": self._fallback_models}
@@ -128,10 +134,10 @@ class OpenRouterProvider(OpenAIProvider):
     async def generate(
         self,
         prompt: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4000,
-        system: Optional[str] = None,
+        system: str | None = None,
     ) -> LLMResponse:
         """Generate a response using OpenRouter API with optional free-tier fallbacks."""
         import time
@@ -142,7 +148,7 @@ class OpenRouterProvider(OpenAIProvider):
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
 
-        kwargs: dict = {
+        kwargs: dict[str, Any] = {
             "model": model_name,
             "messages": messages,
             "temperature": temperature,
@@ -182,11 +188,11 @@ class OpenRouterProvider(OpenAIProvider):
     async def stream(
         self,
         prompt: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4000,
-        system: Optional[str] = None,
-    ) -> AsyncGenerator[str, None]:
+        system: str | None = None,
+    ) -> AsyncIterator[str]:
         """Stream response chunks from OpenRouter API with optional free-tier fallbacks."""
         model_name = model or self.model
         messages: list[dict[str, str]] = []
@@ -194,7 +200,7 @@ class OpenRouterProvider(OpenAIProvider):
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
 
-        kwargs: dict = {
+        kwargs: dict[str, Any] = {
             "model": model_name,
             "messages": messages,
             "temperature": temperature,

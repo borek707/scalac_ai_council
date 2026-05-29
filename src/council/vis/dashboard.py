@@ -18,9 +18,9 @@ import html
 import json
 import time
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Optional
 
 from rich.panel import Panel
 from rich.text import Text
@@ -44,8 +44,8 @@ from textual.widgets.option_list import Option
 class AgentStats:
     """Performance statistics for a single agent run."""
 
-    start_time: Optional[float] = None
-    end_time: Optional[float] = None
+    start_time: float | None = None
+    end_time: float | None = None
     tokens_prompt: int = 0
     tokens_completion: int = 0
     cost_usd: float = 0.0
@@ -345,19 +345,16 @@ class CouncilApp(App):
 
     def _tick_header(self) -> None:
         elapsed = time.time() - self._start_time
-        self.sub_title = (
-            f"Round {self._current_round}/{self._max_rounds} "
-            f"| {elapsed:.0f}s"
-        )
+        self.sub_title = f"Round {self._current_round}/{self._max_rounds} " f"| {elapsed:.0f}s"
 
     def update_agent(
         self,
         name: str,
-        state: Optional[str] = None,
-        round_num: Optional[int] = None,
-        activity: Optional[str] = None,
-        progress_pct: Optional[int] = None,
-        content: Optional[str] = None,
+        state: str | None = None,
+        round_num: int | None = None,
+        activity: str | None = None,
+        progress_pct: int | None = None,
+        content: str | None = None,
     ) -> None:
         if name not in self._agents_data:
             return
@@ -410,9 +407,9 @@ class CouncilApp(App):
     def update_agent_stats(
         self,
         name: str,
-        tokens_prompt: Optional[int] = None,
-        tokens_completion: Optional[int] = None,
-        cost_usd: Optional[float] = None,
+        tokens_prompt: int | None = None,
+        tokens_completion: int | None = None,
+        cost_usd: float | None = None,
     ) -> None:
         if name not in self._agents_data:
             return
@@ -429,7 +426,7 @@ class CouncilApp(App):
         self._current_round = round_num
         self._add_log(f"=== Round {round_num} ===")
 
-    def _add_log(self, message: str, agent_name: Optional[str] = None) -> None:
+    def _add_log(self, message: str, agent_name: str | None = None) -> None:
         ts = time.strftime("%H:%M:%S")
         if agent_name and agent_name in self._agents_data:
             display = self._agents_data[agent_name].display_name
@@ -440,12 +437,14 @@ class CouncilApp(App):
         log_widget.write(self._logs[-1])
 
     def _add_timeline(self, agent_name: str, event_type: str, round_num: int) -> None:
-        self._timeline.append(TimelineEvent(
-            timestamp=time.time(),
-            agent_name=agent_name,
-            event_type=event_type,
-            round_num=round_num,
-        ))
+        self._timeline.append(
+            TimelineEvent(
+                timestamp=time.time(),
+                agent_name=agent_name,
+                event_type=event_type,
+                round_num=round_num,
+            )
+        )
 
     def _refresh_stats(self) -> None:
         lines: list[str] = []
@@ -523,7 +522,7 @@ class CouncilDashboard:
         self.agent_names = agent_names
         self.max_rounds = max_rounds
         self.workspace = workspace
-        self._app: Optional[CouncilApp] = None
+        self._app: CouncilApp | None = None
         # Back-compat: internal data structures available even before run()
         self._agents: dict[str, AgentView] = {}
         self._logs: deque[str] = deque(maxlen=200)
@@ -565,11 +564,11 @@ class CouncilDashboard:
     def update_agent(
         self,
         name: str,
-        state: Optional[str] = None,
-        round_num: Optional[int] = None,
-        activity: Optional[str] = None,
-        progress_pct: Optional[int] = None,
-        content: Optional[str] = None,
+        state: str | None = None,
+        round_num: int | None = None,
+        activity: str | None = None,
+        progress_pct: int | None = None,
+        content: str | None = None,
     ) -> None:
         if name in self._agents:
             agent = self._agents[name]
@@ -590,13 +589,17 @@ class CouncilDashboard:
                 agent.stats.end_time = time.time()
             if state is not None:
                 ts = time.strftime("%H:%M:%S")
-                self._logs.append(f"[{ts}] [{agent.color}]{agent.display_name}[/{agent.color}]: {state}")
-                self._timeline.append(TimelineEvent(
-                    timestamp=time.time(),
-                    agent_name=name,
-                    event_type=state,
-                    round_num=agent.round_num,
-                ))
+                self._logs.append(
+                    f"[{ts}] [{agent.color}]{agent.display_name}[/{agent.color}]: {state}"
+                )
+                self._timeline.append(
+                    TimelineEvent(
+                        timestamp=time.time(),
+                        agent_name=name,
+                        event_type=state,
+                        round_num=agent.round_num,
+                    )
+                )
         if self._app is not None and self._app._mounted:
             self._app.call_from_thread(
                 self._app.update_agent,
@@ -611,9 +614,9 @@ class CouncilDashboard:
     def update_agent_stats(
         self,
         name: str,
-        tokens_prompt: Optional[int] = None,
-        tokens_completion: Optional[int] = None,
-        cost_usd: Optional[float] = None,
+        tokens_prompt: int | None = None,
+        tokens_completion: int | None = None,
+        cost_usd: float | None = None,
     ) -> None:
         if name in self._agents:
             stats = self._agents[name].stats
@@ -688,9 +691,10 @@ class CouncilDashboard:
                     activity=str(msg),
                     progress_pct=0,
                 )
+
         return _cb
 
-    def export_json(self, path: Optional[Path] = None) -> str:
+    def export_json(self, path: Path | None = None) -> str:
         data = {
             "round": self._current_round,
             "max_rounds": self.max_rounds,
@@ -724,7 +728,7 @@ class CouncilDashboard:
             Path(path).write_text(json_str, encoding="utf-8")
         return json_str
 
-    def export_html(self, path: Optional[Path] = None) -> str:
+    def export_html(self, path: Path | None = None) -> str:
         lines = [
             "<!DOCTYPE html><html><head><meta charset='utf-8'>",
             "<title>Council Dashboard Export</title>",
@@ -768,7 +772,9 @@ class CouncilDashboard:
         return base_text + dots[idx]
 
     def _render_agent_panel(self, agent: AgentView) -> Panel:
-        emoji = {"PENDING": "⏳", "WRITING": "✍️", "DONE": "✅", "ERROR": "❌"}.get(agent.state, "❓")
+        emoji = {"PENDING": "⏳", "WRITING": "✍️", "DONE": "✅", "ERROR": "❌"}.get(
+            agent.state, "❓"
+        )
         lines = Text()
         lines.append(f"{agent.avatar} {agent.display_name}\n", style=f"bold {agent.color}")
         lines.append(f"{emoji} {agent.state}\n", style=f"bold {agent.color}")
@@ -780,8 +786,10 @@ class CouncilDashboard:
 
     def _render_header(self) -> Panel:
         elapsed = time.time() - (self._app._start_time if self._app else time.time())
-        title = Text(f" Universal AI Marketing Council v3.2 ", style="bold white on blue")
-        subtitle = Text(f" Runda {self._current_round}/{self.max_rounds} | Czas: {elapsed:.1f}s ", style="dim")
+        title = Text(" Universal AI Marketing Council v3.2 ", style="bold white on blue")
+        subtitle = Text(
+            f" Runda {self._current_round}/{self.max_rounds} | Czas: {elapsed:.1f}s ", style="dim"
+        )
         content = Text.assemble(title, "\n", subtitle)
         return Panel(content, style="blue")
 
@@ -841,7 +849,7 @@ class CouncilDashboard:
 
     # ── Context manager (lightweight, no thread spawn) ─────────────────────
 
-    def __enter__(self) -> "CouncilDashboard":
+    def __enter__(self) -> CouncilDashboard:
         return self
 
     def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:

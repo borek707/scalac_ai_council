@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from council.platform.base import PlatformAdapter
 
@@ -39,7 +39,7 @@ class CursorAdapter(PlatformAdapter):
         - https://cursor.com
     """
 
-    def __init__(self, workspace_root: Optional[str] = None) -> None:
+    def __init__(self, workspace_root: str | None = None) -> None:
         self.workspace_root = Path(workspace_root) if workspace_root else Path.cwd()
         self._cursor_detected = self._detect_cursor()
 
@@ -76,8 +76,7 @@ class CursorAdapter(PlatformAdapter):
 
         # Cursor tip: open output files side-by-side as they generate
         logger.info(
-            "Tip: Open output/ folder in Cursor explorer to watch "
-            "files generate in real-time"
+            "Tip: Open output/ folder in Cursor explorer to watch " "files generate in real-time"
         )
 
         await orchestrator.run()

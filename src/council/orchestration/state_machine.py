@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from council.config.schema import AgentState
+
+__all__ = ["AgentState", "AgentStateMachine"]
 
 logger = logging.getLogger(__name__)
 

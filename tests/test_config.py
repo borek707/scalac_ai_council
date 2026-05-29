@@ -11,7 +11,6 @@ from council.config.schema import (
     CompanyConfig,
     Competitor,
     Constraints,
-    TargetSegment,
 )
 
 

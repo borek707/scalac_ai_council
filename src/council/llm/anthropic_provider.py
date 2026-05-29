@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import AsyncGenerator, Optional
+from collections.abc import AsyncIterator
 
 try:
     import anthropic
@@ -41,7 +41,7 @@ class AnthropicProvider(LLMProvider):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         model: str = "claude-sonnet-4-6",
     ) -> None:
         self.model = model
@@ -49,14 +49,12 @@ class AnthropicProvider(LLMProvider):
 
         if not self.api_key:
             raise RuntimeError(
-                "Anthropic API key missing.\n"
-                "  Set ANTHROPIC_API_KEY env var or pass --api-key"
+                "Anthropic API key missing.\n" "  Set ANTHROPIC_API_KEY env var or pass --api-key"
             )
 
         if anthropic is None:
             raise ImportError(
-                "Anthropic package not installed. "
-                "Install with: pip install anthropic"
+                "Anthropic package not installed. " "Install with: pip install anthropic"
             )
 
         self._client = anthropic.AsyncAnthropic(api_key=self.api_key)
@@ -69,10 +67,10 @@ class AnthropicProvider(LLMProvider):
     async def generate(
         self,
         prompt: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4000,
-        system: Optional[str] = None,
+        system: str | None = None,
     ) -> LLMResponse:
         """Generate a response using Anthropic Claude API."""
         model_name = model or self.model
@@ -116,11 +114,11 @@ class AnthropicProvider(LLMProvider):
     async def stream(
         self,
         prompt: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4000,
-        system: Optional[str] = None,
-    ) -> AsyncGenerator[str, None]:
+        system: str | None = None,
+    ) -> AsyncIterator[str]:
         """Stream response chunks from Anthropic Claude API."""
         model_name = model or self.model
         try:

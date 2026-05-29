@@ -4,7 +4,8 @@ import asyncio
 import functools
 import logging
 import random
-from typing import Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -91,9 +92,7 @@ def retry_with_backoff(
                             exc,
                         )
                         break
-                    delay = min(
-                        config.base_delay * (2 ** (attempt - 1)), config.max_delay
-                    )
+                    delay = min(config.base_delay * (2 ** (attempt - 1)), config.max_delay)
                     jitter = random.uniform(0, delay * 0.1)
                     sleep_time = delay + jitter
                     logger.debug(

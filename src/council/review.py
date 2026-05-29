@@ -3,14 +3,14 @@
 Provides a ReviewRunner that evaluates council artifacts using an LLM
 and writes human-readable and structured output summaries.
 """
+
 from __future__ import annotations
 
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 from council.artifacts import Artifact
 from council.llm.provider import LLMProvider
@@ -53,9 +53,7 @@ def _build_prompt(artifact: Artifact, content: str) -> str:
     return _REVIEW_PROMPT_TEMPLATE.format(title=artifact.title, content=bounded)
 
 
-def _parse_review_response(
-    artifact: Artifact, raw: str, reviewed_at: str
-) -> ReviewResult:
+def _parse_review_response(artifact: Artifact, raw: str, reviewed_at: str) -> ReviewResult:
     """Parse LLM JSON response into a ReviewResult.
 
     Falls back gracefully if the response is not valid JSON.
@@ -71,16 +69,14 @@ def _parse_review_response(
     try:
         data = json.loads(text)
         score_raw = data.get("score")
-        score: Optional[float] = float(score_raw) if score_raw is not None else None
+        score: float | None = float(score_raw) if score_raw is not None else None
         if score is not None:
             score = max(0.0, min(10.0, score))
         summary = str(data.get("summary", "")).strip()
         suggestions_raw = data.get("suggestions", [])
         suggestions = [str(s).strip() for s in suggestions_raw if str(s).strip()]
     except (json.JSONDecodeError, TypeError, ValueError) as exc:
-        logger.warning(
-            "Could not parse review response for artifact %r: %s", artifact.id, exc
-        )
+        logger.warning("Could not parse review response for artifact %r: %s", artifact.id, exc)
         score = None
         summary = raw.strip()[:500]
         suggestions = []
@@ -122,10 +118,10 @@ class ReviewResult:
 
     artifact_id: str
     artifact_title: str
-    score: Optional[float]
+    score: float | None
     summary: str
     suggestions: list[str] = field(default_factory=list)
-    reviewed_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    reviewed_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 
 # ---------------------------------------------------------------------------
@@ -181,7 +177,7 @@ class ReviewRunner:
 
         results: list[ReviewResult] = []
         for artifact in reviewable:
-            reviewed_at = datetime.now(timezone.utc).isoformat()
+            reviewed_at = datetime.now(UTC).isoformat()
             try:
                 content = artifact.path.read_text(encoding="utf-8")
             except OSError as exc:
@@ -219,9 +215,7 @@ class ReviewRunner:
                 )
 
             results.append(result)
-            logger.info(
-                "Reviewed artifact %r — score: %s", artifact.title, result.score
-            )
+            logger.info("Reviewed artifact %r — score: %s", artifact.title, result.score)
 
         return results
 
@@ -260,7 +254,7 @@ class ReviewRunner:
         md_lines: list[str] = [
             "# Artifact Quality Review",
             "",
-            f"**Generated:** {datetime.now(timezone.utc).isoformat()}",
+            f"**Generated:** {datetime.now(UTC).isoformat()}",
             f"**Artifacts reviewed:** {len(results)}",
             "",
             "---",
@@ -315,16 +309,14 @@ class ReviewRunner:
             try:
                 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
                 manifest["reviews"] = {
-                    "reviewed_at": datetime.now(timezone.utc).isoformat(),
+                    "reviewed_at": datetime.now(UTC).isoformat(),
                     "artifact_count": len(results),
                     "files": {
                         "review_md": str(md_path),
                         "review_json": str(json_path),
                     },
                 }
-                manifest_path.write_text(
-                    json.dumps(manifest, indent=2), encoding="utf-8"
-                )
+                manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
                 logger.info("Manifest updated with reviews key at %s", manifest_path)
             except (OSError, json.JSONDecodeError) as exc:
                 logger.warning("Could not update manifest %s: %s", manifest_path, exc)

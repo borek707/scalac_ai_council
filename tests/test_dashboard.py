@@ -3,8 +3,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from council.vis.dashboard import AgentStats, AgentView, CouncilDashboard, TimelineEvent
 
 
@@ -276,16 +274,16 @@ class TestHtmlEscaping:
         dash.update_agent("marcus", content='She said "hello"')
         html_out = dash.export_html()
         # html.escape() with default quote=True turns " -> &quot;
-        assert "&quot;" in html_out or "&#x27;" in html_out, (
-            "Expected escaped quotes in export_html output"
-        )
+        assert (
+            "&quot;" in html_out or "&#x27;" in html_out
+        ), "Expected escaped quotes in export_html output"
 
     def test_logs_are_escaped(self) -> None:
         """HTML special chars injected via log() must be escaped in export_html."""
         dash = CouncilDashboard(["marcus"])
         dash._logs.append("<b>bold injection</b>")
         html_out = dash.export_html()
-        assert "<b>bold injection</b>" not in html_out, (
-            "Unescaped log HTML found in export_html output"
-        )
+        assert (
+            "<b>bold injection</b>" not in html_out
+        ), "Unescaped log HTML found in export_html output"
         assert "&lt;b&gt;" in html_out, "&lt;b&gt; not found in export_html output"

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from typing import Optional
+from typing import Any
 
 from .provider import LLMResponse
 
@@ -13,7 +13,7 @@ class CostTracker:
     """Tracks LLM usage costs per agent, round, and overall run."""
 
     def __init__(self) -> None:
-        self._entries: list[dict[str, object]] = []
+        self._entries: list[dict[str, Any]] = []
         self._by_agent: dict[str, float] = defaultdict(float)
         self._total: float = 0.0
 
@@ -47,9 +47,7 @@ class CostTracker:
     def get_by_round(self, round_num: int) -> float:
         """Return total cost for a specific round."""
         return sum(
-            float(entry["cost_usd"])
-            for entry in self._entries
-            if int(entry["round"]) == round_num
+            float(entry["cost_usd"]) for entry in self._entries if int(entry["round"]) == round_num
         )
 
     def report(self) -> str:

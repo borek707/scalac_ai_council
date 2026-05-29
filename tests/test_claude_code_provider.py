@@ -3,13 +3,11 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from council.llm.claude_code_provider import ClaudeCodeProvider
-from council.llm.provider import LLMResponse
 
 
 class TestClaudeCodeProvider:
@@ -40,9 +38,7 @@ class TestClaudeCodeProvider:
                 "_read_oauth_token",
                 return_value="fake-oauth-token",
             ):
-                with patch.object(
-                    ClaudeCodeProvider, "_init_http_client"
-                ) as mock_init:
+                with patch.object(ClaudeCodeProvider, "_init_http_client") as mock_init:
                     provider = ClaudeCodeProvider()
                     mock_init.assert_called_once_with("fake-oauth-token")
 
@@ -54,16 +50,12 @@ class TestClaudeCodeProvider:
             encoding="utf-8",
         )
 
-        with patch(
-            "council.llm.claude_code_provider.Path.home", return_value=tmp_path
-        ):
+        with patch("council.llm.claude_code_provider.Path.home", return_value=tmp_path):
             token = ClaudeCodeProvider._read_oauth_token()
             assert token == "secret-123"
 
     def test_read_oauth_token_missing_file(self, tmp_path: Path) -> None:
-        with patch(
-            "council.llm.claude_code_provider.Path.home", return_value=tmp_path
-        ):
+        with patch("council.llm.claude_code_provider.Path.home", return_value=tmp_path):
             token = ClaudeCodeProvider._read_oauth_token()
             assert token is None
 
@@ -72,9 +64,7 @@ class TestClaudeCodeProvider:
         creds.parent.mkdir(parents=True, exist_ok=True)
         creds.write_text("not json", encoding="utf-8")
 
-        with patch(
-            "council.llm.claude_code_provider.Path.home", return_value=tmp_path
-        ):
+        with patch("council.llm.claude_code_provider.Path.home", return_value=tmp_path):
             token = ClaudeCodeProvider._read_oauth_token()
             assert token is None
 
@@ -105,13 +95,9 @@ class TestClaudeCodeProvider:
 
         mock_proc = MagicMock()
         mock_proc.returncode = 0
-        mock_proc.communicate = AsyncMock(
-            return_value=(b"Test response", b"")
-        )
+        mock_proc.communicate = AsyncMock(return_value=(b"Test response", b""))
 
-        with patch(
-            "asyncio.create_subprocess_exec", return_value=mock_proc
-        ):
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
             resp = await provider._generate_subprocess("prompt")
             assert resp.content == "Test response"
             assert resp.model == "claude-sonnet-4-6"
@@ -124,13 +110,9 @@ class TestClaudeCodeProvider:
 
         mock_proc = MagicMock()
         mock_proc.returncode = 1
-        mock_proc.communicate = AsyncMock(
-            return_value=(b"", b"error: something went wrong")
-        )
+        mock_proc.communicate = AsyncMock(return_value=(b"", b"error: something went wrong"))
 
-        with patch(
-            "asyncio.create_subprocess_exec", return_value=mock_proc
-        ):
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
             with pytest.raises(RuntimeError, match="Claude CLI failed"):
                 await provider._generate_subprocess("prompt")
 
@@ -142,13 +124,9 @@ class TestClaudeCodeProvider:
 
         mock_proc = MagicMock()
         mock_proc.returncode = 0
-        mock_proc.communicate = AsyncMock(
-            return_value=(b"Streamed text", b"")
-        )
+        mock_proc.communicate = AsyncMock(return_value=(b"Streamed text", b""))
 
-        with patch(
-            "asyncio.create_subprocess_exec", return_value=mock_proc
-        ):
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
             chunks = []
             async for chunk in provider.stream("prompt"):
                 chunks.append(chunk)
@@ -170,9 +148,7 @@ class TestClaudeCodeProvider:
         mock_proc.communicate = AsyncMock(return_value=(b"response text", b""))
 
         with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
-            with caplog.at_level(
-                logging.DEBUG, logger="council.llm.claude_code_provider"
-            ):
+            with caplog.at_level(logging.DEBUG, logger="council.llm.claude_code_provider"):
                 await provider._generate_subprocess(long_prompt)
 
         assert long_prompt not in caplog.text

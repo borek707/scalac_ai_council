@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 
 import pytest
 
 from council.agents.base import BaseAgent
-from council.config.schema import RoundContext
 from council.agents.david import DavidAgent
 from council.agents.elena import ElenaAgent
 from council.agents.kai import KaiAgent
 from council.agents.marcus import MarcusAgent
-from council.config.schema import CompanyConfig
 from council.config.documents import Document
+from council.config.schema import CompanyConfig, RoundContext
 from council.llm.provider import LLMResponse
 from council.orchestration.state_machine import AgentState
 from tests.conftest import MockLLMProvider
@@ -21,7 +19,9 @@ from tests.conftest import MockLLMProvider
 class TestBaseAgent:
     """Tests for BaseAgent abstract class."""
 
-    def test_init(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
+    def test_init(
+        self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider
+    ) -> None:
         workspace = temp_workspace
         agent = MarcusAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         assert agent.name == "Marcus"
@@ -29,14 +29,18 @@ class TestBaseAgent:
         assert agent.state == AgentState.PENDING
         assert agent.workspace == temp_workspace
 
-    def test_ensure_dirs(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
+    def test_ensure_dirs(
+        self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider
+    ) -> None:
         workspace = temp_workspace
         agent = MarcusAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         agent._ensure_dirs()
         assert agent.discussion_dir.exists()
         assert agent.output_dir.exists()
 
-    def test_write_round(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
+    def test_write_round(
+        self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider
+    ) -> None:
         workspace = temp_workspace
         agent = MarcusAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         path = agent.write_round(1, "# Test content")
@@ -44,20 +48,26 @@ class TestBaseAgent:
         assert path.name == "marcus_round_1.md"
         assert "# Test content" in path.read_text(encoding="utf-8")
 
-    def test_write_final(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
+    def test_write_final(
+        self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider
+    ) -> None:
         workspace = temp_workspace
         agent = MarcusAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         path = agent.write_final("Final output", "final.md")
         assert path.exists()
         assert path.read_text(encoding="utf-8") == "Final output"
 
-    def test_read_empty_discussion(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
+    def test_read_empty_discussion(
+        self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider
+    ) -> None:
         workspace = temp_workspace
         agent = MarcusAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         result = agent.read_discussion()
         assert result == ""
 
-    def test_read_discussion_with_files(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
+    def test_read_discussion_with_files(
+        self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider
+    ) -> None:
         workspace = temp_workspace
         agent = MarcusAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         agent.write_round(1, "Round 1 content")
@@ -67,13 +77,17 @@ class TestBaseAgent:
         result = agent2.read_discussion()
         assert "Round 1 content" in result
 
-    def test_read_brief_missing(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
+    def test_read_brief_missing(
+        self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider
+    ) -> None:
         workspace = temp_workspace
         agent = MarcusAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         result = agent.read_brief()
         assert result == ""
 
-    def test_read_brief_present(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
+    def test_read_brief_present(
+        self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider
+    ) -> None:
         brief_path = temp_workspace / "shared" / "brief.md"
         brief_path.parent.mkdir(parents=True, exist_ok=True)
         brief_path.write_text("Project brief content", encoding="utf-8")
@@ -166,7 +180,9 @@ class TestBaseAgent:
 
     def test_abstract_methods(self, mock_provider: MockLLMProvider) -> None:
         with pytest.raises(TypeError):
-            BaseAgent("test", "role", Path("/tmp"), CompanyConfig(name="Test", product="P"), mock_provider)
+            BaseAgent(
+                "test", "role", Path("/tmp"), CompanyConfig(name="Test", product="P"), mock_provider
+            )
 
     @pytest.mark.asyncio
     async def test_documents_appear_in_prompt(
@@ -207,16 +223,19 @@ class TestBaseAgent:
         mock_provider: MockLLMProvider,
     ) -> None:
         """#21 — Empty LLM response must raise ValueError."""
-        from typing import AsyncGenerator as _AG
+        from collections.abc import AsyncGenerator as _AG
+
         from council.llm.provider import LLMProvider, LLMResponse
 
         class EmptyProvider(LLMProvider):
-            async def generate(self, prompt, model=None, temperature=0.7,
-                               max_tokens=4000, system=None) -> LLMResponse:
+            async def generate(
+                self, prompt, model=None, temperature=0.7, max_tokens=4000, system=None
+            ) -> LLMResponse:
                 return LLMResponse(content="", model="mock-model")
 
-            async def stream(self, prompt, model=None, temperature=0.7,
-                             max_tokens=4000, system=None) -> _AG[str, None]:
+            async def stream(
+                self, prompt, model=None, temperature=0.7, max_tokens=4000, system=None
+            ) -> _AG[str, None]:
                 return
                 yield  # pragma: no cover — make this an async generator
 
@@ -236,16 +255,19 @@ class TestBaseAgent:
         mock_provider: MockLLMProvider,
     ) -> None:
         """#21 — Whitespace-only LLM response must also raise ValueError."""
-        from typing import AsyncGenerator as _AG
+        from collections.abc import AsyncGenerator as _AG
+
         from council.llm.provider import LLMProvider, LLMResponse
 
         class WhitespaceProvider(LLMProvider):
-            async def generate(self, prompt, model=None, temperature=0.7,
-                               max_tokens=4000, system=None) -> LLMResponse:
+            async def generate(
+                self, prompt, model=None, temperature=0.7, max_tokens=4000, system=None
+            ) -> LLMResponse:
                 return LLMResponse(content="   \n  ", model="mock-model")
 
-            async def stream(self, prompt, model=None, temperature=0.7,
-                             max_tokens=4000, system=None) -> _AG[str, None]:
+            async def stream(
+                self, prompt, model=None, temperature=0.7, max_tokens=4000, system=None
+            ) -> _AG[str, None]:
                 return
                 yield  # pragma: no cover — make this an async generator
 
@@ -261,14 +283,18 @@ class TestBaseAgent:
 class TestMarcusAgent:
     """Tests for MarcusAgent."""
 
-    def test_system_prompt(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
+    def test_system_prompt(
+        self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider
+    ) -> None:
         workspace = temp_workspace
         agent = MarcusAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         prompt = agent.get_system_prompt()
         assert "Marcus" in prompt
         assert "Offer Architect" in prompt
 
-    def test_output_filename(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
+    def test_output_filename(
+        self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider
+    ) -> None:
         workspace = temp_workspace
         agent = MarcusAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         assert agent.get_output_filename() == "marcus_offer.md"
@@ -283,7 +309,9 @@ class TestMarcusAgent:
         workspace = temp_workspace
         agent = MarcusAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         ctx = RoundContext(
-            round_num=1, brief="", discussion_history="",
+            round_num=1,
+            brief="",
+            discussion_history="",
             company_config=sample_config,
         )
         content = await agent.generate_round(ctx)
@@ -294,14 +322,18 @@ class TestMarcusAgent:
 class TestElenaAgent:
     """Tests for ElenaAgent."""
 
-    def test_system_prompt(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
+    def test_system_prompt(
+        self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider
+    ) -> None:
         workspace = temp_workspace
         agent = ElenaAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         prompt = agent.get_system_prompt()
         assert "Elena" in prompt
         assert "Funnel Architect" in prompt
 
-    def test_output_filename(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
+    def test_output_filename(
+        self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider
+    ) -> None:
         workspace = temp_workspace
         agent = ElenaAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         assert agent.get_output_filename() == "elena_funnel.md"
@@ -310,14 +342,18 @@ class TestElenaAgent:
 class TestKaiAgent:
     """Tests for KaiAgent."""
 
-    def test_system_prompt(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
+    def test_system_prompt(
+        self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider
+    ) -> None:
         workspace = temp_workspace
         agent = KaiAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         prompt = agent.get_system_prompt()
         assert "Kai" in prompt
         assert "copywriter" in prompt.lower()
 
-    def test_output_filename(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
+    def test_output_filename(
+        self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider
+    ) -> None:
         workspace = temp_workspace
         agent = KaiAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         assert agent.get_output_filename() == "kai_copy.md"
@@ -326,14 +362,18 @@ class TestKaiAgent:
 class TestDavidAgent:
     """Tests for DavidAgent."""
 
-    def test_system_prompt(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
+    def test_system_prompt(
+        self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider
+    ) -> None:
         workspace = temp_workspace
         agent = DavidAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         prompt = agent.get_system_prompt()
         assert "David" in prompt
         assert "lead generation" in prompt.lower()
 
-    def test_output_filename(self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider) -> None:
+    def test_output_filename(
+        self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider
+    ) -> None:
         workspace = temp_workspace
         agent = DavidAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         assert agent.get_output_filename() == "david_abm.md"
@@ -348,7 +388,9 @@ class TestDavidAgent:
         workspace = temp_workspace
         agent = DavidAgent(workspace=workspace, config=sample_config, provider=mock_provider)
         ctx = RoundContext(
-            round_num=2, brief="", discussion_history="",
+            round_num=2,
+            brief="",
+            discussion_history="",
             company_config=sample_config,
         )
         content = await agent.generate_round(ctx)

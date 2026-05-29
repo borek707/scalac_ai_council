@@ -3,9 +3,10 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from datetime import datetime, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from council.agents.base import BaseAgent
@@ -32,11 +33,11 @@ class AsyncOrchestrator:
         config: CompanyConfig,
         provider: LLMProvider,
         provider_name: str = "openai",
-        provider_model: Optional[str] = None,
+        provider_model: str | None = None,
         max_rounds: int = 3,
         round_timeout: float = 300.0,
-        workspace: Optional[Path] = None,
-        progress_callback: Optional[Callable[..., None]] = None,
+        workspace: Path | None = None,
+        progress_callback: Callable[..., None] | None = None,
     ) -> None:
         self.agents = agents
         self.config = config
@@ -112,12 +113,8 @@ class AsyncOrchestrator:
             barrier_results = await self.barrier.wait(round_num)
         except TimeoutError as exc:
             if failed_agents:
-                causes = "; ".join(
-                    f"{name}: {err}" for name, err in failed_agents.items()
-                )
-                raise TimeoutError(
-                    f"{exc} — underlying agent failures: {causes}"
-                ) from exc
+                causes = "; ".join(f"{name}: {err}" for name, err in failed_agents.items())
+                raise TimeoutError(f"{exc} — underlying agent failures: {causes}") from exc
             raise
         finally:
             # Restore the full expected_agents list for subsequent rounds.
@@ -158,10 +155,8 @@ class AsyncOrchestrator:
                     self.run_round(round_num),
                     timeout=self.round_timeout,
                 )
-            except asyncio.TimeoutError:
-                raise TimeoutError(
-                    f"Round {round_num} exceeded the {self.round_timeout}s timeout"
-                )
+            except TimeoutError:
+                raise TimeoutError(f"Round {round_num} exceeded the {self.round_timeout}s timeout")
             if self._check_consensus(round_num):
                 logger.info("Consensus reached at round %d, stopping early.", round_num)
                 break
@@ -178,7 +173,7 @@ class AsyncOrchestrator:
         for agent, result in zip(self.agents, results):
             if isinstance(result, Exception):
                 logger.error("Agent %s failed during run_final: %s", agent.name, result)
-            else:
+            elif isinstance(result, Path):
                 final[agent.name] = result
                 logger.info("Agent %s final deliverable: %s", agent.name, result)
         logger.info(
@@ -251,7 +246,7 @@ class AsyncOrchestrator:
 
         return "\n".join(lines)
 
-    def write_artifacts(self, output_dir: Optional[Path] = None) -> dict[str, Path]:
+    def write_artifacts(self, output_dir: Path | None = None) -> dict[str, Path]:
         """Write proposal.md and manifest.json to output_dir after a completed run."""
         out = output_dir or (self.workspace / "output")
         out.mkdir(parents=True, exist_ok=True)
@@ -262,8 +257,8 @@ class AsyncOrchestrator:
         proposal_path = out / "proposal.md"
         proposal_path.write_text(self.aggregate_proposal(), encoding="utf-8")
 
-        manifest: dict = {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+        manifest: dict[str, Any] = {
+            "generated_at": datetime.now(UTC).isoformat(),
             "company": self.config.name,
             "product": self.config.product,
             "provider": self.provider_name,
@@ -280,8 +275,7 @@ class AsyncOrchestrator:
                     for name, path in round_results.items()
                 },
                 "final_deliverables": {
-                    name: str(path)
-                    for name, path in self._final_results.items()
+                    name: str(path) for name, path in self._final_results.items()
                 },
             },
         }

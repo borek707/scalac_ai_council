@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from pathlib import Path
 from typing import Any
 
 import pytest
-import pytest_asyncio
 
 from council.config.schema import CompanyConfig
 from council.llm.provider import LLMProvider, LLMResponse
@@ -210,9 +208,7 @@ class TestFilesystemBarrier:
     async def test_wait_timeout(self, temp_workspace: Path) -> None:
         discussion_dir = temp_workspace / "shared" / "discussion"
         agents = ["marcus", "elena"]
-        barrier = FilesystemBarrier(
-            discussion_dir, agents, timeout=0.5, poll_interval=0.1
-        )
+        barrier = FilesystemBarrier(discussion_dir, agents, timeout=0.5, poll_interval=0.1)
 
         with pytest.raises(TimeoutError):
             await barrier.wait(1)
@@ -221,9 +217,7 @@ class TestFilesystemBarrier:
     async def test_wait_with_delayed_files(self, temp_workspace: Path) -> None:
         discussion_dir = temp_workspace / "shared" / "discussion"
         agents = ["marcus", "elena"]
-        barrier = FilesystemBarrier(
-            discussion_dir, agents, timeout=5.0, poll_interval=0.1
-        )
+        barrier = FilesystemBarrier(discussion_dir, agents, timeout=5.0, poll_interval=0.1)
 
         (discussion_dir / "marcus_round_1.md").write_text("done", encoding="utf-8")
 
@@ -355,8 +349,8 @@ class TestAsyncOrchestrator:
     ) -> None:
         """run() must call run_final() for every agent and persist deliverables
         under workspace/output/agents/<filename> (issue #8)."""
-        from council.config.schema import RoundContext
         from council.agents.base import BaseAgent
+        from council.config.schema import RoundContext
 
         class SimpleFinalAgent(BaseAgent):
             """Agent that writes trivial round and final files without an LLM."""
@@ -409,9 +403,9 @@ class TestAsyncOrchestrator:
         agents_dir = temp_workspace / "output" / "agents"
         for agent in agents:
             expected_file = agents_dir / agent.get_output_filename()
-            assert expected_file.exists(), (
-                f"Final deliverable missing for agent '{agent.name}': {expected_file}"
-            )
+            assert (
+                expected_file.exists()
+            ), f"Final deliverable missing for agent '{agent.name}': {expected_file}"
 
     # ── Issue #11 ─────────────────────────────────────────────────────────
 
@@ -423,8 +417,8 @@ class TestAsyncOrchestrator:
     ) -> None:
         """When an agent fails and the barrier times out, the TimeoutError must
         include the underlying agent failure reason (issue #11)."""
-        from council.config.schema import RoundContext
         from council.agents.base import BaseAgent
+        from council.config.schema import RoundContext
 
         class CrashingAgent(BaseAgent):
             """Agent that immediately raises RuntimeError in run_round."""
@@ -493,9 +487,9 @@ class TestAsyncOrchestrator:
             await orc.run_round(1)
 
         error_message = str(exc_info.value)
-        assert "agent crashed" in error_message or "crasher" in error_message, (
-            f"Expected 'agent crashed' or 'crasher' in TimeoutError message, got: {error_message!r}"
-        )
+        assert (
+            "agent crashed" in error_message or "crasher" in error_message
+        ), f"Expected 'agent crashed' or 'crasher' in TimeoutError message, got: {error_message!r}"
 
     # ── Issue #18 ─────────────────────────────────────────────────────────
 
@@ -507,8 +501,8 @@ class TestAsyncOrchestrator:
     ) -> None:
         """run() must raise TimeoutError when a round exceeds round_timeout
         seconds (issue #18)."""
-        from council.config.schema import RoundContext
         from council.agents.base import BaseAgent
+        from council.config.schema import RoundContext
 
         class HangingAgent(BaseAgent):
             """Agent that sleeps indefinitely during generate_round."""

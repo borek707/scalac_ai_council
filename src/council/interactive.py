@@ -14,11 +14,9 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Optional
 
 from textual.app import App, ComposeResult
-from textual.containers import Center, Grid, Horizontal, Vertical
-from textual.reactive import reactive
+from textual.containers import Center, Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import (
     Button,
@@ -58,35 +56,35 @@ def _mark_onboarding_done() -> None:
 
 # ── Screens ─────────────────────────────────────────────────────────────────
 
+
 class WelcomeScreen(Screen):
     """First-run onboarding screen."""
 
     def compose(self) -> ComposeResult:
-        with Center():
-            with Vertical(classes="menu-container"):
-                yield Static(
-                    "\uf0e8  Universal AI Marketing Council",
-                    classes="title",
-                )
-                yield Static("v3.2 — AI-powered marketing strategy", classes="subtitle")
-                yield Rule()
-                yield Static("[bold]The Four Agents[/bold]", classes="section-title")
-                yield Static(
-                    "\uf0ad  [cyan]Marcus[/cyan]  — Offer Architect\n"
-                    "\uf140  [magenta]Elena[/magenta] — Funnel Architect\n"
-                    "\uf040  [green]Kai[/green]   — Copywriter\n"
-                    "\uf201  [yellow]David[/yellow] — Lead Strategist",
-                    classes="agents-list",
-                )
-                yield Static(
-                    "[dim]Each round they read, critique, and improve each other's work."
-                    "\nAfter 2-3 rounds you get a polished multi-perspective plan.[/dim]",
-                    classes="description",
-                )
-                yield Rule()
-                with Horizontal(classes="button-row"):
-                    yield Button("Skip →", variant="default", id="skip")
-                    yield Button("Start →", variant="primary", id="start")
+        with Center(), Vertical(classes="menu-container"):
+            yield Static(
+                "\uf0e8  Universal AI Marketing Council",
+                classes="title",
+            )
+            yield Static("v3.2 — AI-powered marketing strategy", classes="subtitle")
+            yield Rule()
+            yield Static("[bold]The Four Agents[/bold]", classes="section-title")
+            yield Static(
+                "\uf0ad  [cyan]Marcus[/cyan]  — Offer Architect\n"
+                "\uf140  [magenta]Elena[/magenta] — Funnel Architect\n"
+                "\uf040  [green]Kai[/green]   — Copywriter\n"
+                "\uf201  [yellow]David[/yellow] — Lead Strategist",
+                classes="agents-list",
+            )
+            yield Static(
+                "[dim]Each round they read, critique, and improve each other's work."
+                "\nAfter 2-3 rounds you get a polished multi-perspective plan.[/dim]",
+                classes="description",
+            )
+            yield Rule()
+            with Horizontal(classes="button-row"):
+                yield Button("Skip →", variant="default", id="skip")
+                yield Button("Start →", variant="primary", id="start")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id in ("start", "skip"):
@@ -98,19 +96,18 @@ class MainMenuScreen(Screen):
     """Primary navigation hub."""
 
     def compose(self) -> ComposeResult:
-        with Center():
-            with Vertical(classes="menu-container"):
-                yield Static("\uf0e8  Main Menu", classes="title")
-                yield Static("Choose how to run the council", classes="subtitle")
-                yield OptionList(
-                    Option("\uf11b  Demo Mode — pre-built scenarios, no API keys", id="demo"),
-                    Option("\uf115  Run from Template — built-in company configs", id="template"),
-                    Option("\uf0c5  Real Council Run — your own config + LLM", id="real"),
-                    Option("\uf108  IDE Help — VS Code, Cursor, Kimi, Claude", id="ide"),
-                    Option("\uf128  How it Works — the debate explained", id="help"),
-                    Option("\uf00d  Quit", id="quit"),
-                )
-                yield Static("[dim]↑↓ navigate · Enter select · q quit[/dim]", classes="hint")
+        with Center(), Vertical(classes="menu-container"):
+            yield Static("\uf0e8  Main Menu", classes="title")
+            yield Static("Choose how to run the council", classes="subtitle")
+            yield OptionList(
+                Option("\uf11b  Demo Mode — pre-built scenarios, no API keys", id="demo"),
+                Option("\uf115  Run from Template — built-in company configs", id="template"),
+                Option("\uf0c5  Real Council Run — your own config + LLM", id="real"),
+                Option("\uf108  IDE Help — VS Code, Cursor, Kimi, Claude", id="ide"),
+                Option("\uf128  How it Works — the debate explained", id="help"),
+                Option("\uf00d  Quit", id="quit"),
+            )
+            yield Static("[dim]↑↓ navigate · Enter select · q quit[/dim]", classes="hint")
 
     def on_mount(self) -> None:
         ol = self.query_one(OptionList)
@@ -139,27 +136,26 @@ class DemoScreen(Screen):
     def compose(self) -> ComposeResult:
         scenarios = list_scenarios()
         self.app.state["scenarios"] = scenarios
-        with Center():
-            with Vertical(classes="menu-container"):
-                yield Static("\uf11b  Demo Mode", classes="title")
-                yield Static("Pre-built scenarios — no API keys needed", classes="subtitle")
-                yield OptionList(
-                    *[
-                        Option(f"{s.name} — {s.description}", id=s.key)
-                        for s in scenarios
-                    ],
-                )
-                yield Rule()
-                yield Static("Rounds:", classes="field-label")
-                yield Input(value="3", placeholder="3", id="rounds-input")
-                yield Static("Dashboard:", classes="field-label")
-                with Horizontal(classes="switch-row"):
-                    yield Switch(value=True, id="dashboard-switch")
-                    yield Label("Enable live terminal dashboard")
-                yield Static("[dim]↑↓ navigate · Tab next field · Enter confirm · Esc back[/dim]", classes="hint")
-                with Horizontal(classes="button-row"):
-                    yield Button("← Back", variant="default", id="back")
-                    yield Button("Next →", variant="primary", id="next")
+        with Center(), Vertical(classes="menu-container"):
+            yield Static("\uf11b  Demo Mode", classes="title")
+            yield Static("Pre-built scenarios — no API keys needed", classes="subtitle")
+            yield OptionList(
+                *[Option(f"{s.name} — {s.description}", id=s.key) for s in scenarios],
+            )
+            yield Rule()
+            yield Static("Rounds:", classes="field-label")
+            yield Input(value="3", placeholder="3", id="rounds-input")
+            yield Static("Dashboard:", classes="field-label")
+            with Horizontal(classes="switch-row"):
+                yield Switch(value=True, id="dashboard-switch")
+                yield Label("Enable live terminal dashboard")
+            yield Static(
+                "[dim]↑↓ navigate · Tab next field · Enter confirm · Esc back[/dim]",
+                classes="hint",
+            )
+            with Horizontal(classes="button-row"):
+                yield Button("← Back", variant="default", id="back")
+                yield Button("Next →", variant="primary", id="next")
 
     def _go_next(self) -> None:
         ol = self.query_one(OptionList)
@@ -231,31 +227,34 @@ class TemplateScreen(Screen):
                     "name": data.get("name", t),
                     "product": data.get("product", ""),
                     "segment": data.get("target", {}).get("segment", ""),
-                    "value": data.get("value_proposition", "")[:60] + "…" if len(data.get("value_proposition", "")) > 60 else data.get("value_proposition", ""),
+                    "value": (
+                        data.get("value_proposition", "")[:60] + "…"
+                        if len(data.get("value_proposition", "")) > 60
+                        else data.get("value_proposition", "")
+                    ),
                 }
             except Exception:
                 previews[t] = {"name": t, "product": "", "segment": "", "value": ""}
         self.app.state["template_previews"] = previews
 
-        with Center():
-            with Vertical(classes="menu-container"):
-                yield Static("\uf115  Run from Template", classes="title")
-                yield Static("Built-in company configurations", classes="subtitle")
-                yield OptionList(
-                    *[
-                        Option(
-                            f"[bold]{previews[t]['name']}[/bold]  [dim]({t})[/dim]\n"
-                            f"[italic]{previews[t]['product']}[/italic]\n"
-                            f"[dim]{previews[t]['segment']}[/dim]",
-                            id=t,
-                        )
-                        for t in templates
-                    ],
-                )
-                yield Static("[dim]↑↓ navigate · Enter select · Esc back[/dim]", classes="hint")
-                with Horizontal(classes="button-row"):
-                    yield Button("← Back", variant="default", id="back")
-                    yield Button("Next →", variant="primary", id="next")
+        with Center(), Vertical(classes="menu-container"):
+            yield Static("\uf115  Run from Template", classes="title")
+            yield Static("Built-in company configurations", classes="subtitle")
+            yield OptionList(
+                *[
+                    Option(
+                        f"[bold]{previews[t]['name']}[/bold]  [dim]({t})[/dim]\n"
+                        f"[italic]{previews[t]['product']}[/italic]\n"
+                        f"[dim]{previews[t]['segment']}[/dim]",
+                        id=t,
+                    )
+                    for t in templates
+                ],
+            )
+            yield Static("[dim]↑↓ navigate · Enter select · Esc back[/dim]", classes="hint")
+            with Horizontal(classes="button-row"):
+                yield Button("← Back", variant="default", id="back")
+                yield Button("Next →", variant="primary", id="next")
 
     def on_mount(self) -> None:
         ol = self.query_one(OptionList)
@@ -267,7 +266,9 @@ class TemplateScreen(Screen):
         sel = ol.highlighted
         templates = self.app.state.get("templates", [])
         if not templates:
-            self.notify("No templates found — check templates/companies/ directory", severity="error")
+            self.notify(
+                "No templates found — check templates/companies/ directory", severity="error"
+            )
             return
         template = templates[sel] if sel is not None else templates[0]
         self.app.state["template"] = template
@@ -290,16 +291,21 @@ class ConfigScreen(Screen):
     """Custom config path input."""
 
     def compose(self) -> ComposeResult:
-        with Center():
-            with Vertical(classes="menu-container"):
-                yield Static("\uf0c5  Real Council Run", classes="title")
-                yield Static("Enter path to your company JSON config", classes="subtitle")
-                yield Input(placeholder="e.g. ./my-company.json", id="config-input")
-                yield Static("[dim]Tip: copy from templates/companies/ as a starting point[/dim]", classes="hint")
-                yield Static("[dim]↑↓ navigate · Tab next field · Enter confirm · Esc back[/dim]", classes="hint")
-                with Horizontal(classes="button-row"):
-                    yield Button("← Back", variant="default", id="back")
-                    yield Button("Next →", variant="primary", id="next")
+        with Center(), Vertical(classes="menu-container"):
+            yield Static("\uf0c5  Real Council Run", classes="title")
+            yield Static("Enter path to your company JSON config", classes="subtitle")
+            yield Input(placeholder="e.g. ./my-company.json", id="config-input")
+            yield Static(
+                "[dim]Tip: copy from templates/companies/ as a starting point[/dim]",
+                classes="hint",
+            )
+            yield Static(
+                "[dim]↑↓ navigate · Tab next field · Enter confirm · Esc back[/dim]",
+                classes="hint",
+            )
+            with Horizontal(classes="button-row"):
+                yield Button("← Back", variant="default", id="back")
+                yield Button("Next →", variant="primary", id="next")
 
     def _go_next(self) -> None:
         path = self.query_one("#config-input", Input).value.strip()
@@ -331,39 +337,40 @@ class ProviderScreen(Screen):
     """LLM provider selection."""
 
     def compose(self) -> ComposeResult:
-        with Center():
-            with Vertical(classes="menu-container"):
-                yield Static("\uf233  LLM Provider", classes="title")
-                yield Static("Choose who powers the agents", classes="subtitle")
-                yield OptionList(
-                    *[
-                        Option(f"{name}  [dim](default: {default_model})[/dim]", id=key)
-                        for key, name, default_model in _PROVIDERS
-                    ],
-                    classes="provider-options",
-                )
-                yield Rule()
-                yield Static("API Key (optional — overrides env):", classes="field-label")
-                yield Input(placeholder="leave empty to use env variable", id="api-key-input")
-                yield Static("Model override (optional):", classes="field-label")
-                yield Input(placeholder="leave empty — OpenRouter auto-picks a free model", id="model-input")
-                yield Static("Free tier (OpenRouter only):", classes="field-label")
-                with Horizontal(classes="switch-row"):
-                    yield Switch(value=False, id="free-tier-switch")
-                    yield Label("Use free-tier model fallback")
-                yield Rule()
-                yield Static("Rounds:", classes="field-label")
-                yield Input(value="3", placeholder="3", id="rounds-input")
-                yield Static("Dashboard:", classes="field-label")
-                with Horizontal(classes="switch-row"):
-                    yield Switch(value=True, id="dashboard-switch")
-                    yield Label("Enable live terminal dashboard")
-                yield Static("Output directory:", classes="field-label")
-                yield Input(value="./output", placeholder="./output", id="output-input")
-                yield Static("[dim]Tab next · Enter submit field · Esc back[/dim]", classes="hint")
-                with Horizontal(classes="button-row"):
-                    yield Button("← Back", variant="default", id="back")
-                    yield Button("Next →", variant="primary", id="next")
+        with Center(), Vertical(classes="menu-container"):
+            yield Static("\uf233  LLM Provider", classes="title")
+            yield Static("Choose who powers the agents", classes="subtitle")
+            yield OptionList(
+                *[
+                    Option(f"{name}  [dim](default: {default_model})[/dim]", id=key)
+                    for key, name, default_model in _PROVIDERS
+                ],
+                classes="provider-options",
+            )
+            yield Rule()
+            yield Static("API Key (optional — overrides env):", classes="field-label")
+            yield Input(placeholder="leave empty to use env variable", id="api-key-input")
+            yield Static("Model override (optional):", classes="field-label")
+            yield Input(
+                placeholder="leave empty — OpenRouter auto-picks a free model", id="model-input"
+            )
+            yield Static("Free tier (OpenRouter only):", classes="field-label")
+            with Horizontal(classes="switch-row"):
+                yield Switch(value=False, id="free-tier-switch")
+                yield Label("Use free-tier model fallback")
+            yield Rule()
+            yield Static("Rounds:", classes="field-label")
+            yield Input(value="3", placeholder="3", id="rounds-input")
+            yield Static("Dashboard:", classes="field-label")
+            with Horizontal(classes="switch-row"):
+                yield Switch(value=True, id="dashboard-switch")
+                yield Label("Enable live terminal dashboard")
+            yield Static("Output directory:", classes="field-label")
+            yield Input(value="./output", placeholder="./output", id="output-input")
+            yield Static("[dim]Tab next · Enter submit field · Esc back[/dim]", classes="hint")
+            with Horizontal(classes="button-row"):
+                yield Button("← Back", variant="default", id="back")
+                yield Button("Next →", variant="primary", id="next")
 
     def on_mount(self) -> None:
         ol = self.query_one(OptionList)
@@ -425,31 +432,30 @@ class BriefScreen(Screen):
     """Campaign brief / custom prompt input."""
 
     def compose(self) -> ComposeResult:
-        with Center():
-            with Vertical(classes="menu-container"):
-                yield Static("\uf0eb  Campaign Brief", classes="title")
-                yield Static(
-                    "Describe what you want the council to work on. "
-                    "This becomes the strategic brief for all agents.",
-                    classes="subtitle",
-                )
-                yield TextArea(
-                    id="brief-input",
-                    text="",
-                    language="markdown",
-                    tab_behavior="focus",
-                    classes="brief-input",
-                )
-                yield Static(
-                    "[dim]Examples:\n"
-                    "  • ABM campaign targeting CFOs in fintech\n"
-                    "  • Q3 webinar promotion on AI compliance\n"
-                    "  • Rebrand launch for Series B startup[/dim]",
-                    classes="hint",
-                )
-                with Horizontal(classes="button-row"):
-                    yield Button("← Back", variant="default", id="back")
-                    yield Button("Next →", variant="primary", id="next")
+        with Center(), Vertical(classes="menu-container"):
+            yield Static("\uf0eb  Campaign Brief", classes="title")
+            yield Static(
+                "Describe what you want the council to work on. "
+                "This becomes the strategic brief for all agents.",
+                classes="subtitle",
+            )
+            yield TextArea(
+                id="brief-input",
+                text="",
+                language="markdown",
+                tab_behavior="focus",
+                classes="brief-input",
+            )
+            yield Static(
+                "[dim]Examples:\n"
+                "  • ABM campaign targeting CFOs in fintech\n"
+                "  • Q3 webinar promotion on AI compliance\n"
+                "  • Rebrand launch for Series B startup[/dim]",
+                classes="hint",
+            )
+            with Horizontal(classes="button-row"):
+                yield Button("← Back", variant="default", id="back")
+                yield Button("Next →", variant="primary", id="next")
 
     def _go_next(self) -> None:
         brief = self.query_one("#brief-input", TextArea).text.strip()
@@ -477,20 +483,26 @@ class ConfirmScreen(Screen):
         elif st.get("template"):
             lines.append("[bold cyan]Mode:[/bold cyan]      Template")
             lines.append(f"[bold]Company:[/bold]   {preview.get('name', st.get('template', '?'))}")
-            if preview.get('product'):
+            if preview.get("product"):
                 lines.append(f"[bold]Product:[/bold]   {preview['product']}")
-            if preview.get('segment'):
+            if preview.get("segment"):
                 lines.append(f"[bold]Target:[/bold]    {preview['segment']}")
         else:
             lines.append("[bold cyan]Mode:[/bold cyan]      Real Run")
             lines.append(f"[bold]Config:[/bold]    {st.get('config', '?')}")
 
         lines.append(f"[bold]Provider:[/bold]  {st.get('provider', '?').upper()}")
-        lines.append(f"[bold]API Key:[/bold]   {'[green]••••••••[/green]' if st.get('api_key') else '[dim]env[/dim]'}")
-        model_display = st.get('model') or ('[green]auto (free)[/green]' if st.get('provider') == 'openrouter' else 'default')
+        lines.append(
+            f"[bold]API Key:[/bold]   {'[green]••••••••[/green]' if st.get('api_key') else '[dim]env[/dim]'}"
+        )
+        model_display = st.get("model") or (
+            "[green]auto (free)[/green]" if st.get("provider") == "openrouter" else "default"
+        )
         lines.append(f"[bold]Model:[/bold]     {model_display}")
         lines.append(f"[bold]Rounds:[/bold]    {st.get('rounds', 3)}")
-        lines.append(f"[bold]Dashboard:[/bold] {'[green]Yes[/green]' if st.get('dashboard') else '[dim]No[/dim]'}")
+        lines.append(
+            f"[bold]Dashboard:[/bold] {'[green]Yes[/green]' if st.get('dashboard') else '[dim]No[/dim]'}"
+        )
         lines.append(f"[bold]Output:[/bold]    {st.get('output', './output')}")
 
         brief = st.get("brief", "")
@@ -505,16 +517,15 @@ class ConfirmScreen(Screen):
         if st.get("free_tier"):
             lines.append("Free tier: Yes (OpenRouter free-model fallback)")
 
-        with Center():
-            with Vertical(classes="menu-container"):
-                yield Static("\uf00c  Ready to Run", classes="title")
-                yield Static("Review your settings before launch", classes="subtitle")
-                yield Rule()
-                yield Static("\n".join(lines), classes="summary")
-                yield Rule()
-                with Horizontal(classes="button-row"):
-                    yield Button("← Back", variant="default", id="back")
-                    yield Button("▶ Run", variant="success", id="run")
+        with Center(), Vertical(classes="menu-container"):
+            yield Static("\uf00c  Ready to Run", classes="title")
+            yield Static("Review your settings before launch", classes="subtitle")
+            yield Rule()
+            yield Static("\n".join(lines), classes="summary")
+            yield Rule()
+            with Horizontal(classes="button-row"):
+                yield Button("← Back", variant="default", id="back")
+                yield Button("▶ Run", variant="success", id="run")
 
     def on_mount(self) -> None:
         # Focus the Run button so Enter works immediately
@@ -553,14 +564,13 @@ class QuitConfirmScreen(Screen):
     """Confirm before exiting."""
 
     def compose(self) -> ComposeResult:
-        with Center():
-            with Vertical(classes="menu-container"):
-                yield Static("\uf128  Quit?", classes="title")
-                yield Static("Any running council will be cancelled.", classes="subtitle")
-                yield Rule()
-                with Horizontal(classes="button-row"):
-                    yield Button("← Back", variant="default", id="back")
-                    yield Button("Quit", variant="error", id="quit")
+        with Center(), Vertical(classes="menu-container"):
+            yield Static("\uf128  Quit?", classes="title")
+            yield Static("Any running council will be cancelled.", classes="subtitle")
+            yield Rule()
+            with Horizontal(classes="button-row"):
+                yield Button("← Back", variant="default", id="back")
+                yield Button("Quit", variant="error", id="quit")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "back":
@@ -573,20 +583,19 @@ class HelpScreen(Screen):
     """How the debate works."""
 
     def compose(self) -> ComposeResult:
-        with Center():
-            with Vertical(classes="menu-container"):
-                yield Static("\uf128  How the Debate Works", classes="title")
-                yield Static(
-                    "[bold]Round 1:[/bold] Each agent writes their specialised output\n"
-                    "  Marcus → offer, Elena → funnel, Kai → copy, David → ABM\n\n"
-                    "[bold]Round 2:[/bold] Agents read and critique each other\n"
-                    "  Marcus might say: 'Elena, at this price your funnel breaks'\n\n"
-                    "[bold]Round 3:[/bold] Final outputs with all feedback incorporated\n\n"
-                    "[dim]The result is a plan that survived criticism from 4 experts.[/dim]",
-                    classes="description",
-                )
-                with Center():
-                    yield Button("← Back", variant="default", id="back")
+        with Center(), Vertical(classes="menu-container"):
+            yield Static("\uf128  How the Debate Works", classes="title")
+            yield Static(
+                "[bold]Round 1:[/bold] Each agent writes their specialised output\n"
+                "  Marcus → offer, Elena → funnel, Kai → copy, David → ABM\n\n"
+                "[bold]Round 2:[/bold] Agents read and critique each other\n"
+                "  Marcus might say: 'Elena, at this price your funnel breaks'\n\n"
+                "[bold]Round 3:[/bold] Final outputs with all feedback incorporated\n\n"
+                "[dim]The result is a plan that survived criticism from 4 experts.[/dim]",
+                classes="description",
+            )
+            with Center():
+                yield Button("← Back", variant="default", id="back")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "back":
@@ -597,26 +606,25 @@ class IDEScreen(Screen):
     """IDE setup help."""
 
     def compose(self) -> ComposeResult:
-        with Center():
-            with Vertical(classes="menu-container"):
-                yield Static("\uf108  IDE Setup", classes="title")
-                yield Static(
-                    "[bold]VS Code / Cursor / Windsurf[/bold]\n"
-                    "  Open integrated terminal (Ctrl+`)\n"
-                    "  Run: python -m council\n\n"
-                    "[bold]Kimi Code IDE[/bold]\n"
-                    "  Run: python -m council --provider kimi-code\n"
-                    "  No API key — uses your logged-in Kimi session\n\n"
-                    "[bold]Claude Code IDE[/bold]\n"
-                    "  Run: python -m council --provider claude-code\n"
-                    "  Reads OAuth from ~/.claude/.credentials.json\n\n"
-                    "[bold]GitHub Codespaces[/bold]\n"
-                    "  Run: python -m council --platform copilot\n\n"
-                    "[dim]All platforms auto-detect.[/dim]",
-                    classes="description",
-                )
-                with Center():
-                    yield Button("← Back", variant="default", id="back")
+        with Center(), Vertical(classes="menu-container"):
+            yield Static("\uf108  IDE Setup", classes="title")
+            yield Static(
+                "[bold]VS Code / Cursor / Windsurf[/bold]\n"
+                "  Open integrated terminal (Ctrl+`)\n"
+                "  Run: python -m council\n\n"
+                "[bold]Kimi Code IDE[/bold]\n"
+                "  Run: python -m council --provider kimi-code\n"
+                "  No API key — uses your logged-in Kimi session\n\n"
+                "[bold]Claude Code IDE[/bold]\n"
+                "  Run: python -m council --provider claude-code\n"
+                "  Reads OAuth from ~/.claude/.credentials.json\n\n"
+                "[bold]GitHub Codespaces[/bold]\n"
+                "  Run: python -m council --platform copilot\n\n"
+                "[dim]All platforms auto-detect.[/dim]",
+                classes="description",
+            )
+            with Center():
+                yield Button("← Back", variant="default", id="back")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "back":
@@ -624,6 +632,7 @@ class IDEScreen(Screen):
 
 
 # ── App ─────────────────────────────────────────────────────────────────────
+
 
 class CouncilMenuApp(App):
     """Textual interactive menu for the AI Marketing Council."""
@@ -779,7 +788,8 @@ class CouncilMenuApp(App):
 
 # ── Public API ──────────────────────────────────────────────────────────────
 
-def prompt_for_args(force_onboarding: bool = False) -> Optional[argparse.Namespace]:
+
+def prompt_for_args(force_onboarding: bool = False) -> argparse.Namespace | None:
     """Run the interactive menu and return a populated Namespace.
 
     On first run (or when force_onboarding=True) shows an onboarding

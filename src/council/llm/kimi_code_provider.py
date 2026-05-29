@@ -6,8 +6,8 @@ import os
 import re
 import shutil
 import time
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import AsyncGenerator, Optional
 
 from council.llm.provider import LLMProvider, LLMResponse
 from council.llm.retry import retry_with_backoff
@@ -42,9 +42,9 @@ class KimiCodeProvider(LLMProvider):
 
     def __init__(
         self,
-        executable_path: Optional[str] = None,
-        model: Optional[str] = None,
-        work_dir: Optional[str] = None,
+        executable_path: str | None = None,
+        model: str | None = None,
+        work_dir: str | None = None,
     ) -> None:
         self.model = model or "kimi-for-coding"
         self.executable_path = executable_path or self._detect_executable()
@@ -57,7 +57,7 @@ class KimiCodeProvider(LLMProvider):
             )
 
     @staticmethod
-    def _detect_executable() -> Optional[str]:
+    def _detect_executable() -> str | None:
         """Try to locate the ``kimi`` binary."""
         env_path = os.environ.get("KIMI_CLI_PATH")
         if env_path and os.path.isfile(env_path):
@@ -103,10 +103,11 @@ class KimiCodeProvider(LLMProvider):
     def _build_cmd(
         self,
         prompt: str,
-        model: Optional[str] = None,
-        system: Optional[str] = None,
+        model: str | None = None,
+        system: str | None = None,
     ) -> list[str]:
         """Build the subprocess command for Kimi CLI."""
+        assert self.executable_path is not None
         cmd = [self.executable_path, "--quiet", "--yolo"]
 
         if self.work_dir:
@@ -142,10 +143,10 @@ class KimiCodeProvider(LLMProvider):
     async def generate(
         self,
         prompt: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4000,
-        system: Optional[str] = None,
+        system: str | None = None,
     ) -> LLMResponse:
         """Generate a response by invoking Kimi Code CLI."""
         cmd = self._build_cmd(prompt, model=model, system=system)
@@ -162,9 +163,7 @@ class KimiCodeProvider(LLMProvider):
         )
 
         # Kimi CLI can take a long time on large workspaces; cap single call at 2 min
-        stdout_bytes, stderr_bytes = await asyncio.wait_for(
-            proc.communicate(), timeout=120.0
-        )
+        stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=120.0)
         latency = (time.time() - start) * 1000
 
         stdout = stdout_bytes.decode("utf-8", errors="replace")
@@ -176,9 +175,7 @@ class KimiCodeProvider(LLMProvider):
                 proc.returncode,
                 stderr[:500],
             )
-            raise RuntimeError(
-                f"Kimi CLI failed (exit {proc.returncode}): {stderr[:500]}"
-            )
+            raise RuntimeError(f"Kimi CLI failed (exit {proc.returncode}): {stderr[:500]}")
 
         content = self._clean_output(stdout)
 
@@ -199,11 +196,11 @@ class KimiCodeProvider(LLMProvider):
     async def stream(
         self,
         prompt: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4000,
-        system: Optional[str] = None,
-    ) -> AsyncGenerator[str, None]:
+        system: str | None = None,
+    ) -> AsyncIterator[str]:
         """Stream a response.
 
         Kimi CLI quiet mode returns the full response at once, so we yield the

@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import logging
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +40,7 @@ class FilesystemBarrier:
     def get_status(self, round_num: int) -> dict[str, bool]:
         """Get completion status per agent."""
         return {
-            agent: self._round_file(round_num, agent).exists()
-            for agent in self.expected_agents
+            agent: self._round_file(round_num, agent).exists() for agent in self.expected_agents
         }
 
     def _collect_files(self, round_num: int) -> dict[str, Path]:

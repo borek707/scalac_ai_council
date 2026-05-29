@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, List, Optional
+from typing import TYPE_CHECKING
 
 from jinja2 import Environment, FileSystemLoader, Template
 
 if TYPE_CHECKING:
-    from council.config.documents import AgentContext, Document
+    from council.config.documents import Document
     from council.config.schema import AgentState, CompanyConfig, LLMProvider, RoundContext
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -30,16 +31,16 @@ class BaseAgent(ABC):
         workspace: Path,
         config: CompanyConfig,
         provider: LLMProvider,
-        documents: Optional[List[Document]] = None,
-        progress_callback: Optional[Callable[..., None]] = None,
+        documents: list[Document] | None = None,
+        progress_callback: Callable[..., None] | None = None,
     ) -> None:
         self.name: str = name
         self.role: str = role
         self.workspace: Path = workspace
         self.config: CompanyConfig = config
         self.provider: LLMProvider = provider
-        self.documents: List[Document] = documents or []
-        self.progress_callback: Optional[Callable[..., None]] = progress_callback
+        self.documents: list[Document] = documents or []
+        self.progress_callback: Callable[..., None] | None = progress_callback
 
         self.discussion_dir: Path = self.workspace / "shared" / "discussion"
         self.output_dir: Path = self.workspace / "output"
@@ -152,6 +153,7 @@ class BaseAgent(ABC):
         doc_fragment: str = ""
         if self.documents:
             from council.config.documents import AgentContext
+
             agent_ctx = AgentContext(company=self.config, documents=self.documents)
             doc_fragment = agent_ctx.to_prompt_fragment(max_total_chars=30_000)
         prompt = template.render(

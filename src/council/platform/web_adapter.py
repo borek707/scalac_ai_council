@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import json
 import logging
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING
 
 from council.platform.base import PlatformAdapter
 
@@ -54,7 +53,7 @@ class WebPlatformAdapter(PlatformAdapter):
         "WEBCONTAINER": "StackBlitz",
     }
 
-    def __init__(self, workspace_root: Optional[str] = None) -> None:
+    def __init__(self, workspace_root: str | None = None) -> None:
         self._detected_platform = self._detect_platform()
         self.workspace_root = self._resolve_workspace(workspace_root)
 
@@ -63,14 +62,14 @@ class WebPlatformAdapter(PlatformAdapter):
             return self._detected_platform
         return "Web Platform (generic)"
 
-    def _detect_platform(self) -> Optional[str]:
+    def _detect_platform(self) -> str | None:
         """Auto-detect which web platform we're running on."""
         for env_var, platform_name in self.PLATFORM_NAMES.items():
             if os.environ.get(env_var):
                 return platform_name
         return None
 
-    def _resolve_workspace(self, workspace_root: Optional[str]) -> Path:
+    def _resolve_workspace(self, workspace_root: str | None) -> Path:
         """Find a writable directory for output."""
         if workspace_root:
             return Path(workspace_root)
@@ -121,16 +120,13 @@ class WebPlatformAdapter(PlatformAdapter):
         # for parallel execution; fall back to sequential if not
         try:
             import asyncio
+
             # Test: can we create multiple tasks?
-            await asyncio.wait_for(
-                self._test_parallelism(), timeout=5.0
-            )
+            await asyncio.wait_for(self._test_parallelism(), timeout=5.0)
             logger.info("Parallel execution available")
             await orchestrator.run()
         except Exception:
-            logger.warning(
-                "Limited resources detected — running agents sequentially"
-            )
+            logger.warning("Limited resources detected — running agents sequentially")
             await self._run_sequential(orchestrator)
 
     async def _test_parallelism(self) -> None:

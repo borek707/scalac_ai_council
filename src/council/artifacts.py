@@ -4,13 +4,14 @@ Provides a stable, manifest-first view of all artifacts produced by a
 council run.  Falls back to a filesystem scan when no manifest is
 present, and never raises on missing files.
 """
+
 from __future__ import annotations
 
 import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Any, Literal
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ class Artifact:
     id: str
     title: str
     kind: ArtifactKind
-    agent: Optional[str]
+    agent: str | None
     path: Path
     exists: bool = field(default=False)
 
@@ -63,13 +64,14 @@ class Artifact:
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_artifact(
     path: Path,
     kind: ArtifactKind,
     *,
-    agent: Optional[str] = None,
-    title: Optional[str] = None,
-    artifact_id: Optional[str] = None,
+    agent: str | None = None,
+    title: str | None = None,
+    artifact_id: str | None = None,
 ) -> Artifact:
     """Construct an :class:`Artifact`, filling in defaults from *path*."""
     resolved = path.resolve()
@@ -102,18 +104,14 @@ def _discover_from_manifest(workspace: Path) -> list[Artifact] | None:
     artifacts: list[Artifact] = []
 
     # Manifest itself
-    artifacts.append(
-        _make_artifact(manifest_path, "manifest", title="manifest")
-    )
+    artifacts.append(_make_artifact(manifest_path, "manifest", title="manifest"))
 
-    files: dict = data.get("files", {})
+    files: dict[str, Any] = data.get("files", {})
 
     # Proposal
     proposal_str = files.get("proposal")
     if proposal_str:
-        artifacts.append(
-            _make_artifact(Path(proposal_str), "proposal", title="proposal")
-        )
+        artifacts.append(_make_artifact(Path(proposal_str), "proposal", title="proposal"))
 
     # Final agent deliverables (preferred over raw agent_outputs)
     final_deliverables: dict[str, str] = files.get("final_deliverables", {})
@@ -162,9 +160,7 @@ def _discover_from_filesystem(workspace: Path) -> list[Artifact]:
     # Legacy: FINAL_PROPOSAL.md at workspace root
     legacy_proposal = workspace / "FINAL_PROPOSAL.md"
     if legacy_proposal.exists():
-        artifacts.append(
-            _make_artifact(legacy_proposal, "proposal", title="FINAL_PROPOSAL")
-        )
+        artifacts.append(_make_artifact(legacy_proposal, "proposal", title="FINAL_PROPOSAL"))
 
     # -- Agent outputs: output/agents/*.md ------------------------------------
     agents_dir = workspace / "output" / "agents"
@@ -172,9 +168,7 @@ def _discover_from_filesystem(workspace: Path) -> list[Artifact]:
         for p in sorted(agents_dir.glob("*.md")):
             # Infer agent name from the file stem (e.g. "marcus_offer" → "marcus")
             agent_name = p.stem.split("_")[0].capitalize() if "_" in p.stem else p.stem
-            artifacts.append(
-                _make_artifact(p, "agent", agent=agent_name, title=p.stem)
-            )
+            artifacts.append(_make_artifact(p, "agent", agent=agent_name, title=p.stem))
 
     # -- Other markdown files directly under output/ (but not agents/) --------
     output_dir = workspace / "output"
@@ -192,9 +186,7 @@ def _discover_from_filesystem(workspace: Path) -> list[Artifact]:
             # File naming: {agent_lower}_round_{n}.md
             parts = p.stem.split("_round_")
             agent_name = parts[0].capitalize() if parts else p.stem
-            artifacts.append(
-                _make_artifact(p, "discussion", agent=agent_name, title=p.stem)
-            )
+            artifacts.append(_make_artifact(p, "discussion", agent=agent_name, title=p.stem))
 
     # -- Manifest -------------------------------------------------------------
     manifest_path = workspace / "output" / "manifest.json"
@@ -207,6 +199,7 @@ def _discover_from_filesystem(workspace: Path) -> list[Artifact]:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def discover_artifacts(workspace: Path) -> list[Artifact]:
     """Discover all artifacts in *workspace*.
@@ -254,7 +247,7 @@ def discover_artifacts(workspace: Path) -> list[Artifact]:
     return unique
 
 
-def get_default_artifact(artifacts: list[Artifact]) -> Optional[Artifact]:
+def get_default_artifact(artifacts: list[Artifact]) -> Artifact | None:
     """Return the most relevant single artifact from a discovered list.
 
     Selection priority:

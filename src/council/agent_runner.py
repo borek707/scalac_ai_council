@@ -5,10 +5,10 @@ import asyncio
 import logging
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
-from council.config.loader import ConfigLoader
 from council.cli import _create_provider
+from council.config.loader import ConfigLoader
 
 logger = logging.getLogger(__name__)
 
@@ -27,17 +27,13 @@ def _reconstruct_agent(
     agent_name: str,
     workspace: Path,
     provider_name: str,
-    provider_model: Optional[str],
+    provider_model: str | None,
 ) -> Any:
-    from council.agents.base import BaseAgent
 
     config_path = workspace / "config.json"
     if not config_path.exists():
         logger.error("Config file not found in workspace: %s", config_path)
         return None
-
-    from council.config.loader import ConfigLoader
-    from council.cli import _create_provider
 
     company_config = ConfigLoader.from_json(config_path)
     provider = _create_provider(provider_name, provider_model)
