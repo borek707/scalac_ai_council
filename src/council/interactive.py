@@ -477,7 +477,7 @@ class ProviderScreen(Screen):
         # Update model placeholder to show actual default
         model_input = self.query_one("#model-input", Input)
         model_input.placeholder = (
-            f"leave empty — auto-picks free model" if is_openrouter
+            "leave empty — auto-picks free model" if is_openrouter
             else f"leave empty — default: {default_model}"
         )
 
