@@ -271,6 +271,61 @@ class ClaudeCodeProvider(LLMProvider):
             prompt, model=model, temperature=temperature, max_tokens=max_tokens, system=system
         )
 
+    async def _stream_subprocess(
+        self,
+        prompt: str,
+        model: str | None = None,
+        system: str | None = None,
+    ) -> AsyncIterator[str]:
+        cmd = self._build_cmd(prompt, model=model, system=system)
+        safe_cmd = cmd[:-1] + [f"<prompt:{len(cmd[-1])}chars>"]
+        logger.debug("ClaudeCodeProvider streaming subprocess: %s", " ".join(safe_cmd))
+
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        assert proc.stdout is not None
+
+        try:
+            while True:
+                chunk = await asyncio.wait_for(proc.stdout.read(256), timeout=120.0)
+                if not chunk:
+                    break
+                yield chunk.decode("utf-8", errors="replace")
+        except TimeoutError:
+            proc.kill()
+            raise RuntimeError("Claude CLI streaming timed out after 120 s")
+
+        await proc.wait()
+        if proc.returncode != 0:
+            assert proc.stderr is not None
+            stderr_bytes = await proc.stderr.read()
+            stderr = stderr_bytes.decode("utf-8", errors="replace")
+            raise RuntimeError(f"Claude CLI failed (exit {proc.returncode}): {stderr[:500]}")
+
+    async def _stream_http(
+        self,
+        prompt: str,
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4000,
+        system: str | None = None,
+    ) -> AsyncIterator[str]:
+        if self._http_client is None:
+            raise RuntimeError("HTTP client not initialised")
+
+        async with self._http_client.messages.stream(  # type: ignore[attr-defined]
+            model=model or self.model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            system=system or "",
+            messages=[{"role": "user", "content": prompt}],
+        ) as stream:
+            async for text in stream.text_stream:
+                yield text
+
     async def stream(
         self,
         prompt: str,
@@ -279,12 +334,12 @@ class ClaudeCodeProvider(LLMProvider):
         max_tokens: int = 4000,
         system: str | None = None,
     ) -> AsyncIterator[str]:
-        response = await self.generate(
-            prompt=prompt,
-            model=model,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            system=system,
-        )
-        if response.content:
-            yield response.content
+        if self.executable_path and len(prompt) < self._SUBPROCESS_PROMPT_LIMIT:
+            async for chunk in self._stream_subprocess(prompt, model=model, system=system):
+                yield chunk
+            return
+
+        async for chunk in self._stream_http(
+            prompt, model=model, temperature=temperature, max_tokens=max_tokens, system=system
+        ):
+            yield chunk

@@ -636,6 +636,7 @@ class ConfirmScreen(Screen):
                 scenario=st.get("scenario", "saas-launch"),
                 template=st.get("template"),
                 free_tier=st.get("free_tier", False),
+                stream=True,
             )
             self.app.exit(ns)
 
