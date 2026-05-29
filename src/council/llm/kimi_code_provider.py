@@ -201,11 +201,9 @@ class KimiCodeProvider(LLMProvider):
         max_tokens: int = 4000,
         system: str | None = None,
     ) -> AsyncIterator[str]:
-        """Stream a response.
-
-        Kimi CLI quiet mode returns the full response at once, so we yield the
-        entire text as a single chunk.
-        """
+        # Kimi CLI has no streaming mode — it prints the full response only after
+        # the request finishes. We yield it as one chunk so the interface is consistent,
+        # but there will be no visible token-by-token output.
         response = await self.generate(
             prompt=prompt,
             model=model,
