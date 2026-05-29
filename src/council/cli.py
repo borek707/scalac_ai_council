@@ -239,6 +239,11 @@ Need more help? Read README.md or run: python -m council --interactive
         action="store_true",
         help="Use OpenRouter free-tier model fallback (fetches current free models)",
     )
+    parser.add_argument(
+        "--stream",
+        action="store_true",
+        help="Stream agent output to console in real time as LLM generates",
+    )
     return parser.parse_args(args)
 
 
@@ -613,6 +618,10 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
     from council.agents.marcus import MarcusAgent
     from council.orchestration.orchestrator import AsyncOrchestrator
 
+    stream_output = getattr(args, "stream", False)
+    if stream_output:
+        console.print("[dim]Streaming mode:[/dim] [green]ON[/green] — you will see agent output as it generates")
+
     agents: list[BaseAgent] = [
         MarcusAgent(
             workspace=workspace, config=company_config, provider=provider, documents=documents
@@ -627,6 +636,9 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
             workspace=workspace, config=company_config, provider=provider, documents=documents
         ),
     ]
+
+    for agent in agents:
+        agent.stream_output = stream_output
 
     async def _execute_council(progress_callback=None):
         orchestrator = AsyncOrchestrator(

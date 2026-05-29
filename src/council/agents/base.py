@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -13,6 +13,13 @@ if TYPE_CHECKING:
     from council.config.schema import AgentState, CompanyConfig, LLMProvider, RoundContext
 
 logger: logging.Logger = logging.getLogger(__name__)
+
+AGENT_COLORS: dict[str, str] = {
+    "Marcus": "cyan",
+    "Elena": "green",
+    "Kai": "yellow",
+    "David": "magenta",
+}
 
 
 class BaseAgent(ABC):
@@ -41,6 +48,8 @@ class BaseAgent(ABC):
         self.provider: LLMProvider = provider
         self.documents: list[Document] = documents or []
         self.progress_callback: Callable[..., None] | None = progress_callback
+
+        self.stream_output: bool = False
 
         self.discussion_dir: Path = self.workspace / "shared" / "discussion"
         self.output_dir: Path = self.workspace / "output"
@@ -176,27 +185,61 @@ class BaseAgent(ABC):
     # ── LLM-powered generation ────────────────────────────────────────────
 
     async def generate_round(self, ctx: RoundContext) -> str:
-        """Generate round content via LLM using the agent's template.
-
-        Override for custom behaviour (e.g. multi-shot prompting,
-        structured JSON output, etc.).
-        """
+        """Generate round content via LLM using the agent's template."""
         prompt: str = self.render_prompt(ctx)
         system_prompt: str = self.get_system_prompt()
         if self.progress_callback:
             self.progress_callback(self.name, "generating")
-        response = await self.provider.generate(
+
+        if self.stream_output:
+            content = await self._generate_streaming(prompt, system_prompt)
+        else:
+            response = await self.provider.generate(
+                prompt=prompt,
+                system=system_prompt,
+                temperature=0.7,
+                max_tokens=4000,
+            )
+            content = response.content
+
+        if not content or not content.strip():
+            raise ValueError(
+                f"LLM provider returned an empty response for agent {self.name}"
+            )
+        return content
+
+    async def _generate_streaming(self, prompt: str, system_prompt: str) -> str:
+        """Stream LLM output to console with agent-colored prefix."""
+        import sys
+
+        color = AGENT_COLORS.get(self.name, "white")
+        prefix = f"\033[1m[{self.name}]\033[0m "
+        # ANSI color codes for terminal output
+        color_codes = {
+            "cyan": "\033[36m", "green": "\033[32m",
+            "yellow": "\033[33m", "magenta": "\033[35m", "white": "\033[37m",
+        }
+        reset = "\033[0m"
+        colored_prefix = f"{color_codes.get(color, '')}{prefix}{reset}"
+
+        chunks: list[str] = []
+        stream: AsyncIterator[str] = self.provider.stream(
             prompt=prompt,
             system=system_prompt,
             temperature=0.7,
             max_tokens=4000,
         )
-        if not response.content or not response.content.strip():
-            raise ValueError(
-                f"LLM provider returned an empty response for agent {self.name} "
-                f"(model={response.model!r})"
-            )
-        return response.content
+        first_chunk = True
+        async for chunk in stream:
+            if first_chunk:
+                sys.stdout.write(f"\n{colored_prefix}")
+                first_chunk = False
+            sys.stdout.write(chunk)
+            sys.stdout.flush()
+            chunks.append(chunk)
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+        return "".join(chunks)
 
     async def _load_context(self, round_num: int) -> RoundContext:
         """Assemble the :class:`RoundContext` for *round_num*.
