@@ -600,6 +600,10 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         getattr(args, "free_tier", False),
         api_key=getattr(args, "api_key", None),
     )
+    if hasattr(provider, "auto_selected") and provider.auto_selected:
+        console.print(f"[green]OpenRouter auto-selected:[/green] {provider.model}")
+    elif hasattr(provider, "model"):
+        console.print(f"[dim]Provider:[/dim] {args.provider} · [dim]model:[/dim] {provider.model}")
 
     # Create agents with optional document context
     from council.agents.base import BaseAgent

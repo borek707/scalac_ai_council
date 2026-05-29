@@ -61,9 +61,9 @@ class OpenRouterProvider(OpenAIProvider):
                     logger.warning(
                         "OpenRouter: could not fetch free models (%s), falling back", exc
                     )
-                    resolved_model = "anthropic/claude-3.5-sonnet"
+                    resolved_model = "anthropic/claude-3-5-sonnet-20241022"
             else:
-                resolved_model = "anthropic/claude-3.5-sonnet"
+                resolved_model = "anthropic/claude-3-5-sonnet-20241022"
         else:
             assert model is not None
             resolved_model = model

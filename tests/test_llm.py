@@ -585,19 +585,19 @@ class TestOpenRouterProvider:
         provider = self._make_provider(monkeypatch, model="meta-llama/llama-3-70b")
         # Must NOT be silently swapped for the built-in fallback
         assert provider.model == "meta-llama/llama-3-70b"
-        assert provider.model != "anthropic/claude-3.5-sonnet"
+        assert provider.model != "anthropic/claude-3-5-sonnet-20241022"
 
     # 5b. model=None (omitted) results in the built-in default, not None
     def test_model_none_resolves_to_default(self, monkeypatch: Any) -> None:
         provider = self._make_provider(monkeypatch, model=None)
         # The constructor must not leave self.model as None
         assert provider.model is not None
-        assert provider.model == "anthropic/claude-3.5-sonnet"
+        assert provider.model == "anthropic/claude-3-5-sonnet-20241022"
 
     # 5c. model="default" is treated the same as model=None
     def test_model_default_string_resolves_to_fallback(self, monkeypatch: Any) -> None:
         provider = self._make_provider(monkeypatch, model="default")
-        assert provider.model == "anthropic/claude-3.5-sonnet"
+        assert provider.model == "anthropic/claude-3-5-sonnet-20241022"
 
 
 class TestAnthropicProvider:

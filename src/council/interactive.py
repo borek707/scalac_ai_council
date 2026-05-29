@@ -37,7 +37,7 @@ _ONBOARDING_FLAG = Path.home() / ".config" / "council" / "onboarding_done"
 _PROVIDERS = [
     ("openai", "OpenAI (GPT-4o)", "gpt-4o"),
     ("anthropic", "Anthropic (Claude)", "claude-sonnet-4-6"),
-    ("openrouter", "OpenRouter", "anthropic/claude-3.5-sonnet"),
+    ("openrouter", "OpenRouter", "anthropic/claude-3-5-sonnet-20241022"),
     ("ollama", "Ollama (local)", "llama3"),
     ("kimi-code", "Kimi Code CLI", "kimi-for-coding"),
     ("claude-code", "Claude Code CLI / IDE", "claude-sonnet-4-6"),
@@ -410,11 +410,11 @@ class ProviderScreen(Screen):
             yield Rule()
             yield Static("Model override (optional):", classes="field-label")
             yield Input(
-                placeholder="leave empty — OpenRouter auto-picks a free model", id="model-input"
+                placeholder="leave empty to use the default model", id="model-input"
             )
             yield Static("Free tier (OpenRouter only):", classes="field-label")
             with Horizontal(classes="switch-row"):
-                yield Switch(value=False, id="free-tier-switch")
+                yield Switch(value=False, id="free-tier-switch", disabled=True)
                 yield Label("Use free-tier model fallback")
             yield Rule()
             yield Static("Rounds:", classes="field-label")
@@ -466,6 +466,21 @@ class ProviderScreen(Screen):
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
         sel = event.option_index
         provider_key = _PROVIDERS[sel][0] if sel < len(_PROVIDERS) else "openai"
+        default_model = _PROVIDERS[sel][2] if sel < len(_PROVIDERS) else ""
+
+        # Enable free-tier switch only for OpenRouter; auto-enable it
+        free_switch = self.query_one("#free-tier-switch", Switch)
+        is_openrouter = provider_key == "openrouter"
+        free_switch.disabled = not is_openrouter
+        free_switch.value = is_openrouter
+
+        # Update model placeholder to show actual default
+        model_input = self.query_one("#model-input", Input)
+        model_input.placeholder = (
+            f"leave empty — auto-picks free model" if is_openrouter
+            else f"leave empty — default: {default_model}"
+        )
+
         if provider_key in _KEY_REQUIRED_PROVIDERS:
 
             def _store_key(api_key: str | None) -> None:
@@ -559,9 +574,14 @@ class ConfirmScreen(Screen):
         lines.append(
             f"[bold]API Key:[/bold]   {'[green]••••••••[/green]' if st.get('api_key') else '[dim]env[/dim]'}"
         )
-        model_display = st.get("model") or (
-            "[green]auto (free)[/green]" if st.get("provider") == "openrouter" else "default"
-        )
+        provider_key = st.get("provider", "openai")
+        default_model = next((m for k, _, m in _PROVIDERS if k == provider_key), "?")
+        if st.get("model"):
+            model_display = st["model"]
+        elif provider_key == "openrouter":
+            model_display = "[green]auto (free)[/green]" if st.get("free_tier") else f"[dim]{default_model}[/dim]"
+        else:
+            model_display = f"[dim]{default_model}[/dim]"
         lines.append(f"[bold]Model:[/bold]     {model_display}")
         lines.append(f"[bold]Rounds:[/bold]    {st.get('rounds', 3)}")
         lines.append(
@@ -569,17 +589,13 @@ class ConfirmScreen(Screen):
         )
         lines.append(f"[bold]Output:[/bold]    {st.get('output', './output')}")
 
+        if st.get("free_tier"):
+            lines.append("[bold]Free tier:[/bold] [green]Yes[/green] — model chosen at run time")
+
         brief = st.get("brief", "")
         if brief:
             brief_display = brief[:70] + "..." if len(brief) > 70 else brief
-            lines.append(f"Brief:     {brief_display}")
-
-        api_key = st.get("api_key", "")
-        if api_key:
-            lines.append(f"API Key:   {'*' * min(len(api_key), 20)}")
-
-        if st.get("free_tier"):
-            lines.append("Free tier: Yes (OpenRouter free-model fallback)")
+            lines.append(f"[bold]Brief:[/bold]     {brief_display}")
 
         with Center(), Vertical(classes="menu-container"):
             yield Static("\uf00c  Ready to Run", classes="title")
