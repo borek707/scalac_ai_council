@@ -124,8 +124,8 @@ python -m council --config my_company.json --provider claude-code
 # Live dashboard (działa z demo i real run)
 python -m council --config my_company.json --dashboard
 
-# Wyświetl status
-python -m council --config my_company.json --monitor
+# Wyświetl status (nie wymaga configu)
+python -m council --monitor
 
 # Przegląd wygenerowanych artefaktów po runie
 python -m council --config my_company.json --review
@@ -188,27 +188,25 @@ python -m council
 
 ### Onboarding (pierwsze uruchomienie)
 
-Przy pierwszym uruchomieniu zobaczysz **onboarding wizard**:
+Przy pierwszym uruchomieniu zobaczysz **onboarding screen** w terminalu (Textual):
 
 ```
-👋 Welcome! This tool runs 4 AI marketing specialists who debate in rounds
-   and produce a complete marketing plan for your company.
+Universal AI Marketing Council
+v3.3 — AI-powered marketing strategy
 
 The Four Agents:
-  🏗️  Marcus — Offer Architect
-  🎯  Elena  — Funnel Architect
-  ✍️  Kai    — Copywriter
-  🎣  David  — Lead Strategist
+  🔧  Marcus  — Offer Architect
+  🎯  Elena   — Funnel Architect
+  ✍️  Kai     — Copywriter
+  📊  David   — Lead Strategist
 
-What would you like to do first?
-  [1] 🎮  Quick Demo — see it in action, no setup needed
-  [2] ⚙️   Real Run — I have a company JSON config
-  [3] 📊  Dashboard Demo — watch the live terminal dashboard
-  [4] 📖  Help — how the debate works
-  [s] ⏭️   Skip — go to main menu
+Each round they read, critique, and improve each other's work.
+After 2-3 rounds you get a polished multi-perspective plan.
+
+[Skip →]  [Start →]
 ```
 
-Wizard wykrywa pierwsze uruchomienie przez plik `~/.config/council/onboarding_done`. Możesz wymusić ponowny onboarding:
+Po naciśnięciu **Start** lub **Skip** trafiasz do głównego menu. Wizard wykrywa pierwsze uruchomienie przez plik `~/.config/council/onboarding_done`. Możesz wymusić ponowny onboarding:
 
 ```bash
 python -m council --onboarding
@@ -216,11 +214,14 @@ python -m council --onboarding
 
 ### Główne menu
 
-Po onboardingu (lub przy `--interactive` / `-i`):
+Po onboardingu (lub przy `--interactive` / `-i`) menu główne oferuje:
 
-1. **Wybór trybu**: Demo Mode 🎮 lub Real Council Run ▶️
-2. **Demo**: wybór scenariusza, liczby rund, dashboard on/off
-3. **Real Run**: ścieżka do configu / template, provider LLM, model, rounds, dashboard
+1. **Demo Mode** — pre-built scenariusze, zero kluczy API
+2. **Run from Template** — wbudowane configi firm (saas, fintech, ecommerce, consulting, scalac)
+3. **Real Council Run** — własny config JSON + wybór providera LLM
+4. **IDE Help** — wskazówki dla VS Code, Cursor, Kimi, Claude Code
+5. **How it Works** — wyjaśnienie jak działa debata
+6. **Quit** — wyjście
 
 ---
 
@@ -230,7 +231,9 @@ Po onboardingu (lub przy `--interactive` / `-i`):
 |----------|-------|----------------|-----------|
 | **OpenAI** | `--provider openai` | `gpt-4o` | `OPENAI_API_KEY` |
 | **Anthropic** | `--provider anthropic` | `claude-sonnet-4-6` | `ANTHROPIC_API_KEY` |
-| **OpenRouter** | `--provider openrouter` | auto-select | `OPENROUTER_API_KEY` |
+| **OpenRouter** | `--provider openrouter` | `anthropic/claude-3.5-sonnet`¹ | `OPENROUTER_API_KEY` |
+
+¹ Przy `--free-tier` model wybierany jest automatycznie z listy darmowych.
 | **Ollama** | `--provider ollama` | `llama3` | Lokalny Ollama |
 | **Kimi Code** | `--provider kimi-code` | `kimi-for-coding` | Zainstalowane Kimi Code CLI |
 | **Claude Code** | `--provider claude-code` | `claude-sonnet-4-6` | Zainstalowane Claude Code CLI lub IDE |
@@ -351,19 +354,9 @@ Review pokazuje:
 - Preview proposal (pierwsze 20 linii)
 - Ścieżki do wszystkich artefaktów
 
-### AI-assisted Artifact Review
+### AI-assisted Artifact Review (API w kodzie)
 
-System może dodatkowo ocenić jakość każdego artefaktu przy użyciu LLM:
-
-- **Clarity** — czytelność i precyzja języka
-- **Completeness** — kompletność treści
-- **Actionability** — czy da się działać na podstawie dokumentu
-- **Overall quality** — ocena ogólna 1-10
-
-Wyniki zapisywane są w:
-- `output/artifacts/reviews/review.md` — podsumowanie czytelne dla człowieka
-- `output/artifacts/reviews/review.json` — strukturyzowane dane
-- `output/manifest.json` — klucz `"reviews"`
+W `src/council/review.py` znajduje się `ReviewRunner` — klasa do oceny jakości artefaktów przez LLM (clarity, completeness, actionability, score 1-10). Jest to gotowy komponent programistyczny, ale **obecnie nie jest podpięty do flagi `--review`** w CLI.
 
 ---
 
@@ -598,8 +591,8 @@ python -m council --config firm.json --timeout 600
 # Live dashboard (działa z demo i real run)
 python -m council --config firm.json --dashboard
 
-# Tylko status dyskusji
-python -m council --config firm.json --monitor
+# Tylko status dyskusji (nie wymaga --config)
+python -m council --monitor
 
 # Przegląd wygenerowanych artefaktów
 python -m council --config firm.json --review
