@@ -1,4 +1,4 @@
-# Universal AI Marketing Council v3.2
+# Universal AI Marketing Council v3.3
 
 > **4 agenci AI pracujący równolegle, debatują i tworzą kompletny plan marketingowy dla dowolnej firmy.**
 >
@@ -663,7 +663,7 @@ CI używa `uv` do deterministycznego rozwiązywania zależności.
 
 ## Changelog
 
-### v3.2.0 (2026-04-22 → 2026-05-29) — Demo Mode, Interactive Menu, Dashboard & OpenRouter
+### v3.3.0 (2026-05-29) — OpenRouter, Review Mode, Artifact Discovery & 6 IDE Platforms
 
 **Nowości:**
 - **Tryb Demo** — 4 pre-built scenariusze (SaaS, e-commerce, fintech, healthcare) z deterministycznymi odpowiedziami. Zero kluczy API, zero configu.
@@ -771,7 +771,7 @@ CI używa `uv` do deterministycznego rozwiązywania zależności.
 
 ## Porównanie wersji
 
-| Cecha | v1 | v2 | v3.0 | v3.1 | v3.2 |
+| Cecha | v1 | v2 | v3.0 | v3.1 | v3.3 |
 |-------|-----|-----|------|------|------|
 | Agenci | 1 | 4 | 4 | 4 | 4 |
 | Integracja LLM | ❌ | ❌ | ✅ Multi-provider | ✅ + Kimi Code | ✅ + OpenRouter + Demo |

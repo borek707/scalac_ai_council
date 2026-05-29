@@ -67,7 +67,7 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
         available_templates = sorted(p.stem for p in template_dir.glob("*.json") if p.is_file())
 
     parser = argparse.ArgumentParser(
-        description="Universal AI Marketing Council v3.2 — 4 AI agents debate and create a marketing plan for your company.",
+        description="Universal AI Marketing Council v3.3 — 4 AI agents debate and create a marketing plan for your company.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""
 Platform auto-detection: {{ {auto_msg} }}

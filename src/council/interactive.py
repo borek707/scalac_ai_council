@@ -67,7 +67,7 @@ class WelcomeScreen(Screen):
                 "\uf0e8  Universal AI Marketing Council",
                 classes="title",
             )
-            yield Static("v3.2 — AI-powered marketing strategy", classes="subtitle")
+            yield Static("v3.3 — AI-powered marketing strategy", classes="subtitle")
             yield Rule()
             yield Static("[bold]The Four Agents[/bold]", classes="section-title")
             yield Static(

@@ -786,7 +786,7 @@ class CouncilDashboard:
 
     def _render_header(self) -> Panel:
         elapsed = time.time() - (self._app._start_time if self._app else time.time())
-        title = Text(" Universal AI Marketing Council v3.2 ", style="bold white on blue")
+        title = Text(" Universal AI Marketing Council v3.3 ", style="bold white on blue")
         subtitle = Text(
             f" Runda {self._current_round}/{self.max_rounds} | Czas: {elapsed:.1f}s ", style="dim"
         )
