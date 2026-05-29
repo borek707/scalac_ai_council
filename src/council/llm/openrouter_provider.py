@@ -37,7 +37,8 @@ class OpenRouterProvider(OpenAIProvider):
         model: str | None = None,
         free_tier: bool = False,
     ) -> None:
-        resolved_key = api_key or os.environ.get("OPENROUTER_API_KEY")
+        raw_key = api_key or os.environ.get("OPENROUTER_API_KEY")
+        resolved_key = raw_key.strip() if raw_key else None
         if not resolved_key:
             raise RuntimeError(
                 "OpenRouter API key missing.\n" "  Set OPENROUTER_API_KEY env var or pass --api-key"

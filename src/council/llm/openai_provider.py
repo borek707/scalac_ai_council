@@ -46,7 +46,8 @@ class OpenAIProvider(LLMProvider):
         model: str = "gpt-4o",
     ) -> None:
         self.model = model
-        self.api_key = api_key if api_key is not None else os.environ.get("OPENAI_API_KEY")
+        raw_key = api_key if api_key is not None else os.environ.get("OPENAI_API_KEY")
+        self.api_key = raw_key.strip() if raw_key else None
         self.base_url = base_url
 
         if not self.api_key:

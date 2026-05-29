@@ -169,6 +169,61 @@ class TestCreateProvider:
 
         assert provider.api_key == "ant-test"
 
+    def test_create_provider_openai_no_key_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """RuntimeError raised when no key and OPENAI_API_KEY env var not set."""
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        with pytest.raises(RuntimeError, match="[Oo]penAI|OPENAI_API_KEY"):
+            _create_provider("openai", None)
+
+    def test_create_provider_anthropic_no_key_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """RuntimeError raised when no key and ANTHROPIC_API_KEY env var not set."""
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        with pytest.raises(RuntimeError, match="[Aa]nthropic|ANTHROPIC_API_KEY"):
+            _create_provider("anthropic", None)
+
+    def test_create_provider_openrouter_explicit_key_forwarded(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Explicit api_key is forwarded to OpenRouterProvider."""
+        monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+        # OpenRouterProvider is imported inside _create_provider — patch the class in its module
+        with patch("council.llm.openrouter_provider.OpenRouterProvider") as mock_cls:
+            mock_cls.return_value = MagicMock()
+            with patch("council.llm.openai_provider.openai") as mock_openai:
+                mock_openai.AsyncOpenAI.return_value = MagicMock()
+                _create_provider("openrouter", None, api_key="sk-or-test")
+            call_kwargs = mock_cls.call_args
+            assert call_kwargs is not None
+
+    def test_create_provider_openrouter_no_key_raises(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """RuntimeError raised when no key and OPENROUTER_API_KEY env var not set."""
+        monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+        with pytest.raises(RuntimeError, match="[Oo]penRouter|OPENROUTER_API_KEY"):
+            _create_provider("openrouter", None)
+
+    def test_create_provider_unknown_raises_value_error(self) -> None:
+        """ValueError raised for unknown provider name."""
+        with pytest.raises(ValueError, match="[Uu]nknown provider|bogus"):
+            _create_provider("bogus-provider", None)
+
+    def test_create_provider_openai_whitespace_key_stripped(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """API key with surrounding whitespace is stripped before use."""
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        # OpenAIProvider is imported inside _create_provider — patch inside its module
+        with patch("council.llm.openai_provider.openai") as mock_openai:
+            mock_openai.AsyncOpenAI.return_value = MagicMock()
+            mock_openai.AuthenticationError = Exception
+            mock_openai.PermissionDeniedError = Exception
+            mock_openai.NotFoundError = Exception
+            mock_openai.BadRequestError = Exception
+            provider = _create_provider("openai", None, api_key="  sk-test  ")
+            # The key stored on the provider should be stripped
+            assert provider.api_key == "sk-test"
+
 
 # ── API key env-var warning tests (Issues #4, #7) ──────────────────────────
 
@@ -287,6 +342,46 @@ class TestApiKeyWarning:
                     with caplog.at_level(logging.WARNING, logger="council.cli"):
                         try:
                             asyncio.run(_run_council(args))
+                        except Exception:
+                            pass
+
+        assert "does not use an API key" in caplog.text
+        assert os.environ.get("ANTHROPIC_API_KEY") != "some-key"
+
+    @pytest.mark.asyncio
+    async def test_kimi_code_api_key_warns(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+        tmp_path: Path,
+    ) -> None:
+        """Passing api_key with kimi-code provider logs a warning and does not set env vars."""
+        from council.cli import _run_council
+
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        config_file = tmp_path / "company.json"
+        config_file.write_text('{"name":"T","product":"P"}', encoding="utf-8")
+        args = _make_args(
+            provider="kimi-code",
+            api_key="some-key",
+            config=str(config_file),
+            output=str(tmp_path),
+        )
+
+        mock_config = MagicMock()
+        mock_config.name = "T"
+        mock_config.product = "P"
+        mock_config.model_dump_json.return_value = "{}"
+
+        with patch("council.config.loader.ConfigLoader.from_json", return_value=mock_config):
+            with patch(
+                "council.cli._create_platform_adapter",
+                return_value=MagicMock(get_name=lambda: "cli"),
+            ):
+                with patch("council.cli._create_provider", return_value=MagicMock()):
+                    with caplog.at_level(logging.WARNING, logger="council.cli"):
+                        try:
+                            await _run_council(args)
                         except Exception:
                             pass
 

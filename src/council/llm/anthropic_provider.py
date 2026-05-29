@@ -45,7 +45,8 @@ class AnthropicProvider(LLMProvider):
         model: str = "claude-sonnet-4-6",
     ) -> None:
         self.model = model
-        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+        raw_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+        self.api_key = raw_key.strip() if raw_key else None
 
         if not self.api_key:
             raise RuntimeError(

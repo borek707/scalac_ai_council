@@ -457,7 +457,7 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
                     f"  Supported providers: {', '.join(sorted(env_map))}"
                 )
             env_var = env_map[args.provider]
-            os.environ[env_var] = args.api_key
+            os.environ[env_var] = args.api_key.strip()
             logger.info("API key set from command line for provider %s", args.provider)
 
     config_save_path = workspace / "config.json"
@@ -678,6 +678,13 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         _review_run(workspace)
 
 
+_PROVIDER_KEY_HELP: dict[str, tuple[str, str]] = {
+    "openai": ("OPENAI_API_KEY", "https://platform.openai.com/api-keys"),
+    "anthropic": ("ANTHROPIC_API_KEY", "https://console.anthropic.com/settings/keys"),
+    "openrouter": ("OPENROUTER_API_KEY", "https://openrouter.ai/keys"),
+}
+
+
 def _create_provider(
     provider_name: str,
     model: str | None,
@@ -710,11 +717,17 @@ def _create_provider(
             ) from exc
         try:
             return OpenAIProvider(model=model or "gpt-4o", api_key=api_key)
-        except RuntimeError as exc:
-            raise RuntimeError(
-                f"Failed to initialize OpenAI provider: {exc}\n"
-                "  Check that OPENAI_API_KEY is set and valid."
-            ) from exc
+        except RuntimeError:
+            if provider_name in _PROVIDER_KEY_HELP:
+                env_var, url = _PROVIDER_KEY_HELP[provider_name]
+                raise RuntimeError(
+                    f"No API key found for {provider_name}.\n\n"
+                    f"  Set env var:   export {env_var}=<your-key>\n"
+                    f"  Or pass flag:  --api-key <your-key>\n"
+                    f"  Get a key at:  {url}\n"
+                    f"  No key needed? Use --demo for a zero-config demo run."
+                ) from None
+            raise
     elif provider_name == "anthropic":
         try:
             from council.llm.anthropic_provider import AnthropicProvider
@@ -726,11 +739,17 @@ def _create_provider(
             ) from exc
         try:
             return AnthropicProvider(model=model or "claude-sonnet-4-6", api_key=api_key)
-        except RuntimeError as exc:
-            raise RuntimeError(
-                f"Failed to initialize Anthropic provider: {exc}\n"
-                "  Check that ANTHROPIC_API_KEY is set and valid."
-            ) from exc
+        except RuntimeError:
+            if provider_name in _PROVIDER_KEY_HELP:
+                env_var, url = _PROVIDER_KEY_HELP[provider_name]
+                raise RuntimeError(
+                    f"No API key found for {provider_name}.\n\n"
+                    f"  Set env var:   export {env_var}=<your-key>\n"
+                    f"  Or pass flag:  --api-key <your-key>\n"
+                    f"  Get a key at:  {url}\n"
+                    f"  No key needed? Use --demo for a zero-config demo run."
+                ) from None
+            raise
     elif provider_name == "openrouter":
         try:
             from council.llm.openrouter_provider import OpenRouterProvider
@@ -746,11 +765,17 @@ def _create_provider(
                 free_tier=free_tier,
                 api_key=api_key,
             )
-        except RuntimeError as exc:
-            raise RuntimeError(
-                f"Failed to initialize OpenRouter provider: {exc}\n"
-                "  Check that OPENROUTER_API_KEY is set and valid."
-            ) from exc
+        except RuntimeError:
+            if provider_name in _PROVIDER_KEY_HELP:
+                env_var, url = _PROVIDER_KEY_HELP[provider_name]
+                raise RuntimeError(
+                    f"No API key found for {provider_name}.\n\n"
+                    f"  Set env var:   export {env_var}=<your-key>\n"
+                    f"  Or pass flag:  --api-key <your-key>\n"
+                    f"  Get a key at:  {url}\n"
+                    f"  No key needed? Use --demo for a zero-config demo run."
+                ) from None
+            raise
     elif provider_name == "ollama":
         try:
             from council.llm.ollama_provider import OllamaProvider

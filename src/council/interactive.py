@@ -17,7 +17,7 @@ from pathlib import Path
 
 from textual.app import App, ComposeResult
 from textual.containers import Center, Horizontal, Vertical
-from textual.screen import Screen
+from textual.screen import ModalScreen, Screen
 from textual.widgets import (
     Button,
     Input,
@@ -37,12 +37,13 @@ _ONBOARDING_FLAG = Path.home() / ".config" / "council" / "onboarding_done"
 _PROVIDERS = [
     ("openai", "OpenAI (GPT-4o)", "gpt-4o"),
     ("anthropic", "Anthropic (Claude)", "claude-sonnet-4-6"),
-    ("openrouter", "OpenRouter (universal)", "anthropic/claude-sonnet-4"),
+    ("openrouter", "OpenRouter", "anthropic/claude-3.5-sonnet"),
     ("ollama", "Ollama (local)", "llama3"),
     ("kimi-code", "Kimi Code CLI", "kimi-for-coding"),
     ("claude-code", "Claude Code CLI / IDE", "claude-sonnet-4-6"),
-    ("openrouter", "OpenRouter", "anthropic/claude-3.5-sonnet"),
 ]
+
+_KEY_REQUIRED_PROVIDERS = {"openai", "anthropic", "openrouter"}
 
 
 def _is_onboarding_done() -> bool:
@@ -333,6 +334,65 @@ class ConfigScreen(Screen):
             self._go_next()
 
 
+class ApiKeyModal(ModalScreen[str | None]):
+    """Modal dialog for collecting an API key."""
+
+    DEFAULT_CSS = """
+    ApiKeyModal {
+        align: center middle;
+    }
+    #api-key-dialog {
+        padding: 1 2;
+        width: 64;
+        height: auto;
+        border: thick $accent;
+        background: $surface;
+    }
+    #api-key-dialog Label {
+        margin-bottom: 1;
+    }
+    #api-key-dialog Input {
+        margin-bottom: 1;
+    }
+    #api-key-buttons {
+        height: 3;
+        align-horizontal: right;
+    }
+    """
+
+    def __init__(self, provider_name: str) -> None:
+        super().__init__()
+        self._provider_name = provider_name
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="api-key-dialog"):
+            yield Label(f"API key for [bold]{self._provider_name}[/bold]")
+            yield Input(
+                placeholder="Paste your API key here…",
+                password=True,
+                id="modal-key-input",
+            )
+            with Horizontal(id="api-key-buttons"):
+                yield Button("Cancel", id="modal-cancel")
+                yield Button("OK", variant="primary", id="modal-ok")
+
+    def on_mount(self) -> None:
+        self.query_one("#modal-key-input", Input).focus()
+
+    def on_input_submitted(self, _: Input.Submitted) -> None:
+        self._submit()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "modal-ok":
+            self._submit()
+        else:
+            self.dismiss(None)
+
+    def _submit(self) -> None:
+        value = self.query_one("#modal-key-input", Input).value.strip() or None
+        self.dismiss(value)
+
+
 class ProviderScreen(Screen):
     """LLM provider selection."""
 
@@ -348,8 +408,6 @@ class ProviderScreen(Screen):
                 classes="provider-options",
             )
             yield Rule()
-            yield Static("API Key (optional — overrides env):", classes="field-label")
-            yield Input(placeholder="leave empty to use env variable", id="api-key-input")
             yield Static("Model override (optional):", classes="field-label")
             yield Input(
                 placeholder="leave empty — OpenRouter auto-picks a free model", id="model-input"
@@ -381,9 +439,8 @@ class ProviderScreen(Screen):
         ol = self.query_one(OptionList)
         sel = ol.highlighted
         provider = _PROVIDERS[sel][0] if sel is not None else "openai"
-        api_key = self.query_one("#api-key-input", Input).value.strip() or None
+        api_key = self.app.state.get("api_key")
         model = self.query_one("#model-input", Input).value.strip() or None
-        api_key = self.query_one("#api-key-input", Input).value.strip() or None
         free_tier = self.query_one("#free-tier-switch", Switch).value
         rounds_str = self.query_one("#rounds-input", Input).value or "3"
         try:
@@ -406,15 +463,22 @@ class ProviderScreen(Screen):
         )
         self.app.push_screen("brief")
 
-    def on_option_list_option_selected(self, event) -> None:
-        self._go_next()
+    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
+        sel = event.option_index
+        provider_key = _PROVIDERS[sel][0] if sel < len(_PROVIDERS) else "openai"
+        if provider_key in _KEY_REQUIRED_PROVIDERS:
+
+            def _store_key(api_key: str | None) -> None:
+                self.app.state["api_key"] = api_key
+                self.query_one("#model-input", Input).focus()
+
+            self.app.push_screen(ApiKeyModal(provider_key), _store_key)
+        else:
+            self.app.state["api_key"] = None
+            self.query_one("#model-input", Input).focus()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         if event.input.id == "model-input":
-            self.query_one("#api-key-input", Input).focus()
-        elif event.input.id == "api-key-input":
-            self.query_one("#free-tier-switch", Switch).focus()
-        elif event.input.id == "free-tier-switch":
             self.query_one("#rounds-input", Input).focus()
         elif event.input.id == "rounds-input":
             self.query_one("#output-input", Input).focus()

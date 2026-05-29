@@ -4,11 +4,13 @@ import asyncio
 import logging
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from council.llm.anthropic_provider import AnthropicProvider
 from council.llm.cost_tracker import CostTracker
+from council.llm.ollama_provider import OllamaProvider
 from council.llm.provider import LLMResponse
 from council.llm.retry import retry_with_backoff
 
@@ -596,3 +598,125 @@ class TestOpenRouterProvider:
     def test_model_default_string_resolves_to_fallback(self, monkeypatch: Any) -> None:
         provider = self._make_provider(monkeypatch, model="default")
         assert provider.model == "anthropic/claude-3.5-sonnet"
+
+
+class TestAnthropicProvider:
+    """Tests for AnthropicProvider."""
+
+    def test_missing_api_key_raises(self, monkeypatch: Any) -> None:
+        """RuntimeError raised when key absent."""
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        with pytest.raises(RuntimeError, match="Anthropic API key missing"):
+            AnthropicProvider()
+
+    def test_explicit_api_key_bypasses_env(self, monkeypatch: Any) -> None:
+        """Explicit api_key takes precedence; ANTHROPIC_API_KEY env not needed."""
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        # AnthropicProvider creates an AsyncAnthropic client in __init__ — patch it
+        with patch("council.llm.anthropic_provider.anthropic") as mock_anthropic:
+            mock_anthropic.AsyncAnthropic.return_value = MagicMock()
+            mock_anthropic.AuthenticationError = Exception
+            mock_anthropic.PermissionDeniedError = Exception
+            mock_anthropic.NotFoundError = Exception
+            mock_anthropic.BadRequestError = Exception
+            provider = AnthropicProvider(api_key="ant-test-key")
+            assert provider.api_key == "ant-test-key"
+
+    @pytest.mark.asyncio
+    async def test_auth_error_not_retried(self, monkeypatch: Any) -> None:
+        """AuthenticationError is not retried (non-retryable exception)."""
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "ant-fake")
+
+        import anthropic as real_anthropic
+
+        call_count = 0
+
+        async def raise_auth(*args: Any, **kwargs: Any) -> None:
+            nonlocal call_count
+            call_count += 1
+            raise real_anthropic.AuthenticationError(
+                message="Invalid API key",
+                response=MagicMock(status_code=401, headers={}, text="Unauthorized"),
+                body={"error": {"message": "Invalid API key"}},
+            )
+
+        with patch("council.llm.anthropic_provider.anthropic") as mock_anthropic:
+            mock_anthropic.AuthenticationError = real_anthropic.AuthenticationError
+            mock_anthropic.PermissionDeniedError = real_anthropic.PermissionDeniedError
+            mock_anthropic.NotFoundError = real_anthropic.NotFoundError
+            mock_anthropic.BadRequestError = real_anthropic.BadRequestError
+            client = MagicMock()
+            client.messages.create = raise_auth
+            mock_anthropic.AsyncAnthropic.return_value = client
+            provider = AnthropicProvider(api_key="bad-key")
+
+        with pytest.raises(real_anthropic.AuthenticationError):
+            await provider.generate(prompt="test")
+
+        assert call_count == 1, f"Expected 1 attempt, got {call_count}"
+
+
+class TestOllamaProvider:
+    """Tests for OllamaProvider."""
+
+    def test_missing_aiohttp_raises_import_error(self, monkeypatch: Any) -> None:
+        """ImportError raised when aiohttp is not installed."""
+        with patch("council.llm.ollama_provider.aiohttp", None):
+            with pytest.raises(ImportError, match="aiohttp"):
+                OllamaProvider()
+
+    @pytest.mark.asyncio
+    async def test_generate_returns_response(self) -> None:
+        """generate() returns LLMResponse with content from Ollama API."""
+        # Mock aiohttp.ClientSession using MagicMock for the sync context manager
+        # and AsyncMock for the async one (session.post).
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_response.json = AsyncMock(
+            return_value={
+                "response": "Hello from Ollama",
+                "eval_count": 10,
+                "prompt_eval_count": 5,
+            }
+        )
+        mock_response.raise_for_status = MagicMock()
+
+        # session.post(...) is used as `async with session.post(...) as response:`
+        # so post() must return a synchronous object with __aenter__/__aexit__
+        post_ctx = MagicMock()
+        post_ctx.__aenter__ = AsyncMock(return_value=mock_response)
+        post_ctx.__aexit__ = AsyncMock(return_value=None)
+
+        mock_session = MagicMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session.post.return_value = post_ctx
+
+        with patch("council.llm.ollama_provider.aiohttp") as mock_aiohttp:
+            mock_aiohttp.ClientSession.return_value = mock_session
+            provider = OllamaProvider()
+            response = await provider.generate(prompt="test")
+        assert response.content == "Hello from Ollama"
+        assert response.tokens_completion == 10
+
+    @pytest.mark.asyncio
+    async def test_4xx_raises_deterministic_error(self) -> None:
+        """HTTP 400/404 raises a non-retryable error immediately."""
+        mock_response = MagicMock()
+        mock_response.status = 404
+        mock_response.text = AsyncMock(return_value="model not found")
+
+        post_ctx = MagicMock()
+        post_ctx.__aenter__ = AsyncMock(return_value=mock_response)
+        post_ctx.__aexit__ = AsyncMock(return_value=None)
+
+        mock_session = MagicMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session.post.return_value = post_ctx
+
+        with patch("council.llm.ollama_provider.aiohttp") as mock_aiohttp:
+            mock_aiohttp.ClientSession.return_value = mock_session
+            provider = OllamaProvider()
+            with pytest.raises(Exception, match="[Oo]llama.*404|404.*[Oo]llama"):
+                await provider.generate(prompt="test")
