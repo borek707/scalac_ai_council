@@ -829,7 +829,6 @@ scalac_ai_council/
 │   │   ├── kimi_code_provider.py  # Kimi Code CLI
 │   │   ├── claude_code_provider.py# Claude Code CLI / IDE
 │   │   ├── retry.py               # Exponential backoff
-│   │   └── cost_tracker.py        # Cost per agent/round/run
 │   ├── orchestration/             # Layer 3: Orchestration
 │   │   ├── state_machine.py       # AgentState enum + transitions
 │   │   ├── barrier.py             # FilesystemBarrier

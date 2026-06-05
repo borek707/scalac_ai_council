@@ -31,6 +31,25 @@ from textual.widgets import (
 from textual.widgets.option_list import Option
 
 from council.demo import list_scenarios
+from council.llm.secrets import KEY_REQUIRED_PROVIDERS, env_key_is_set
+
+_PROVIDER_ENV_NAMES = {
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
+}
+
+
+def _format_api_key_status(provider: str, api_key: str | None) -> str:
+    if api_key:
+        return "[green]••••••••[/green] (entered in menu)"
+    if provider not in KEY_REQUIRED_PROVIDERS:
+        return "[dim]not required[/dim]"
+    env_name = _PROVIDER_ENV_NAMES.get(provider, "API key")
+    if env_key_is_set(provider):
+        return f"[green]env ✓[/green] ({env_name})"
+    return f"[red]env ✗ missing[/red] ({env_name})"
+
 
 _ONBOARDING_FLAG = Path.home() / ".config" / "council" / "onboarding_done"
 
@@ -42,8 +61,6 @@ _PROVIDERS = [
     ("kimi-code", "Kimi Code CLI", "kimi-for-coding"),
     ("claude-code", "Claude Code CLI / IDE", "claude-sonnet-4-6"),
 ]
-
-_KEY_REQUIRED_PROVIDERS = {"openai", "anthropic", "openrouter"}
 
 
 def _is_onboarding_done() -> bool:
@@ -439,10 +456,36 @@ class ProviderScreen(Screen):
         free_switch.disabled = not is_openrouter
         free_switch.value = is_openrouter
 
-    def _go_next(self) -> None:
+    def _selected_provider(self) -> str:
         ol = self.query_one(OptionList)
         sel = ol.highlighted
-        provider = _PROVIDERS[sel][0] if sel is not None else "openai"
+        return _PROVIDERS[sel][0] if sel is not None else "openai"
+
+    def _maybe_prompt_api_key(self) -> None:
+        provider = self._selected_provider()
+        if provider not in KEY_REQUIRED_PROVIDERS:
+            return
+        if self.app.state.get("api_key") or env_key_is_set(provider):
+            return
+        self.app.push_screen(ApiKeyModal(provider), self._on_api_key_modal)
+
+    def _on_api_key_modal(self, key: str | None) -> None:
+        if key:
+            self.app.state["api_key"] = key
+
+    def _go_next(self) -> None:
+        provider = self._selected_provider()
+        api_key = self.app.state.get("api_key")
+        if provider in KEY_REQUIRED_PROVIDERS and not api_key and not env_key_is_set(provider):
+            self.notify(
+                f"API key required for {provider}. Enter a key or set {_PROVIDER_ENV_NAMES[provider]}.",
+                severity="error",
+            )
+            self.app.push_screen(ApiKeyModal(provider), self._on_api_key_modal)
+            return
+        ol = self.query_one(OptionList)
+        sel = ol.highlighted
+        provider = self._selected_provider()
         api_key = self.app.state.get("api_key")
         model = self.query_one("#model-input", Input).value.strip() or None
         free_tier = self.query_one("#free-tier-switch", Switch).value
@@ -486,7 +529,7 @@ class ProviderScreen(Screen):
             else f"leave empty — default: {default_model}"
         )
 
-        if provider_key in _KEY_REQUIRED_PROVIDERS:
+        if provider_key in KEY_REQUIRED_PROVIDERS:
 
             def _store_key(api_key: str | None) -> None:
                 self.app.state["api_key"] = api_key
@@ -577,7 +620,7 @@ class ConfirmScreen(Screen):
 
         lines.append(f"[bold]Provider:[/bold]  {st.get('provider', '?').upper()}")
         lines.append(
-            f"[bold]API Key:[/bold]   {'[green]••••••••[/green]' if st.get('api_key') else '[dim]env[/dim]'}"
+            f"[bold]API Key:[/bold]   {_format_api_key_status(provider_key, st.get('api_key'))}"
         )
         provider_key = st.get("provider", "openai")
         default_model = next((m for k, _, m in _PROVIDERS if k == provider_key), "?")
@@ -645,7 +688,7 @@ class ConfirmScreen(Screen):
                 scenario=st.get("scenario", "saas-launch"),
                 template=st.get("template"),
                 free_tier=st.get("free_tier", False),
-                stream=True,
+                stream=not st.get("dashboard", False),
                 brief=st.get("brief"),
                 review=None,
             )

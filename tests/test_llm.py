@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from council.llm.anthropic_provider import AnthropicProvider
-from council.llm.cost_tracker import CostTracker
 from council.llm.ollama_provider import OllamaProvider
 from council.llm.provider import LLMResponse
 from council.llm.retry import retry_with_backoff
@@ -105,61 +104,6 @@ class TestMockLLMProvider:
         await mock_provider.generate("test", temperature=0.5, max_tokens=500)
         assert mock_provider.calls[0]["temperature"] == 0.5
         assert mock_provider.calls[0]["max_tokens"] == 500
-
-
-class TestCostTracker:
-    """Tests for CostTracker."""
-
-    def test_add_entry(self) -> None:
-        tracker = CostTracker()
-        resp = LLMResponse(content="test", model="gpt-4", cost_usd=0.002)
-        tracker.add("marcus", 1, resp)
-        assert tracker.get_total() == 0.002
-
-    def test_add_multiple(self) -> None:
-        tracker = CostTracker()
-        tracker.add("marcus", 1, LLMResponse(content="a", model="m", cost_usd=0.001))
-        tracker.add("elena", 1, LLMResponse(content="b", model="m", cost_usd=0.002))
-        assert tracker.get_total() == 0.003
-
-    def test_get_by_agent(self) -> None:
-        tracker = CostTracker()
-        tracker.add("marcus", 1, LLMResponse(content="a", model="m", cost_usd=0.005))
-        tracker.add("marcus", 2, LLMResponse(content="b", model="m", cost_usd=0.003))
-        tracker.add("elena", 1, LLMResponse(content="c", model="m", cost_usd=0.002))
-        assert tracker.get_by_agent("marcus") == 0.008
-        assert tracker.get_by_agent("elena") == 0.002
-        assert tracker.get_by_agent("unknown") == 0.0
-
-    def test_get_by_round(self) -> None:
-        tracker = CostTracker()
-        tracker.add("marcus", 1, LLMResponse(content="a", model="m", cost_usd=0.001))
-        tracker.add("elena", 1, LLMResponse(content="b", model="m", cost_usd=0.002))
-        tracker.add("marcus", 2, LLMResponse(content="c", model="m", cost_usd=0.003))
-        assert tracker.get_by_round(1) == 0.003
-        assert tracker.get_by_round(2) == 0.003
-
-    def test_report(self) -> None:
-        tracker = CostTracker()
-        tracker.add("marcus", 1, LLMResponse(content="a", model="m", cost_usd=0.001))
-        report = tracker.report()
-        assert "Cost Report" in report
-        assert "marcus" in report
-        assert "$0.001000" in report
-
-    def test_empty_tracker(self) -> None:
-        tracker = CostTracker()
-        assert tracker.get_total() == 0.0
-        assert tracker.report() is not None
-        assert tracker.get_entries() == []
-
-    def test_get_entries(self) -> None:
-        tracker = CostTracker()
-        tracker.add("a", 1, LLMResponse(content="x", model="m", cost_usd=0.1))
-        entries = tracker.get_entries()
-        assert len(entries) == 1
-        assert entries[0]["agent"] == "a"
-        assert entries[0]["cost_usd"] == 0.1
 
 
 class TestRetryWithBackoff:
@@ -599,9 +543,148 @@ class TestOpenRouterProvider:
         provider = self._make_provider(monkeypatch, model="default")
         assert provider.model == "anthropic/claude-3-5-sonnet-20241022"
 
+    def test_sort_free_models_prefers_known_order(self) -> None:
+        from council.llm.openrouter_provider import OpenRouterProvider
+
+        free = [
+            "zeta/model:free",
+            "deepseek/deepseek-chat:free",
+            "alpha/model:free",
+        ]
+        sorted_models = OpenRouterProvider._sort_free_models(free)
+        assert sorted_models[0] == "deepseek/deepseek-chat:free"
+        assert sorted_models[1:] == ["alpha/model:free", "zeta/model:free"]
+
+    def test_is_free_model_entry_accepts_zero_pricing_and_suffix(self) -> None:
+        from council.llm.openrouter_provider import OpenRouterProvider
+
+        assert OpenRouterProvider._is_free_model_entry(
+            {"id": "vendor/model:free", "pricing": {"prompt": "1", "completion": "1"}}
+        )
+        assert OpenRouterProvider._is_free_model_entry(
+            {"id": "vendor/model", "pricing": {"prompt": "0", "completion": "0"}}
+        )
+        assert not OpenRouterProvider._is_free_model_entry(
+            {"id": "vendor/model", "pricing": {"prompt": "1", "completion": "0"}}
+        )
+
+    @pytest.mark.asyncio
+    async def test_free_tier_builds_chain_from_api(self, monkeypatch: Any) -> None:
+        from council.llm.openrouter_provider import OpenRouterProvider
+
+        provider = self._make_provider(monkeypatch, free_tier=True, model=None)
+
+        async def fake_fetch(*_args: Any, **_kwargs: Any) -> list[str]:
+            return [
+                "deepseek/deepseek-chat:free",
+                "meta-llama/llama-3.3-70b-instruct:free",
+            ]
+
+        monkeypatch.setattr(OpenRouterProvider, "_fetch_free_models", fake_fetch)
+        await provider._resolve_model()
+
+        assert provider.model == "deepseek/deepseek-chat:free"
+        assert provider._model_chain == [
+            "deepseek/deepseek-chat:free",
+            "meta-llama/llama-3.3-70b-instruct:free",
+        ]
+        assert provider.auto_selected is True
+
+    @pytest.mark.asyncio
+    async def test_free_tier_generate_falls_back_to_next_model(self, monkeypatch: Any) -> None:
+        from council.llm.openrouter_provider import OpenRouterProvider
+
+        provider = self._make_provider(monkeypatch, free_tier=True, model=None)
+        provider._model_chain = [
+            "deepseek/deepseek-chat:free",
+            "meta-llama/llama-3.3-70b-instruct:free",
+        ]
+        provider.model = provider._model_chain[0]
+        provider._needs_model_resolution = False
+
+        calls: list[str] = []
+
+        async def fake_create(**kwargs: Any) -> MagicMock:
+            model_name = kwargs["model"]
+            calls.append(model_name)
+            if model_name == "deepseek/deepseek-chat:free":
+                raise RuntimeError("429 rate limit exceeded")
+            response = MagicMock()
+            response.choices = [MagicMock(message=MagicMock(content="fallback ok"))]
+            response.usage = MagicMock(prompt_tokens=1, completion_tokens=2)
+            response.model = model_name
+            return response
+
+        provider._client.chat.completions.create = fake_create
+        result = await provider.generate("hello")
+
+        assert calls == [
+            "deepseek/deepseek-chat:free",
+            "meta-llama/llama-3.3-70b-instruct:free",
+        ]
+        assert result.content == "fallback ok"
+        assert result.model == "meta-llama/llama-3.3-70b-instruct:free"
+
+    @pytest.mark.asyncio
+    async def test_free_tier_passes_openrouter_fallback_models(self, monkeypatch: Any) -> None:
+        from council.llm.openrouter_provider import OpenRouterProvider
+
+        provider = self._make_provider(monkeypatch, free_tier=True, model=None)
+        provider._model_chain = [
+            "deepseek/deepseek-chat:free",
+            "meta-llama/llama-3.3-70b-instruct:free",
+        ]
+        provider.model = provider._model_chain[0]
+        provider._needs_model_resolution = False
+
+        captured: dict[str, Any] = {}
+
+        async def fake_create(**kwargs: Any) -> MagicMock:
+            captured.update(kwargs)
+            response = MagicMock()
+            response.choices = [MagicMock(message=MagicMock(content="ok"))]
+            response.usage = MagicMock(prompt_tokens=1, completion_tokens=1)
+            response.model = kwargs["model"]
+            return response
+
+        provider._client.chat.completions.create = fake_create
+        await provider.generate("hello")
+
+        assert captured["model"] == "deepseek/deepseek-chat:free"
+        assert captured["extra_body"] == {
+            "models": ["meta-llama/llama-3.3-70b-instruct:free"]
+        }
+
+    @pytest.mark.asyncio
+    async def test_free_tier_no_models_raises_without_paid_fallback(self, monkeypatch: Any) -> None:
+        from council.llm.openrouter_provider import OpenRouterProvider
+
+        provider = self._make_provider(monkeypatch, free_tier=True, model=None)
+
+        async def empty_fetch(*_args: Any, **_kwargs: Any) -> list[str]:
+            return []
+
+        monkeypatch.setattr(OpenRouterProvider, "_fetch_free_models", empty_fetch)
+
+        with pytest.raises(RuntimeError, match="No free models available"):
+            await provider._resolve_model()
+
 
 class TestAnthropicProvider:
     """Tests for AnthropicProvider."""
+
+    def test_estimate_cost_claude_4_sonnet(self) -> None:
+        from council.llm.anthropic_provider import AnthropicProvider
+
+        with patch("council.llm.anthropic_provider.anthropic") as mock_anthropic:
+            mock_anthropic.AsyncAnthropic.return_value = MagicMock()
+            mock_anthropic.AuthenticationError = Exception
+            mock_anthropic.PermissionDeniedError = Exception
+            mock_anthropic.NotFoundError = Exception
+            mock_anthropic.BadRequestError = Exception
+            provider = AnthropicProvider(api_key="ant-test")
+        cost = provider._estimate_cost("claude-sonnet-4-6", 1_000_000, 1_000_000)
+        assert cost == pytest.approx(3.0 + 15.0)
 
     def test_missing_api_key_raises(self, monkeypatch: Any) -> None:
         """RuntimeError raised when key absent."""

@@ -180,7 +180,7 @@ class KimiCodeProvider(LLMProvider):
         content = self._clean_output(stdout)
 
         # Kimi CLI does not expose token counts in quiet mode; we fall back to
-        # rough character-based heuristics so the CostTracker can still work.
+        # rough character-based heuristics for token estimates in LLMResponse.
         tokens_prompt = len(prompt) // 4
         tokens_completion = len(content) // 4
 

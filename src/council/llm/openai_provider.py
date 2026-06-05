@@ -12,6 +12,7 @@ except ImportError:
 
 from council.llm.provider import LLMProvider, LLMResponse
 from council.llm.retry import retry_with_backoff
+from council.llm.secrets import resolve_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +47,7 @@ class OpenAIProvider(LLMProvider):
         model: str = "gpt-4o",
     ) -> None:
         self.model = model
-        raw_key = api_key if api_key is not None else os.environ.get("OPENAI_API_KEY")
-        self.api_key = raw_key.strip() if raw_key else None
+        self.api_key = resolve_api_key("openai", api_key)
         self.base_url = base_url
 
         if not self.api_key:

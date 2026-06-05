@@ -10,13 +10,13 @@ import pytest
 from textual.widgets import Input, OptionList
 
 from council.interactive import (
-    _KEY_REQUIRED_PROVIDERS,
     _PROVIDERS,
     ApiKeyModal,
     CouncilMenuApp,
     ProviderScreen,
     prompt_for_args,
 )
+from council.llm.secrets import KEY_REQUIRED_PROVIDERS
 
 # ── TestProvidersList ────────────────────────────────────────────────────────
 
@@ -54,16 +54,16 @@ class TestNoApiKeyProviders:
 
     def test_no_key_providers_set(self) -> None:
         """_KEY_REQUIRED_PROVIDERS contains exactly openai, anthropic, openrouter."""
-        assert {"openai", "anthropic", "openrouter"} == _KEY_REQUIRED_PROVIDERS
+        assert {"openai", "anthropic", "openrouter"} == KEY_REQUIRED_PROVIDERS
 
     def test_ollama_not_in_key_required(self) -> None:
-        assert "ollama" not in _KEY_REQUIRED_PROVIDERS
+        assert "ollama" not in KEY_REQUIRED_PROVIDERS
 
     def test_kimi_code_not_in_key_required(self) -> None:
-        assert "kimi-code" not in _KEY_REQUIRED_PROVIDERS
+        assert "kimi-code" not in KEY_REQUIRED_PROVIDERS
 
     def test_claude_code_not_in_key_required(self) -> None:
-        assert "claude-code" not in _KEY_REQUIRED_PROVIDERS
+        assert "claude-code" not in KEY_REQUIRED_PROVIDERS
 
 
 # ── TestApiKeyModal ──────────────────────────────────────────────────────────
@@ -181,6 +181,9 @@ class TestProviderScreenState:
 
             screen = pilot.app.screen
             assert isinstance(screen, ProviderScreen)
+
+            ol = screen.query_one(OptionList)
+            ol.highlighted = 3  # ollama — no API key required
 
             rounds_input = screen.query_one("#rounds-input", Input)
             rounds_input.value = "abc"

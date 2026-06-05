@@ -23,6 +23,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from rich.panel import Panel
+
+from council.vis.agent_meta import AGENT_META
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.containers import Grid, Vertical
@@ -114,6 +116,11 @@ class AgentCard(Static):
     AgentCard.pending {
         border: solid $surface-lighten-1;
         background: $surface-darken-1 50%;
+    }
+    AgentCard.waiting {
+        border: solid #3498db;
+        background: #3498db 8%;
+        tint: #3498db 10%;
     }
     AgentCard .agent-name {
         text-style: bold;
@@ -293,19 +300,13 @@ class CouncilApp(App):
         self._agents_data: dict[str, AgentView] = {}
         self._mounted = False
 
-        _META = {
-            "marcus": ("cyan", "🏗️"),
-            "elena": ("magenta", "🎯"),
-            "kai": ("green", "✍️"),
-            "david": ("yellow", "🎣"),
-        }
         for name in agent_names:
-            color, avatar = _META.get(name.lower(), ("white", "🤖"))
+            meta = AGENT_META.get(name, {"color": "white", "emoji": "🤖"})
             self._agents_data[name] = AgentView(
                 name=name,
-                display_name=name.capitalize(),
-                color=color,
-                avatar=avatar,
+                display_name=name,
+                color=meta["color"],
+                avatar=meta["emoji"],
             )
 
     def compose(self) -> ComposeResult:
@@ -485,11 +486,25 @@ class CouncilApp(App):
         except Exception:
             return
         file_list.clear_options()
+        candidates: list[tuple[Path, str]] = []
+        for path in [
+            self.workspace / "output" / "proposal.md",
+            self.workspace / "output" / "manifest.json",
+        ]:
+            if path.exists():
+                candidates.append((path, "📋"))
+        agents_dir = self.workspace / "output" / "agents"
+        if agents_dir.exists():
+            for path in sorted(agents_dir.glob("*.md")):
+                candidates.append((path, "🎯"))
         for subpath, icon in [("output", "📄"), ("shared/discussion", "💬")]:
-            d = self.workspace / subpath
-            if d.exists():
-                for f in sorted(d.glob("*.md")):
-                    file_list.add_option(Option(f"{icon} {f.name}", id=str(f)))
+            directory = self.workspace / subpath
+            if directory.exists():
+                for path in sorted(directory.glob("*.md")):
+                    if path not in {item[0] for item in candidates}:
+                        candidates.append((path, icon))
+        for path, icon in candidates:
+            file_list.add_option(Option(f"{icon} {path.name}", id=str(path)))
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
         option_id = getattr(event, "option_id", None)
@@ -677,6 +692,13 @@ class CouncilDashboard:
                     state="WRITING",
                     activity="Writing round...",
                     progress_pct=80,
+                )
+            elif event == "waiting":
+                self.update_agent(
+                    agent_name,
+                    state="WAITING",
+                    activity=str(kwargs.get("activity", "Waiting for peers...")),
+                    progress_pct=95,
                 )
             elif event == "done":
                 content = kwargs.get("content", "")

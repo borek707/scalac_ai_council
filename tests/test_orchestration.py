@@ -478,6 +478,7 @@ class TestAsyncOrchestrator:
             max_rounds=1,
             round_timeout=30.0,
             workspace=temp_workspace,
+            use_filesystem_barrier=True,
         )
         # Make the barrier time out quickly so the test does not stall.
         orc.barrier.timeout = 0.3

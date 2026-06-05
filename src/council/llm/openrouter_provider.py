@@ -9,25 +9,44 @@ from typing import Any
 
 from council.llm.openai_provider import OpenAIProvider
 from council.llm.provider import LLMResponse
+from council.llm.secrets import resolve_api_key
 
 logger = logging.getLogger(__name__)
 
-# Preferred free models on OpenRouter (in order of preference)
-_PREFERRED_FREE = [
+# Soft preference order when multiple free models are available from the API.
+# Models not in this list are appended after, sorted alphabetically.
+_PREFERRED_FREE: tuple[str, ...] = (
     "google/gemini-2.0-flash-exp:free",
     "deepseek/deepseek-chat:free",
     "meta-llama/llama-3.3-70b-instruct:free",
     "nvidia/llama-3.1-nemotron-70b-instruct:free",
     "qwen/qwen-2.5-72b-instruct:free",
-]
+)
+
+_PAID_DEFAULT_MODEL = "anthropic/claude-3-5-sonnet-20241022"
+
+_UNAVAILABLE_MARKERS = (
+    "rate limit",
+    "rate-limit",
+    "rate_limit",
+    "too many requests",
+    "overloaded",
+    "capacity",
+    "unavailable",
+    "temporarily",
+    "no available providers",
+    "all providers",
+)
 
 
 class OpenRouterProvider(OpenAIProvider):
     """LLM provider for OpenRouter (unified API for many models).
 
     Uses the OpenAI SDK with OpenRouter's base URL.
-    Supports models from Anthropic, OpenAI, Google, Meta, etc.
-    Automatically picks a free model if no model is specified and free_tier is enabled.
+    With ``free_tier=True``, fetches the current free model catalog from
+    OpenRouter, picks a primary model, and passes the rest as automatic
+    fallbacks. If every fallback in one request fails, tries the next primary
+    after refreshing the catalog.
     """
 
     def __init__(
@@ -37,9 +56,8 @@ class OpenRouterProvider(OpenAIProvider):
         model: str | None = None,
         free_tier: bool = False,
     ) -> None:
-        raw_key = api_key or os.environ.get("OPENROUTER_API_KEY")
-        resolved_key = raw_key.strip() if raw_key else None
-        if not resolved_key:
+        raw_key = resolve_api_key("openrouter", api_key)
+        if not raw_key:
             raise RuntimeError(
                 "OpenRouter API key missing.\n" "  Set OPENROUTER_API_KEY env var or pass --api-key"
             )
@@ -48,19 +66,24 @@ class OpenRouterProvider(OpenAIProvider):
             base_url or os.environ.get("OPENROUTER_BASE_URL") or "https://openrouter.ai/api/v1"
         )
         self._free_tier = free_tier
-        self._fallback_models: list[str] = []
+        self._model_chain: list[str] = []
         self.auto_selected = False
-        self._resolved_key = resolved_key
+        self._resolved_key = raw_key
         self._resolved_url = resolved_url
         self._needs_model_resolution = False
+        self._explicit_model = model not in (None, "default")
 
         if model in (None, "default"):
             if free_tier:
                 self._needs_model_resolution = True
-            resolved_model = "anthropic/claude-3-5-sonnet-20241022"
+                resolved_model = ""
+            else:
+                resolved_model = _PAID_DEFAULT_MODEL
         else:
             assert model is not None
             resolved_model = model
+            if free_tier:
+                self._needs_model_resolution = True
 
         logger.info(
             "OpenRouterProvider: model=%s, base_url=%s, free_tier=%s",
@@ -69,42 +92,83 @@ class OpenRouterProvider(OpenAIProvider):
             free_tier,
         )
         super().__init__(
-            api_key=resolved_key,
+            api_key=raw_key,
             base_url=resolved_url,
-            model=resolved_model,
+            model=resolved_model or _PAID_DEFAULT_MODEL,
         )
 
     async def _resolve_model(self) -> None:
-        """Lazy-resolve free-tier model on first use to avoid blocking the event loop."""
+        """Lazy-resolve free-tier model chain on first use."""
         if not self._needs_model_resolution:
             return
         self._needs_model_resolution = False
-        try:
-            resolved_model = await self._pick_free_model(self._resolved_key, self._resolved_url)
-            logger.info("OpenRouter: auto-selected free model %s", resolved_model)
-            self.auto_selected = True
-            self.model = resolved_model
-        except Exception as exc:
-            logger.warning("OpenRouter: could not fetch free models (%s), falling back", exc)
-            self.model = "anthropic/claude-3-5-sonnet-20241022"
+        await self._refresh_free_model_chain(force_primary=self.model if self._explicit_model else None)
 
-        self._fallback_models = await self._fetch_free_models(
-            self._resolved_key, self._resolved_url
-        )
-        if self._fallback_models:
-            logger.info(
-                "OpenRouter free-tier fallback models (%d): %s",
-                len(self._fallback_models),
-                ", ".join(self._fallback_models[:5])
-                + ("..." if len(self._fallback_models) > 5 else ""),
+    async def _refresh_free_model_chain(self, *, force_primary: str | None = None) -> None:
+        """Fetch current free models from OpenRouter and rebuild primary + fallbacks."""
+        free_models = await self._fetch_free_models(self._resolved_key, self._resolved_url)
+        if not free_models:
+            raise RuntimeError(
+                "No free models available on OpenRouter right now.\n"
+                "  Check https://openrouter.ai/models?order=pricing-low-to-high for ':free' models\n"
+                "  or disable --free-tier and pass an explicit --model."
             )
+
+        primary = force_primary if force_primary and force_primary in free_models else free_models[0]
+        if force_primary and force_primary not in free_models:
+            logger.warning(
+                "OpenRouter: requested model %s is not currently free; using %s",
+                force_primary,
+                primary,
+            )
+
+        chain = [primary]
+        chain.extend(m for m in free_models if m != primary)
+        self._model_chain = chain
+        self.model = primary
+        if not self._explicit_model:
+            self.auto_selected = True
+
+        logger.info(
+            "OpenRouter free-tier chain (%d models): primary=%s, fallbacks=%s",
+            len(chain),
+            primary,
+            ", ".join(chain[1:5]) + ("..." if len(chain) > 5 else ""),
+        )
+
+    @staticmethod
+    def _is_free_pricing(value: object) -> bool:
+        if value is None:
+            return False
+        try:
+            return float(value) == 0.0
+        except (TypeError, ValueError):
+            return str(value).strip() in {"0", "0.0"}
+
+    @classmethod
+    def _is_free_model_entry(cls, entry: dict[str, Any]) -> bool:
+        model_id = entry.get("id", "")
+        if isinstance(model_id, str) and model_id.endswith(":free"):
+            return True
+        pricing = entry.get("pricing", {})
+        if not isinstance(pricing, dict):
+            return False
+        return cls._is_free_pricing(pricing.get("prompt")) and cls._is_free_pricing(
+            pricing.get("completion")
+        )
+
+    @classmethod
+    def _sort_free_models(cls, model_ids: list[str]) -> list[str]:
+        preferred = [model_id for model_id in _PREFERRED_FREE if model_id in model_ids]
+        rest = sorted(model_id for model_id in model_ids if model_id not in preferred)
+        return preferred + rest
 
     @staticmethod
     async def _fetch_free_models(api_key: str, base_url: str) -> list[str]:
-        """Fetch current free-tier models from OpenRouter API (async)."""
+        """Fetch and sort the current free-tier models from OpenRouter."""
         import aiohttp
 
-        url = f"{base_url}/models"
+        url = f"{base_url.rstrip('/')}/models"
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
@@ -115,34 +179,103 @@ class OpenRouterProvider(OpenAIProvider):
                     },
                     timeout=aiohttp.ClientTimeout(total=15),
                 ) as resp:
+                    if resp.status >= 400:
+                        text = await resp.text()
+                        raise RuntimeError(f"OpenRouter /models returned HTTP {resp.status}: {text[:200]}")
                     data = json.loads(await resp.text())
         except Exception as exc:
             logger.warning("Failed to fetch free models from OpenRouter: %s", exc)
             return []
 
-        free: list[str] = []
-        for m in data.get("data", []):
-            pricing = m.get("pricing", {})
-            if pricing.get("prompt") == "0" and pricing.get("completion") == "0":
-                free.append(m["id"])
-        return free
+        free_ids: list[str] = []
+        for entry in data.get("data", []):
+            if isinstance(entry, dict) and OpenRouterProvider._is_free_model_entry(entry):
+                model_id = entry.get("id")
+                if isinstance(model_id, str) and model_id:
+                    free_ids.append(model_id)
+
+        return OpenRouterProvider._sort_free_models(free_ids)
+
+    def _fallback_models_for(self, primary: str) -> list[str]:
+        if not self._free_tier or not self._model_chain:
+            return []
+        return [model_id for model_id in self._model_chain if model_id != primary]
 
     @staticmethod
-    async def _pick_free_model(api_key: str, base_url: str) -> str:
-        """Fetch model list and return the best free one from preferred list."""
-        free_models = await OpenRouterProvider._fetch_free_models(api_key, base_url)
-        for pref in _PREFERRED_FREE:
-            if pref in free_models:
-                return pref
-        if free_models:
-            return free_models[0]
-        raise RuntimeError("No free models available on OpenRouter")
+    def _is_model_unavailable_error(exc: Exception) -> bool:
+        if OpenRouterProvider._is_auth_or_bad_request(exc):
+            return False
 
-    def _extra_body(self) -> dict[str, Any] | None:
-        """Return extra_body with fallback models if free-tier is enabled."""
-        if self._free_tier and self._fallback_models:
-            return {"models": self._fallback_models}
-        return None
+        status_code = getattr(exc, "status_code", None)
+        if status_code in {408, 429, 500, 502, 503, 504}:
+            return True
+
+        response = getattr(exc, "response", None)
+        if response is not None:
+            response_status = getattr(response, "status_code", None)
+            if response_status in {408, 429, 500, 502, 503, 504}:
+                return True
+
+        message = str(exc).lower()
+        return any(marker in message for marker in _UNAVAILABLE_MARKERS)
+
+    @staticmethod
+    def _is_auth_or_bad_request(exc: Exception) -> bool:
+        try:
+            import openai
+        except ImportError:
+            openai = None  # type: ignore[assignment]
+
+        if openai is not None and isinstance(
+            exc,
+            (
+                openai.AuthenticationError,
+                openai.PermissionDeniedError,
+                openai.NotFoundError,
+                openai.BadRequestError,
+            ),
+        ):
+            return True
+
+        status_code = getattr(exc, "status_code", None)
+        if status_code in {400, 401, 403, 404}:
+            return True
+        response = getattr(exc, "response", None)
+        if response is not None:
+            response_status = getattr(response, "status_code", None)
+            if response_status in {400, 401, 403, 404}:
+                return True
+        return False
+
+    async def _create_completion(
+        self,
+        *,
+        model_name: str,
+        messages: list[dict[str, str]],
+        temperature: float,
+        max_tokens: int,
+        stream: bool,
+    ) -> Any:
+        kwargs: dict[str, Any] = {
+            "model": model_name,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        if stream:
+            kwargs["stream"] = True
+
+        fallbacks = self._fallback_models_for(model_name)
+        if fallbacks:
+            kwargs["extra_body"] = {"models": fallbacks}
+
+        return await self._client.chat.completions.create(**kwargs)
+
+    async def _iter_model_chain(self) -> list[str]:
+        await self._resolve_model()
+        if self._free_tier and self._model_chain:
+            return list(self._model_chain)
+        return [self.model]
 
     async def generate(
         self,
@@ -152,51 +285,78 @@ class OpenRouterProvider(OpenAIProvider):
         max_tokens: int = 4000,
         system: str | None = None,
     ) -> LLMResponse:
-        """Generate a response using OpenRouter API with optional free-tier fallbacks."""
-        await self._resolve_model()
+        """Generate using OpenRouter with live free-model fallbacks when enabled."""
+        if model and model != self.model:
+            if self._free_tier:
+                await self._refresh_free_model_chain(force_primary=model)
+            else:
+                self.model = model
 
-        model_name = model or self.model
         messages: list[dict[str, str]] = []
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
 
-        kwargs: dict[str, Any] = {
-            "model": model_name,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }
-        extra = self._extra_body()
-        if extra:
-            kwargs["extra_body"] = extra
+        chain = await self._iter_model_chain()
+        if model and not self._free_tier:
+            chain = [model]
 
-        start = time.time()
-        try:
-            response = await self._client.chat.completions.create(**kwargs)
-        except Exception as exc:
-            logger.error("OpenRouter API error: %s", exc)
-            raise
+        last_exc: Exception | None = None
+        for attempt, model_name in enumerate(chain):
+            start = time.time()
+            try:
+                response = await self._create_completion(
+                    model_name=model_name,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    stream=False,
+                )
+            except Exception as exc:
+                last_exc = exc
+                can_retry = (
+                    self._free_tier
+                    and self._is_model_unavailable_error(exc)
+                    and attempt < len(chain) - 1
+                )
+                if not can_retry:
+                    logger.error("OpenRouter API error on %s: %s", model_name, exc)
+                    raise
+                logger.warning(
+                    "OpenRouter model %s unavailable (%s); trying next free model",
+                    model_name,
+                    exc,
+                )
+                if attempt == len(chain) - 2:
+                    refreshed = await self._fetch_free_models(
+                        self._resolved_key, self._resolved_url
+                    )
+                    if refreshed:
+                        self._model_chain = refreshed
+                        chain = refreshed
+                continue
 
-        latency = (time.time() - start) * 1000
-        choice = response.choices[0]
-        content = choice.message.content or ""
-        usage = response.usage
+            latency = (time.time() - start) * 1000
+            choice = response.choices[0]
+            content = choice.message.content or ""
+            usage = response.usage
+            used_model = getattr(response, "model", None) or model_name
+            if used_model != self.model:
+                logger.info("OpenRouter routed request to %s", used_model)
+                self.model = used_model
 
-        cost = self._estimate_cost(
-            model_name,
-            usage.prompt_tokens if usage else 0,
-            usage.completion_tokens if usage else 0,
-        )
+            return LLMResponse(
+                content=content,
+                model=used_model,
+                tokens_prompt=usage.prompt_tokens if usage else 0,
+                tokens_completion=usage.completion_tokens if usage else 0,
+                cost_usd=0.0,
+                latency_ms=latency,
+            )
 
-        return LLMResponse(
-            content=content,
-            model=model_name,
-            tokens_prompt=usage.prompt_tokens if usage else 0,
-            tokens_completion=usage.completion_tokens if usage else 0,
-            cost_usd=cost,
-            latency_ms=latency,
-        )
+        if last_exc is not None:
+            raise last_exc
+        raise RuntimeError("OpenRouter generate failed without a specific error")
 
     async def stream(
         self,
@@ -206,36 +366,66 @@ class OpenRouterProvider(OpenAIProvider):
         max_tokens: int = 4000,
         system: str | None = None,
     ) -> AsyncIterator[str]:
-        """Stream response chunks from OpenRouter API with optional free-tier fallbacks."""
-        await self._resolve_model()
+        """Stream from OpenRouter with the same free-model fallback behavior."""
+        if model and model != self.model:
+            if self._free_tier:
+                await self._refresh_free_model_chain(force_primary=model)
+            else:
+                self.model = model
 
-        model_name = model or self.model
         messages: list[dict[str, str]] = []
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
 
-        kwargs: dict[str, Any] = {
-            "model": model_name,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "stream": True,
-        }
-        extra = self._extra_body()
-        if extra:
-            kwargs["extra_body"] = extra
+        chain = await self._iter_model_chain()
+        if model and not self._free_tier:
+            chain = [model]
 
-        try:
-            stream = await self._client.chat.completions.create(**kwargs)
-            async for chunk in stream:
-                delta = chunk.choices[0].delta.content
-                if delta:
-                    yield delta
-        except Exception as exc:
-            logger.error("OpenRouter streaming error: %s", exc)
-            raise
+        last_exc: Exception | None = None
+        for attempt, model_name in enumerate(chain):
+            try:
+                stream = await self._create_completion(
+                    model_name=model_name,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    stream=True,
+                )
+                async for chunk in stream:
+                    delta = chunk.choices[0].delta.content
+                    if delta:
+                        yield delta
+                if model_name != self.model:
+                    self.model = model_name
+                return
+            except Exception as exc:
+                last_exc = exc
+                can_retry = (
+                    self._free_tier
+                    and self._is_model_unavailable_error(exc)
+                    and attempt < len(chain) - 1
+                )
+                if not can_retry:
+                    logger.error("OpenRouter streaming error on %s: %s", model_name, exc)
+                    raise
+                logger.warning(
+                    "OpenRouter stream on %s unavailable (%s); trying next free model",
+                    model_name,
+                    exc,
+                )
+                if attempt == len(chain) - 2:
+                    refreshed = await self._fetch_free_models(
+                        self._resolved_key, self._resolved_url
+                    )
+                    if refreshed:
+                        self._model_chain = refreshed
+                        chain = refreshed
+
+        if last_exc is not None:
+            raise last_exc
+        raise RuntimeError("OpenRouter stream failed without a specific error")
 
     def _estimate_cost(self, model: str, prompt_tokens: int, completion_tokens: int) -> float:
-        """OpenRouter pricing varies by model; we return 0.0 and let the user check their dashboard."""
+        """OpenRouter pricing varies by model; free-tier runs stay at zero."""
         return 0.0

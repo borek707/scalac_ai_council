@@ -70,7 +70,7 @@ class CompanyConfig(BaseModel):
     }
 
 
-@dataclass
+@dataclass(frozen=True)
 class RoundContext:
     """Immutable context passed to each agent for a given round.
     Contains everything an agent needs to generate its response.

@@ -110,11 +110,10 @@ class TestReviewRunEmpty:
     def test_prints_error_about_missing_manifest(
         self, empty_workspace: Path, capsys: pytest.CaptureFixture
     ) -> None:
-        """Should surface a clear error when no manifest.json is present."""
+        """Should surface a clear error when no artifacts are present."""
         _review_run(empty_workspace)
         captured = capsys.readouterr()
-        # The function prints a Panel with "No manifest found"
-        assert "manifest" in captured.out.lower() or "No manifest" in captured.out
+        assert "artifact" in captured.out.lower() or "manifest" in captured.out.lower()
 
     def test_returns_without_raising(self, empty_workspace: Path) -> None:
         """_review_run must not raise even when the workspace is empty."""
@@ -127,10 +126,10 @@ class TestReviewRunLegacy:
     def test_graceful_on_legacy_workspace(
         self, legacy_workspace: Path, capsys: pytest.CaptureFixture
     ) -> None:
-        """Legacy workspaces (no output/manifest.json) get the missing-manifest message."""
+        """Legacy workspaces without manifest use filesystem discovery when possible."""
         _review_run(legacy_workspace)
         captured = capsys.readouterr()
-        assert "manifest" in captured.out.lower() or "No manifest" in captured.out
+        assert "manifest" in captured.out.lower() or "artifact" in captured.out.lower()
 
 
 # ── _create_provider passthrough tests (Issue #3) ──────────────────────────
@@ -471,7 +470,9 @@ class TestWorkspaceOverwrite:
             encoding="utf-8",
         )
 
-        args = parse_args(["--config", str(config_file), "--output", str(workspace)])
+        args = parse_args(
+            ["--config", str(config_file), "--output", str(workspace), "--provider", "ollama"]
+        )
 
         class _StopEarly(Exception):
             pass
@@ -534,6 +535,8 @@ class TestWorkspaceOverwrite:
                 "--output",
                 str(workspace),
                 "--force",
+                "--provider",
+                "ollama",
             ]
         )
 
