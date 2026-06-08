@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+# ruff: noqa: ASYNC240, ASYNC250
 import argparse
 import asyncio
 import logging
@@ -14,10 +15,10 @@ from rich.table import Table
 
 from council.config.env_loader import load_dotenv_from_cwd
 from council.config.loader import ConfigLoader
-from council.llm.secrets import KEY_REQUIRED_PROVIDERS, resolve_api_key
-from council.vis.agent_meta import AGENT_COLORS
 from council.llm.provider import LLMProvider
+from council.llm.secrets import KEY_REQUIRED_PROVIDERS, resolve_api_key
 from council.platform.base import PlatformAdapter
+from council.vis.agent_meta import AGENT_COLORS
 
 logger = logging.getLogger(__name__)
 console = Console()

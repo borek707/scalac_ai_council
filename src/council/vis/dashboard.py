@@ -23,8 +23,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from rich.panel import Panel
-
-from council.vis.agent_meta import AGENT_META
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.containers import Grid, Vertical
@@ -40,6 +38,8 @@ from textual.widgets import (
     Static,
 )
 from textual.widgets.option_list import Option
+
+from council.vis.agent_meta import AGENT_META
 
 
 @dataclass

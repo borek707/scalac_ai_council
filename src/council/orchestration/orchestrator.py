@@ -337,15 +337,31 @@ def write_workspace_artifacts(
     agent_names: tuple[str, ...] = ("Marcus", "Elena", "Kai", "David"),
 ) -> dict[str, Path]:
     """Build proposal/manifest from files already on disk (demo or recovery path)."""
-    from council.llm.provider import LLMProvider
+    from collections.abc import AsyncIterator
+
+    from council.llm.provider import LLMProvider, LLMResponse
 
     class _NoOpProvider(LLMProvider):
-        async def generate(self, prompt: str, **kwargs: Any) -> Any:
+        async def generate(
+            self,
+            prompt: str,
+            model: str | None = None,
+            temperature: float = 0.7,
+            max_tokens: int = 4000,
+            system: str | None = None,
+        ) -> LLMResponse:
             raise NotImplementedError
 
-        async def stream(self, prompt: str, **kwargs: Any):  # type: ignore[override]
+        async def stream(
+            self,
+            prompt: str,
+            model: str | None = None,
+            temperature: float = 0.7,
+            max_tokens: int = 4000,
+            system: str | None = None,
+        ) -> AsyncIterator[str]:
             raise NotImplementedError
-            yield ""  # pragma: no cover
+            yield ""  # type: ignore[unreachable]
 
     orchestrator = AsyncOrchestrator(
         agents=[],

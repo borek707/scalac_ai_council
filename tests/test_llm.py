@@ -592,7 +592,6 @@ class TestOpenRouterProvider:
 
     @pytest.mark.asyncio
     async def test_free_tier_generate_falls_back_to_next_model(self, monkeypatch: Any) -> None:
-        from council.llm.openrouter_provider import OpenRouterProvider
 
         provider = self._make_provider(monkeypatch, free_tier=True, model=None)
         provider._model_chain = [
@@ -627,7 +626,6 @@ class TestOpenRouterProvider:
 
     @pytest.mark.asyncio
     async def test_free_tier_passes_openrouter_fallback_models(self, monkeypatch: Any) -> None:
-        from council.llm.openrouter_provider import OpenRouterProvider
 
         provider = self._make_provider(monkeypatch, free_tier=True, model=None)
         provider._model_chain = [
@@ -651,9 +649,7 @@ class TestOpenRouterProvider:
         await provider.generate("hello")
 
         assert captured["model"] == "deepseek/deepseek-chat:free"
-        assert captured["extra_body"] == {
-            "models": ["meta-llama/llama-3.3-70b-instruct:free"]
-        }
+        assert captured["extra_body"] == {"models": ["meta-llama/llama-3.3-70b-instruct:free"]}
 
     @pytest.mark.asyncio
     async def test_free_tier_no_models_raises_without_paid_fallback(self, monkeypatch: Any) -> None:

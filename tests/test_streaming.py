@@ -19,17 +19,34 @@ from council.llm.provider import LLMProvider, LLMResponse
 
 _REQUIRED_FIELDS = [
     # accessed directly (AttributeError if missing)
-    "config", "provider", "api_key", "model", "platform", "rounds",
-    "timeout", "output", "monitor", "verbose", "documents", "documents_dir",
-    "scalac_mode", "dashboard", "demo", "scenario", "template", "free_tier",
+    "config",
+    "provider",
+    "api_key",
+    "model",
+    "platform",
+    "rounds",
+    "timeout",
+    "output",
+    "monitor",
+    "verbose",
+    "documents",
+    "documents_dir",
+    "scalac_mode",
+    "dashboard",
+    "demo",
+    "scenario",
+    "template",
+    "free_tier",
     # accessed via getattr so safe, but must exist for complete coverage
-    "stream", "brief", "review", "aggregate",
+    "stream",
+    "brief",
+    "review",
+    "aggregate",
 ]
 
 
 def _make_tui_namespace(**overrides) -> argparse.Namespace:
     """Return the argparse.Namespace that ConfirmScreen builds when Run is clicked."""
-    from council.interactive import _PROVIDERS
 
     defaults: dict = {
         "config": None,
@@ -158,8 +175,11 @@ class TestAgentStreamOutput:
         self, tmp_path: Path, sample_config, streaming_provider
     ) -> None:
         agent = _ConcreteAgent(
-            name="Marcus", role="Test", workspace=tmp_path,
-            config=sample_config, provider=streaming_provider,
+            name="Marcus",
+            role="Test",
+            workspace=tmp_path,
+            config=sample_config,
+            provider=streaming_provider,
         )
         assert agent.stream_output is False
 
@@ -178,15 +198,15 @@ class TestAgentStreamOutput:
 
         import sys
         from io import StringIO
+
         captured = StringIO()
 
         # Patch stdout so streaming output is captured, not printed to console
         with patch.object(sys, "stdout", captured):
             content = await agent_with_streaming.generate_round(
-                agent_with_streaming._load_context.__func__(
-                    agent_with_streaming, 1
-                ) if False else
-                await agent_with_streaming._load_context(1)
+                agent_with_streaming._load_context.__func__(agent_with_streaming, 1)
+                if False
+                else await agent_with_streaming._load_context(1)
             )
 
         assert content == "Hello from stream"
@@ -199,8 +219,11 @@ class TestAgentStreamOutput:
     ) -> None:
         """With stream_output=False (default), generate() is called, not stream()."""
         agent = _ConcreteAgent(
-            name="Marcus", role="Test", workspace=tmp_path,
-            config=sample_config, provider=streaming_provider,
+            name="Marcus",
+            role="Test",
+            workspace=tmp_path,
+            config=sample_config,
+            provider=streaming_provider,
         )
         brief_path = tmp_path / "shared" / "brief.md"
         brief_path.parent.mkdir(parents=True, exist_ok=True)
@@ -231,7 +254,9 @@ class TestAgentStreamOutput:
         brief_path.write_text("Test brief", encoding="utf-8")
 
         import sys
-        with patch.object(sys, "stdout", open("/dev/null", "w")):
+        from io import StringIO
+
+        with patch.object(sys, "stdout", StringIO()):
             await agent_with_streaming.run_round(1)
 
         assert agent_with_streaming.state == AgentState.DONE
@@ -278,6 +303,7 @@ class TestProviderStreamInterface:
             async def _iter():
                 yield chunk
                 yield MagicMock(choices=[MagicMock(delta=MagicMock(content=None))])
+
             return _iter()
 
         mock_client.chat.completions.create = fake_create
@@ -303,6 +329,7 @@ class TestProviderStreamInterface:
         async def fake_create(**kwargs):
             async def _iter():
                 yield chunk
+
             return _iter()
 
         mock_client.chat.completions.create = AsyncMock(side_effect=fake_create)
@@ -359,16 +386,28 @@ class TestProviderStreamInterface:
 
         lines = [
             _json.dumps({"type": "system", "subtype": "init"}).encode() + b"\n",
-            _json.dumps({
-                "type": "stream_event",
-                "event": {"type": "content_block_delta", "index": 1,
-                          "delta": {"type": "text_delta", "text": "chunk1"}},
-            }).encode() + b"\n",
-            _json.dumps({
-                "type": "stream_event",
-                "event": {"type": "content_block_delta", "index": 1,
-                          "delta": {"type": "text_delta", "text": " chunk2"}},
-            }).encode() + b"\n",
+            _json.dumps(
+                {
+                    "type": "stream_event",
+                    "event": {
+                        "type": "content_block_delta",
+                        "index": 1,
+                        "delta": {"type": "text_delta", "text": "chunk1"},
+                    },
+                }
+            ).encode()
+            + b"\n",
+            _json.dumps(
+                {
+                    "type": "stream_event",
+                    "event": {
+                        "type": "content_block_delta",
+                        "index": 1,
+                        "delta": {"type": "text_delta", "text": " chunk2"},
+                    },
+                }
+            ).encode()
+            + b"\n",
             _json.dumps({"type": "result", "result": "chunk1 chunk2"}).encode() + b"\n",
             b"",
         ]

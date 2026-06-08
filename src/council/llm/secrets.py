@@ -20,7 +20,10 @@ def resolve_api_key(provider: str, explicit: str | None) -> str | None:
     if env_var is None:
         return None
     raw = os.environ.get(env_var)
-    return raw.strip() if raw else None
+    if not raw:
+        return None
+    stripped = raw.strip()
+    return stripped or None
 
 
 def env_key_is_set(provider: str) -> bool:

@@ -540,3 +540,37 @@ class TestAsyncOrchestrator:
 
         with pytest.raises(TimeoutError):
             await orc.run()
+
+
+class TestWriteWorkspaceArtifacts:
+    def test_builds_proposal_and_manifest_from_disk(
+        self, tmp_path: Path, sample_config: CompanyConfig
+    ) -> None:
+        from council.orchestration.orchestrator import write_workspace_artifacts
+
+        discussion = tmp_path / "shared" / "discussion"
+        discussion.mkdir(parents=True)
+        (discussion / "marcus_round_1.md").write_text(
+            "# Marcus\n\nRound 1 offer.", encoding="utf-8"
+        )
+
+        agents_dir = tmp_path / "output" / "agents"
+        agents_dir.mkdir(parents=True)
+        (agents_dir / "marcus_offer.md").write_text("# Final offer", encoding="utf-8")
+
+        paths = write_workspace_artifacts(
+            tmp_path,
+            sample_config,
+            provider_name="demo",
+            provider_model=None,
+            max_rounds=1,
+        )
+
+        manifest_path = tmp_path / "output" / "manifest.json"
+        proposal_path = tmp_path / "output" / "proposal.md"
+        assert paths["manifest"] == manifest_path
+        assert paths["proposal"] == proposal_path
+        assert manifest_path.exists()
+        assert proposal_path.exists()
+        assert "Round 1 offer" in proposal_path.read_text(encoding="utf-8")
+        assert sample_config.name in manifest_path.read_text(encoding="utf-8")

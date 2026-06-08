@@ -102,7 +102,9 @@ class OpenRouterProvider(OpenAIProvider):
         if not self._needs_model_resolution:
             return
         self._needs_model_resolution = False
-        await self._refresh_free_model_chain(force_primary=self.model if self._explicit_model else None)
+        await self._refresh_free_model_chain(
+            force_primary=self.model if self._explicit_model else None
+        )
 
     async def _refresh_free_model_chain(self, *, force_primary: str | None = None) -> None:
         """Fetch current free models from OpenRouter and rebuild primary + fallbacks."""
@@ -114,7 +116,9 @@ class OpenRouterProvider(OpenAIProvider):
                 "  or disable --free-tier and pass an explicit --model."
             )
 
-        primary = force_primary if force_primary and force_primary in free_models else free_models[0]
+        primary = (
+            force_primary if force_primary and force_primary in free_models else free_models[0]
+        )
         if force_primary and force_primary not in free_models:
             logger.warning(
                 "OpenRouter: requested model %s is not currently free; using %s",
@@ -141,7 +145,11 @@ class OpenRouterProvider(OpenAIProvider):
         if value is None:
             return False
         try:
-            return float(value) == 0.0
+            if isinstance(value, bool):
+                return False
+            if isinstance(value, int | float):
+                return float(value) == 0.0
+            return float(str(value).strip()) == 0.0
         except (TypeError, ValueError):
             return str(value).strip() in {"0", "0.0"}
 
@@ -181,7 +189,9 @@ class OpenRouterProvider(OpenAIProvider):
                 ) as resp:
                     if resp.status >= 400:
                         text = await resp.text()
-                        raise RuntimeError(f"OpenRouter /models returned HTTP {resp.status}: {text[:200]}")
+                        raise RuntimeError(
+                            f"OpenRouter /models returned HTTP {resp.status}: {text[:200]}"
+                        )
                     data = json.loads(await resp.text())
         except Exception as exc:
             logger.warning("Failed to fetch free models from OpenRouter: %s", exc)
@@ -228,12 +238,10 @@ class OpenRouterProvider(OpenAIProvider):
 
         if openai is not None and isinstance(
             exc,
-            (
-                openai.AuthenticationError,
-                openai.PermissionDeniedError,
-                openai.NotFoundError,
-                openai.BadRequestError,
-            ),
+            openai.AuthenticationError
+            | openai.PermissionDeniedError
+            | openai.NotFoundError
+            | openai.BadRequestError,
         ):
             return True
 
