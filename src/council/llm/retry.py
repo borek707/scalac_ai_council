@@ -11,6 +11,14 @@ logger = logging.getLogger(__name__)
 
 F = TypeVar("F", bound=Callable[..., Any])
 
+_retry_status_callback: Callable[[str], None] | None = None
+
+
+def set_retry_status_callback(callback: Callable[[str], None] | None) -> None:
+    """Register a callback invoked before each retry sleep (CLI progress)."""
+    global _retry_status_callback
+    _retry_status_callback = callback
+
 
 class RetryConfig:
     """Configuration for retry behavior."""
@@ -95,14 +103,13 @@ def retry_with_backoff(
                     delay = min(config.base_delay * (2 ** (attempt - 1)), config.max_delay)
                     jitter = random.uniform(0, delay * 0.1)
                     sleep_time = delay + jitter
-                    logger.debug(
-                        "Retry %d/%d for %s in %.2fs: %s",
-                        attempt,
-                        config.max_retries,
-                        func.__name__,
-                        sleep_time,
-                        exc,
+                    retry_msg = (
+                        f"{func.__name__}: attempt {attempt}/{config.max_retries} failed "
+                        f"({exc!s}), retrying in {sleep_time:.1f}s"
                     )
+                    logger.info(retry_msg)
+                    if _retry_status_callback is not None:
+                        _retry_status_callback(retry_msg)
                     await asyncio.sleep(sleep_time)
 
             if last_exception is not None:

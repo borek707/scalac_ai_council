@@ -51,6 +51,25 @@ def _format_api_key_status(provider: str, api_key: str | None) -> str:
     return f"[red]env ✗ missing[/red] ({env_name})"
 
 
+def _parse_rounds(value: str, notify) -> int | None:
+    """Parse rounds input; notify and return None on invalid values."""
+    try:
+        rounds = int((value or "3").strip())
+        if rounds < 1 or rounds > 20:
+            raise ValueError
+        return rounds
+    except ValueError:
+        notify("Rounds must be a number between 1 and 20", severity="error")
+        return None
+
+
+def _scenario_display_name(key: str) -> str:
+    for scenario in list_scenarios():
+        if scenario.key == key:
+            return scenario.name
+    return key
+
+
 _ONBOARDING_FLAG = Path.home() / ".config" / "council" / "onboarding_done"
 
 _PROVIDERS = [
@@ -81,17 +100,17 @@ class WelcomeScreen(Screen):
     def compose(self) -> ComposeResult:
         with Center(), Vertical(classes="menu-container"):
             yield Static(
-                "\uf0e8  Universal AI Marketing Council",
+                "Universal AI Marketing Council",
                 classes="title",
             )
             yield Static("v3.3 — AI-powered marketing strategy", classes="subtitle")
             yield Rule()
             yield Static("[bold]The Four Agents[/bold]", classes="section-title")
             yield Static(
-                "\uf0ad  [cyan]Marcus[/cyan]  — Offer Architect\n"
-                "\uf140  [magenta]Elena[/magenta] — Funnel Architect\n"
-                "\uf040  [green]Kai[/green]   — Copywriter\n"
-                "\uf201  [yellow]David[/yellow] — Lead Strategist",
+                "  [cyan]Marcus[/cyan]  — Offer Architect\n"
+                "  [magenta]Elena[/magenta] — Funnel Architect\n"
+                "  [green]Kai[/green]   — Copywriter\n"
+                "  [yellow]David[/yellow] — Lead Strategist",
                 classes="agents-list",
             )
             yield Static(
@@ -115,15 +134,15 @@ class MainMenuScreen(Screen):
 
     def compose(self) -> ComposeResult:
         with Center(), Vertical(classes="menu-container"):
-            yield Static("\uf0e8  Main Menu", classes="title")
+            yield Static("Main Menu", classes="title")
             yield Static("Choose how to run the council", classes="subtitle")
             yield OptionList(
-                Option("\uf11b  Demo Mode — pre-built scenarios, no API keys", id="demo"),
-                Option("\uf115  Run from Template — built-in company configs", id="template"),
-                Option("\uf0c5  Real Council Run — your own config + LLM", id="real"),
-                Option("\uf108  IDE Help — VS Code, Cursor, Kimi, Claude", id="ide"),
-                Option("\uf128  How it Works — the debate explained", id="help"),
-                Option("\uf00d  Quit", id="quit"),
+                Option("[D] Demo Mode — pre-built scenarios, no API keys", id="demo"),
+                Option("[T] Run from Template — built-in company configs", id="template"),
+                Option("[R] Real Council Run — your own config + LLM", id="real"),
+                Option("[I] IDE Help — VS Code, Cursor, Kimi, Claude", id="ide"),
+                Option("[?] How it Works — the debate explained", id="help"),
+                Option("[Q] Quit", id="quit"),
             )
             yield Static("[dim]↑↓ navigate · Enter select · q quit[/dim]", classes="hint")
 
@@ -155,7 +174,7 @@ class DemoScreen(Screen):
         scenarios = list_scenarios()
         self.app.state["scenarios"] = scenarios
         with Center(), Vertical(classes="menu-container"):
-            yield Static("\uf11b  Demo Mode", classes="title")
+            yield Static("Demo Mode", classes="title")
             yield Static("Pre-built scenarios — no API keys needed", classes="subtitle")
             yield OptionList(
                 *[Option(f"{s.name} — {s.description}", id=s.key) for s in scenarios],
@@ -179,13 +198,19 @@ class DemoScreen(Screen):
         ol = self.query_one(OptionList)
         sel = ol.highlighted
         scenarios = self.app.state.get("scenarios", [])
-        scenario = scenarios[sel].key if scenarios and sel is not None else "saas-launch"
+        scenario_obj = scenarios[sel] if scenarios and sel is not None else None
+        scenario = scenario_obj.key if scenario_obj else "saas-launch"
+        scenario_label = scenario_obj.name if scenario_obj else _scenario_display_name(scenario)
         rounds_str = self.query_one("#rounds-input", Input).value or "3"
+        rounds = _parse_rounds(rounds_str, self.notify)
+        if rounds is None:
+            return
         dashboard = self.query_one("#dashboard-switch", Switch).value
         self.app.state.update(
             demo=True,
             scenario=scenario,
-            rounds=int(rounds_str),
+            scenario_label=scenario_label,
+            rounds=rounds,
             dashboard=dashboard,
             provider="openai",
             model=None,
@@ -199,7 +224,8 @@ class DemoScreen(Screen):
         self.query_one(OptionList).focus()
 
     def on_option_list_option_selected(self, event) -> None:
-        self._go_next()
+        # Highlight only — use Next or Enter on rounds field to continue (#74).
+        pass
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         if event.input.id == "rounds-input":
@@ -256,7 +282,7 @@ class TemplateScreen(Screen):
         self.app.state["template_previews"] = previews
 
         with Center(), Vertical(classes="menu-container"):
-            yield Static("\uf115  Run from Template", classes="title")
+            yield Static("Run from Template", classes="title")
             yield Static("Built-in company configurations", classes="subtitle")
             yield OptionList(
                 *[
@@ -296,7 +322,8 @@ class TemplateScreen(Screen):
         self.app.push_screen("provider")
 
     def on_option_list_option_selected(self, event) -> None:
-        self._go_next()
+        # Highlight only — use Next to continue (#74).
+        pass
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "back":
@@ -310,7 +337,7 @@ class ConfigScreen(Screen):
 
     def compose(self) -> ComposeResult:
         with Center(), Vertical(classes="menu-container"):
-            yield Static("\uf0c5  Real Council Run", classes="title")
+            yield Static("Real Council Run", classes="title")
             yield Static("Enter path to your company JSON config", classes="subtitle")
             yield Input(placeholder="e.g. ./my-company.json", id="config-input")
             yield Static(
@@ -334,8 +361,9 @@ class ConfigScreen(Screen):
         if not p.exists():
             self.notify(f"File not found: {path}", severity="error")
             return
-        if not p.suffix.lower() == ".json":
-            self.notify("Config must be a .json file", severity="warning")
+        if p.suffix.lower() != ".json":
+            self.notify("Config must be a .json file", severity="error")
+            return
         self.app.state["config"] = path
         self.app.state["template"] = None
         self.app.push_screen("provider")
@@ -406,7 +434,10 @@ class ApiKeyModal(ModalScreen[str | None]):
             self.dismiss(None)
 
     def _submit(self) -> None:
-        value = self.query_one("#modal-key-input", Input).value.strip() or None
+        value = self.query_one("#modal-key-input", Input).value.strip()
+        if not value:
+            self.notify("API key cannot be empty", severity="error")
+            return
         self.dismiss(value)
 
 
@@ -415,7 +446,7 @@ class ProviderScreen(Screen):
 
     def compose(self) -> ComposeResult:
         with Center(), Vertical(classes="menu-container"):
-            yield Static("\uf233  LLM Provider", classes="title")
+            yield Static("LLM Provider", classes="title")
             yield Static("Choose who powers the agents", classes="subtitle")
             yield OptionList(
                 *[
@@ -461,14 +492,6 @@ class ProviderScreen(Screen):
         sel = ol.highlighted
         return _PROVIDERS[sel][0] if sel is not None else "openai"
 
-    def _maybe_prompt_api_key(self) -> None:
-        provider = self._selected_provider()
-        if provider not in KEY_REQUIRED_PROVIDERS:
-            return
-        if self.app.state.get("api_key") or env_key_is_set(provider):
-            return
-        self.app.push_screen(ApiKeyModal(provider), self._on_api_key_modal)
-
     def _on_api_key_modal(self, key: str | None) -> None:
         if key:
             self.app.state["api_key"] = key
@@ -490,12 +513,8 @@ class ProviderScreen(Screen):
         model = self.query_one("#model-input", Input).value.strip() or None
         free_tier = self.query_one("#free-tier-switch", Switch).value
         rounds_str = self.query_one("#rounds-input", Input).value or "3"
-        try:
-            rounds = int(rounds_str)
-            if rounds < 1 or rounds > 20:
-                raise ValueError
-        except ValueError:
-            self.notify("Rounds must be a number between 1 and 20", severity="error")
+        rounds = _parse_rounds(rounds_str, self.notify)
+        if rounds is None:
             return
         dashboard = self.query_one("#dashboard-switch", Switch).value
         output = self.query_one("#output-input", Input).value.strip() or "./output"
@@ -529,16 +548,9 @@ class ProviderScreen(Screen):
             else f"leave empty — default: {default_model}"
         )
 
-        if provider_key in KEY_REQUIRED_PROVIDERS:
-
-            def _store_key(api_key: str | None) -> None:
-                self.app.state["api_key"] = api_key
-                self.query_one("#model-input", Input).focus()
-
-            self.app.push_screen(ApiKeyModal(provider_key), _store_key)
-        else:
+        if provider_key not in KEY_REQUIRED_PROVIDERS:
             self.app.state["api_key"] = None
-            self.query_one("#model-input", Input).focus()
+        self.query_one("#model-input", Input).focus()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         if event.input.id == "model-input":
@@ -560,10 +572,10 @@ class BriefScreen(Screen):
 
     def compose(self) -> ComposeResult:
         with Center(), Vertical(classes="menu-container"):
-            yield Static("\uf0eb  Campaign Brief", classes="title")
+            yield Static("Campaign Brief (optional)", classes="title")
             yield Static(
-                "Describe what you want the council to work on. "
-                "This becomes the strategic brief for all agents.",
+                "Describe what you want the council to work on (optional). "
+                "Leave blank to use the company config only.",
                 classes="subtitle",
             )
             yield TextArea(
@@ -606,7 +618,10 @@ class ConfirmScreen(Screen):
 
         if st.get("demo"):
             lines.append("[bold cyan]Mode:[/bold cyan]      Demo")
-            lines.append(f"[bold]Scenario:[/bold]  {st.get('scenario', '?')}")
+            scenario_label = st.get("scenario_label") or _scenario_display_name(
+                st.get("scenario", "?")
+            )
+            lines.append(f"[bold]Scenario:[/bold]  {scenario_label}")
         elif st.get("template"):
             lines.append("[bold cyan]Mode:[/bold cyan]      Template")
             lines.append(f"[bold]Company:[/bold]   {preview.get('name', st.get('template', '?'))}")
@@ -618,11 +633,11 @@ class ConfirmScreen(Screen):
             lines.append("[bold cyan]Mode:[/bold cyan]      Real Run")
             lines.append(f"[bold]Config:[/bold]    {st.get('config', '?')}")
 
-        lines.append(f"[bold]Provider:[/bold]  {st.get('provider', '?').upper()}")
+        provider_key = st.get("provider", "openai")
+        lines.append(f"[bold]Provider:[/bold]  {provider_key.upper()}")
         lines.append(
             f"[bold]API Key:[/bold]   {_format_api_key_status(provider_key, st.get('api_key'))}"
         )
-        provider_key = st.get("provider", "openai")
         default_model = next((m for k, _, m in _PROVIDERS if k == provider_key), "?")
         if st.get("model"):
             model_display = st["model"]
@@ -647,10 +662,12 @@ class ConfirmScreen(Screen):
         brief = st.get("brief", "")
         if brief:
             brief_display = brief[:70] + "..." if len(brief) > 70 else brief
-            lines.append(f"[bold]Brief:[/bold]     {brief_display}")
+        else:
+            brief_display = "[dim](none — optional)[/dim]"
+        lines.append(f"[bold]Brief:[/bold]     {brief_display}")
 
         with Center(), Vertical(classes="menu-container"):
-            yield Static("\uf00c  Ready to Run", classes="title")
+            yield Static("Ready to Run", classes="title")
             yield Static("Review your settings before launch", classes="subtitle")
             yield Rule()
             yield Static("\n".join(lines), classes="summary")
@@ -700,7 +717,7 @@ class QuitConfirmScreen(Screen):
 
     def compose(self) -> ComposeResult:
         with Center(), Vertical(classes="menu-container"):
-            yield Static("\uf128  Quit?", classes="title")
+            yield Static("Quit?", classes="title")
             yield Static("Any running council will be cancelled.", classes="subtitle")
             yield Rule()
             with Horizontal(classes="button-row"):
@@ -719,7 +736,7 @@ class HelpScreen(Screen):
 
     def compose(self) -> ComposeResult:
         with Center(), Vertical(classes="menu-container"):
-            yield Static("\uf128  How the Debate Works", classes="title")
+            yield Static("How the Debate Works", classes="title")
             yield Static(
                 "[bold]Round 1:[/bold] Each agent writes their specialised output\n"
                 "  Marcus → offer, Elena → funnel, Kai → copy, David → ABM\n\n"
@@ -742,7 +759,7 @@ class IDEScreen(Screen):
 
     def compose(self) -> ComposeResult:
         with Center(), Vertical(classes="menu-container"):
-            yield Static("\uf108  IDE Setup", classes="title")
+            yield Static("IDE Setup", classes="title")
             yield Static(
                 "[bold]VS Code / Cursor / Windsurf[/bold]\n"
                 "  Open integrated terminal (Ctrl+`)\n"
@@ -882,7 +899,7 @@ class CouncilMenuApp(App):
     }
 
     .provider-options {
-        max-height: 6;
+        max-height: 14;
     }
 
     OptionList:focus {

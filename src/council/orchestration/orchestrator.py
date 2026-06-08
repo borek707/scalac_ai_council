@@ -74,6 +74,12 @@ class AsyncOrchestrator:
 
         self._round_results: dict[int, dict[str, Path]] = {}
         self._final_results: dict[str, Path] = {}
+        self.agent_errors: list[tuple[str, str, str]] = []
+
+    def _record_agent_error(self, phase: str, agent_name: str, exc: Exception) -> None:
+        entry = (phase, agent_name, str(exc))
+        if entry not in self.agent_errors:
+            self.agent_errors.append(entry)
 
     def _safe_transition(self, agent_name: str, to_state: AgentState) -> None:
         current = self.state_machine.get_state(agent_name)
@@ -115,6 +121,7 @@ class AsyncOrchestrator:
                     "error",
                     message=str(result),
                 )
+                self._record_agent_error(f"round_{round_num}", agent.name, result)
                 failed_agents[agent.name] = result
             else:
                 if self.use_filesystem_barrier:
@@ -181,6 +188,13 @@ class AsyncOrchestrator:
                 break
 
         self._final_results = await self._run_final_all()
+        if self.agent_errors:
+            detail = "\n".join(
+                f"  • {name} ({phase}): {msg}" for phase, name, msg in self.agent_errors
+            )
+            raise RuntimeError(
+                f"Council run finished with agent failures ({len(self.agent_errors)}):\n{detail}"
+            )
         return await self._collect_final_outputs()
 
     async def _run_final_all(self) -> dict[str, Path]:
@@ -192,6 +206,8 @@ class AsyncOrchestrator:
         for agent, result in zip(self.agents, results):
             if isinstance(result, Exception):
                 logger.error("Agent %s failed during run_final: %s", agent.name, result)
+                self._record_agent_error("final", agent.name, result)
+                self._emit_progress(agent.name, "error", message=str(result))
             elif isinstance(result, Path):
                 final[agent.name] = result
                 logger.info("Agent %s final deliverable: %s", agent.name, result)

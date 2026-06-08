@@ -541,6 +541,55 @@ class TestAsyncOrchestrator:
         with pytest.raises(TimeoutError):
             await orc.run()
 
+    @pytest.mark.asyncio
+    async def test_agent_failure_raises_on_run(
+        self,
+        sample_config: CompanyConfig,
+        temp_workspace: Path,
+    ) -> None:
+        """run() must raise RuntimeError when any agent fails (#72)."""
+        from council.agents.base import BaseAgent
+        from council.config.schema import RoundContext
+
+        class FailingAgent(BaseAgent):
+            def get_system_prompt(self) -> str:
+                return "fail"
+
+            def get_output_filename(self) -> str:
+                return "fail_final.md"
+
+            def get_template_name(self) -> str:
+                return "marcus.j2"
+
+            async def generate_round(self, ctx: RoundContext) -> str:
+                raise RuntimeError("invalid API key")
+
+            async def run_final(self) -> Path:
+                return self.write_final("final", self.get_output_filename())
+
+        agent = FailingAgent(
+            name="failer",
+            role="Test Failer",
+            workspace=temp_workspace,
+            config=sample_config,
+            provider=MockLLMProvider(),
+        )
+
+        orc = AsyncOrchestrator(
+            agents=[agent],
+            config=sample_config,
+            provider=MockLLMProvider(),
+            max_rounds=1,
+            round_timeout=10.0,
+            workspace=temp_workspace,
+        )
+
+        with pytest.raises(RuntimeError, match="agent failures"):
+            await orc.run()
+
+        assert orc.agent_errors
+        assert orc.agent_errors[0][1] == "failer"
+
 
 class TestWriteWorkspaceArtifacts:
     def test_builds_proposal_and_manifest_from_disk(
