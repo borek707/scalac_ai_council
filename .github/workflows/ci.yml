@@ -103,6 +103,9 @@ jobs:
       - name: Run demo mode (saas-launch, 1 round, no API keys)
         run: uv run python -m council --demo --scenario saas-launch --rounds 1
 
+      - name: Run E2E integration tests (demo + review + CLI)
+        run: uv run pytest tests/test_e2e.py -m integration -q
+
       - name: Run monitor mode (no config needed)
         run: uv run python -m council --monitor --output /tmp/test-monitor
 
