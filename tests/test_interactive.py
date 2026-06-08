@@ -97,8 +97,8 @@ class TestApiKeyModal:
 
             assert dismissed_values == ["sk-test-key"]
 
-    async def test_modal_submit_empty_key_dismisses_none(self) -> None:
-        """_submit() with blank input dismisses with None."""
+    async def test_modal_submit_empty_key_shows_error(self) -> None:
+        """_submit() with blank input shows an error and stays open."""
         app = CouncilMenuApp(start_screen="provider")
         async with app.run_test() as pilot:
             dismissed_values: list[str | None] = []
@@ -114,13 +114,20 @@ class TestApiKeyModal:
             modal_input.value = ""
             await pilot.pause()
 
+            notifications: list[str] = []
+
+            def mock_notify(msg: str, **kwargs: object) -> None:
+                notifications.append(msg)
+
+            modal.notify = mock_notify  # type: ignore[method-assign]
             await pilot.click("#modal-ok")
             await pilot.pause()
 
-            assert dismissed_values == [None]
+            assert dismissed_values == []
+            assert notifications == ["API key cannot be empty"]
 
-    async def test_modal_submit_whitespace_key_dismisses_none(self) -> None:
-        """_submit() with whitespace-only input dismisses with None."""
+    async def test_modal_submit_whitespace_key_shows_error(self) -> None:
+        """_submit() with whitespace-only input shows an error."""
         app = CouncilMenuApp(start_screen="provider")
         async with app.run_test() as pilot:
             dismissed_values: list[str | None] = []
@@ -136,10 +143,17 @@ class TestApiKeyModal:
             modal_input.value = "   "
             await pilot.pause()
 
+            notifications: list[str] = []
+
+            def mock_notify(msg: str, **kwargs: object) -> None:
+                notifications.append(msg)
+
+            modal.notify = mock_notify  # type: ignore[method-assign]
             await pilot.click("#modal-ok")
             await pilot.pause()
 
-            assert dismissed_values == [None]
+            assert dismissed_values == []
+            assert notifications == ["API key cannot be empty"]
 
 
 # ── TestProviderScreenState ──────────────────────────────────────────────────

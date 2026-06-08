@@ -39,6 +39,36 @@ class OllamaProvider(LLMProvider):
         self.base_url = base_url.rstrip("/")
         self.model = model
 
+    async def verify_reachable(self) -> None:
+        """Ping Ollama before a council run; fail fast when the daemon is down."""
+        url = f"{self.base_url}/api/tags"
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as response:
+                    if response.status >= 400:
+                        body = await response.text()
+                        raise RuntimeError(
+                            f"Cannot reach Ollama at {self.base_url} "
+                            f"(HTTP {response.status}): {body[:200]}"
+                        )
+        except RuntimeError:
+            raise
+        except Exception as exc:
+            raise RuntimeError(
+                f"Cannot connect to Ollama at {self.base_url}. "
+                "Is 'ollama serve' running?\n"
+                f"  {exc}"
+            ) from exc
+
+    @staticmethod
+    async def _raise_on_client_error(response: object) -> None:
+        """Map deterministic 4xx responses to a non-retryable error."""
+        status = getattr(response, "status", None)
+        if status in (400, 401, 403, 404):
+            text_fn = getattr(response, "text", None)
+            body = await text_fn() if callable(text_fn) else ""
+            raise _OllamaDeterministicError(f"Ollama returned HTTP {status}: {str(body)[:200]}")
+
     @retry_with_backoff(
         max_retries=3,
         exceptions=(Exception,),
@@ -72,13 +102,7 @@ class OllamaProvider(LLMProvider):
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, json=payload) as response:
-                    # Translate deterministic 4xx HTTP errors so the retry
-                    # decorator can fast-fail without inspecting aiohttp types.
-                    if response.status in (400, 401, 403, 404):
-                        body = await response.text()
-                        raise _OllamaDeterministicError(
-                            f"Ollama returned HTTP {response.status}: {body[:200]}"
-                        )
+                    await self._raise_on_client_error(response)
                     response.raise_for_status()
                     data = await response.json()
         except _OllamaDeterministicError:
@@ -128,6 +152,7 @@ class OllamaProvider(LLMProvider):
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, json=payload) as response:
+                    await self._raise_on_client_error(response)
                     response.raise_for_status()
                     async for line in response.content:
                         if not line.strip():

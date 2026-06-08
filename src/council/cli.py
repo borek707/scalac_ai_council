@@ -23,6 +23,16 @@ from council.vis.agent_meta import AGENT_COLORS
 logger = logging.getLogger(__name__)
 console = Console()
 
+
+def _print_run_banner(*, agents: int | None, rounds: int, provider: str) -> None:
+    """Show a visible startup line before the council begins (#70)."""
+    console.print()
+    console.print(Rule(title="[bold blue]Starting AI Marketing Council[/bold blue]", style="blue"))
+    agent_part = f"{agents} agents · " if agents is not None else ""
+    console.print(f"[dim]{agent_part}{rounds} rounds · {provider}[/dim]")
+    console.print()
+
+
 # Supported platforms with their display names and env detection
 PLATFORM_REGISTRY: dict[str, tuple[str, list[str]]] = {
     "cli": ("CLI (local)", []),
@@ -323,6 +333,8 @@ async def _run_demo(args: argparse.Namespace, dashboard=None) -> None:
     logger.info(
         "Demo mode: scenario='%s' (%s), rounds=%d", scenario.key, scenario.name, args.rounds
     )
+
+    _print_run_banner(agents=4, rounds=args.rounds, provider="demo")
 
     progress_callback = dashboard.make_callback() if dashboard else None
     await run_demo(
@@ -653,6 +665,12 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
     elif hasattr(provider, "model"):
         console.print(f"[dim]Provider:[/dim] {args.provider} · [dim]model:[/dim] {provider.model}")
 
+    if args.provider == "ollama":
+        from council.llm.ollama_provider import OllamaProvider
+
+        if isinstance(provider, OllamaProvider):
+            await provider.verify_reachable()
+
     # Create agents with optional document context
     from council.agents.base import BaseAgent
     from council.agents.david import DavidAgent
@@ -688,6 +706,7 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         agent.stream_output = stream_output
 
     async def _execute_council(progress_callback=None):
+        _print_run_banner(agents=len(agents), rounds=args.rounds, provider=args.provider)
         orchestrator = AsyncOrchestrator(
             agents=agents,
             config=company_config,
@@ -729,7 +748,16 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
             )
 
     progress_cb = dashboard.make_callback() if dashboard else _console_progress
-    await _execute_council(progress_cb)
+    from council.llm.retry import set_retry_status_callback
+
+    def _retry_notice(msg: str) -> None:
+        console.print(f"[yellow]↻[/yellow] [dim]{msg}[/dim]")
+
+    set_retry_status_callback(_retry_notice)
+    try:
+        await _execute_council(progress_cb)
+    finally:
+        set_retry_status_callback(None)
 
     # Issue #38: post-run auto-review when --review is passed without a DIR value.
     if getattr(args, "review", None) is True:
@@ -1160,6 +1188,16 @@ def main() -> None:
         console.print("  • Interactive menu:         [cyan]python -m council[/cyan]")
         console.print("  • Full help:                [cyan]python -m council --help[/cyan]")
         sys.exit(1)
+    except TimeoutError as exc:
+        console.print()
+        console.print(
+            Panel(
+                f"[bold red]Council timed out[/bold red]\n{exc}\n\n"
+                "Try increasing --timeout or reducing --rounds.",
+                border_style="red",
+            )
+        )
+        sys.exit(1)
     except Exception as exc:
         console.print()
         console.print(
@@ -1183,6 +1221,14 @@ def _handle_error(exc: Exception) -> None:
         console.print("  • Demo mode (no API keys):  [cyan]python -m council --demo[/cyan]")
         console.print("  • Interactive menu:         [cyan]python -m council[/cyan]")
         console.print("  • Full help:                [cyan]python -m council --help[/cyan]")
+    elif isinstance(exc, TimeoutError):
+        console.print(
+            Panel(
+                f"[bold red]Council timed out[/bold red]\n{exc}\n\n"
+                "Try increasing --timeout or reducing --rounds.",
+                border_style="red",
+            )
+        )
     else:
         console.print(
             Panel(f"[bold red]Council execution failed[/bold red]\n{exc}", border_style="red")

@@ -799,3 +799,46 @@ class TestOllamaProvider:
             provider = OllamaProvider()
             with pytest.raises(Exception, match="[Oo]llama.*404|404.*[Oo]llama"):
                 await provider.generate(prompt="test")
+
+    @pytest.mark.asyncio
+    async def test_stream_4xx_raises_deterministic_error(self) -> None:
+        """HTTP 404 during stream() raises a non-retryable error (#80)."""
+        mock_response = MagicMock()
+        mock_response.status = 404
+        mock_response.text = AsyncMock(return_value="model not found")
+
+        post_ctx = MagicMock()
+        post_ctx.__aenter__ = AsyncMock(return_value=mock_response)
+        post_ctx.__aexit__ = AsyncMock(return_value=None)
+
+        mock_session = MagicMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session.post.return_value = post_ctx
+
+        with patch("council.llm.ollama_provider.aiohttp") as mock_aiohttp:
+            mock_aiohttp.ClientSession.return_value = mock_session
+            provider = OllamaProvider()
+            with pytest.raises(Exception, match="404"):
+                async for _chunk in provider.stream(prompt="test"):
+                    pass
+
+    @pytest.mark.asyncio
+    async def test_verify_reachable_success(self) -> None:
+        mock_response = MagicMock()
+        mock_response.status = 200
+
+        get_ctx = MagicMock()
+        get_ctx.__aenter__ = AsyncMock(return_value=mock_response)
+        get_ctx.__aexit__ = AsyncMock(return_value=None)
+
+        mock_session = MagicMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session.get.return_value = get_ctx
+
+        with patch("council.llm.ollama_provider.aiohttp") as mock_aiohttp:
+            mock_aiohttp.ClientSession.return_value = mock_session
+            mock_aiohttp.ClientTimeout = MagicMock()
+            provider = OllamaProvider()
+            await provider.verify_reachable()

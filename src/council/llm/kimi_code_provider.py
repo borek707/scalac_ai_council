@@ -105,6 +105,8 @@ class KimiCodeProvider(LLMProvider):
         prompt: str,
         model: str | None = None,
         system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4000,
     ) -> list[str]:
         """Build the subprocess command for Kimi CLI."""
         assert self.executable_path is not None
@@ -118,6 +120,13 @@ class KimiCodeProvider(LLMProvider):
         full_prompt = prompt
         if system:
             full_prompt = f"[System Instruction]\n{system}\n\n[User Prompt]\n{prompt}"
+
+        # Kimi CLI has no --temperature/--max-tokens flags; encode hints in the prompt.
+        if temperature != 0.7 or max_tokens != 4000:
+            full_prompt = (
+                f"{full_prompt}\n\n"
+                f"[Generation hints: temperature={temperature}, max_tokens≈{max_tokens}]"
+            )
 
         cmd += ["--prompt", full_prompt]
 
@@ -149,7 +158,9 @@ class KimiCodeProvider(LLMProvider):
         system: str | None = None,
     ) -> LLMResponse:
         """Generate a response by invoking Kimi Code CLI."""
-        cmd = self._build_cmd(prompt, model=model, system=system)
+        cmd = self._build_cmd(
+            prompt, model=model, system=system, temperature=temperature, max_tokens=max_tokens
+        )
         start = time.time()
 
         # Redact the prompt argument to avoid exposing full prompt text in logs
