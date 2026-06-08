@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -18,13 +19,17 @@ from council.orchestration.state_machine import AgentState, AgentStateMachine
 
 logger = logging.getLogger(__name__)
 
+_CONSENSUS_JACCARD_THRESHOLD = 0.25
+_WORD_PATTERN = re.compile(r"[a-z]{5,}")
+
 
 class AsyncOrchestrator:
     """Main controller for running multi-agent marketing council debates.
 
     Orchestrates agents to run in parallel within each round,
-    with all rounds executing sequentially. Uses a filesystem barrier
-    to synchronize agents between rounds.
+    with all rounds executing sequentially. Cross-process platforms
+    (e.g. Kimi ``sessions_spawn``) use :class:`FilesystemBarrier` directly;
+    in-process ``asyncio.gather`` runs do not need a post-gather barrier.
     """
 
     def __init__(
@@ -38,6 +43,7 @@ class AsyncOrchestrator:
         round_timeout: float = 300.0,
         workspace: Path | None = None,
         progress_callback: Callable[..., None] | None = None,
+        use_filesystem_barrier: bool = False,
     ) -> None:
         self.agents = agents
         self.config = config
@@ -48,8 +54,8 @@ class AsyncOrchestrator:
         self.round_timeout = round_timeout
         self.workspace = workspace or Path("./output")
         self.progress_callback = progress_callback
+        self.use_filesystem_barrier = use_filesystem_barrier
 
-        # Inject callback into every agent so they can report live progress
         if progress_callback:
             for agent in agents:
                 agent.progress_callback = progress_callback
@@ -69,25 +75,31 @@ class AsyncOrchestrator:
         self._round_results: dict[int, dict[str, Path]] = {}
         self._final_results: dict[str, Path] = {}
 
+    def _safe_transition(self, agent_name: str, to_state: AgentState) -> None:
+        current = self.state_machine.get_state(agent_name)
+        if not self.state_machine.transition(agent_name, current, to_state):
+            logger.warning(
+                "Agent %s: rejected transition %s -> %s",
+                agent_name,
+                current.name,
+                to_state.name,
+            )
+
+    def _emit_progress(self, agent_name: str, event: str, **kwargs: Any) -> None:
+        if self.progress_callback:
+            self.progress_callback(agent_name, event, **kwargs)
+
     async def run_round(self, round_num: int) -> dict[str, Path]:
-        """Run all agents in parallel for a round, with barrier synchronization.
-
-        Args:
-            round_num: The round number to run (1-based).
-
-        Returns:
-            Mapping of agent_name -> file_path for completed agents.
-
-        Raises:
-            Exception: If any agent fails and the error propagates.
-        """
+        """Run all agents in parallel for a round."""
         logger.info("=== Starting Round %d ===", round_num)
 
         for agent in self.agents:
-            self.state_machine.transition(
+            self._safe_transition(agent.name, AgentState.WRITING)
+            self._emit_progress(
                 agent.name,
-                self.state_machine.get_state(agent.name),
-                AgentState.WRITING,
+                "round_start",
+                round_num=round_num,
+                activity="Starting round...",
             )
 
         tasks = [agent.run_round(round_num) for agent in self.agents]
@@ -97,32 +109,43 @@ class AsyncOrchestrator:
         for agent, result in zip(self.agents, results):
             if isinstance(result, Exception):
                 logger.error("Agent %s failed in round %d: %s", agent.name, round_num, result)
-                self.state_machine.force_state(agent.name, AgentState.ERROR)
+                self._safe_transition(agent.name, AgentState.ERROR)
+                self._emit_progress(
+                    agent.name,
+                    "error",
+                    message=str(result),
+                )
                 failed_agents[agent.name] = result
             else:
-                self.state_machine.force_state(agent.name, AgentState.DONE)
+                if self.use_filesystem_barrier:
+                    self._safe_transition(agent.name, AgentState.WAITING)
+                    self._emit_progress(agent.name, "waiting", activity="Waiting for peers...")
+                else:
+                    self._safe_transition(agent.name, AgentState.DONE)
 
-        if failed_agents:
-            # Narrow the barrier to only the agents that succeeded so we do
-            # not wait indefinitely for files that failed agents will never write.
-            self.barrier.expected_agents = [
-                a.name for a in self.agents if a.name not in failed_agents
-            ]
-
-        try:
-            barrier_results = await self.barrier.wait(round_num)
-        except TimeoutError as exc:
+        if self.use_filesystem_barrier:
             if failed_agents:
-                causes = "; ".join(f"{name}: {err}" for name, err in failed_agents.items())
-                raise TimeoutError(f"{exc} — underlying agent failures: {causes}") from exc
-            raise
-        finally:
-            # Restore the full expected_agents list for subsequent rounds.
-            self.barrier.expected_agents = [a.name for a in self.agents]
+                self.barrier.expected_agents = [
+                    a.name for a in self.agents if a.name not in failed_agents
+                ]
+            try:
+                await self.barrier.wait(round_num)
+            except TimeoutError as exc:
+                if failed_agents:
+                    causes = "; ".join(f"{name}: {err}" for name, err in failed_agents.items())
+                    raise TimeoutError(f"{exc} — underlying agent failures: {causes}") from exc
+                raise
+            finally:
+                self.barrier.expected_agents = [a.name for a in self.agents]
+
+            for agent in self.agents:
+                if self.state_machine.get_state(agent.name) == AgentState.WAITING:
+                    self._safe_transition(agent.name, AgentState.DONE)
+                    self._emit_progress(agent.name, "done", activity="Round complete")
 
         for agent in self.agents:
             if self.state_machine.get_state(agent.name) != AgentState.ERROR:
-                self.state_machine.force_state(agent.name, AgentState.PENDING)
+                self._safe_transition(agent.name, AgentState.PENDING)
 
         successful: dict[str, Path] = {}
         for agent, result in zip(self.agents, results):
@@ -139,11 +162,7 @@ class AsyncOrchestrator:
         return successful
 
     async def run(self) -> dict[str, Path]:
-        """Run full debate: all rounds sequentially, agents parallel within each round.
-
-        Returns:
-            Final collected outputs from the last round.
-        """
+        """Run full debate: all rounds sequentially, agents parallel within each round."""
         logger.info(
             "Starting council run: %d agents, %d rounds",
             len(self.agents),
@@ -151,7 +170,7 @@ class AsyncOrchestrator:
         )
         for round_num in range(1, self.max_rounds + 1):
             try:
-                results = await asyncio.wait_for(
+                await asyncio.wait_for(
                     self.run_round(round_num),
                     timeout=self.round_timeout,
                 )
@@ -184,38 +203,56 @@ class AsyncOrchestrator:
         return final
 
     def _check_consensus(self, round_num: int) -> bool:
-        """Check if agents have reached consensus.
+        """Return True when agent round outputs share enough topical overlap."""
+        results = self._round_results.get(round_num)
+        if not results or len(results) < 2:
+            return False
 
-        Default implementation returns False (run all rounds).
-        Override for custom consensus detection.
-        """
+        token_sets: list[set[str]] = []
+        for path in results.values():
+            try:
+                text = path.read_text(encoding="utf-8").lower()
+            except OSError:
+                continue
+            words = set(_WORD_PATTERN.findall(text))
+            if words:
+                token_sets.append(words)
+
+        if len(token_sets) < 2:
+            return False
+
+        intersection = set.intersection(*token_sets)
+        union = set.union(*token_sets)
+        if not union:
+            return False
+
+        jaccard = len(intersection) / len(union)
+        if jaccard >= _CONSENSUS_JACCARD_THRESHOLD:
+            logger.info(
+                "Consensus detected at round %d (Jaccard=%.2f, shared_terms=%d)",
+                round_num,
+                jaccard,
+                len(intersection),
+            )
+            return True
         return False
 
     async def _collect_final_outputs(self) -> dict[str, Path]:
-        """Collect final outputs from all agents.
-
-        Looks in output/agents/ first (new layout); falls back to output/ root
-        for backward compatibility with runs produced before this change.
-        """
+        """Collect final outputs from all agents."""
         outputs: dict[str, Path] = {}
         for agent in self.agents:
             filename = agent.get_output_filename()
-            # Preferred location: output/agents/<filename>
             preferred = self.workspace / "output" / "agents" / filename
             if preferred.exists():
                 outputs[agent.name] = preferred
                 continue
-            # Backward-compatible fallback: output/<filename>
             fallback = self.workspace / "output" / filename
             if fallback.exists():
                 outputs[agent.name] = fallback
         return outputs
 
     def aggregate_proposal(self) -> str:
-        """Aggregate all agent outputs into a single proposal.
-
-        Reads all round outputs and produces a combined markdown document.
-        """
+        """Aggregate all agent outputs into a single proposal."""
         lines: list[str] = [
             "# Universal AI Marketing Council — Aggregated Proposal",
             "",
@@ -288,3 +325,74 @@ class AsyncOrchestrator:
     def get_state_snapshot(self) -> dict[str, AgentState]:
         """Return current state snapshot of all agents."""
         return self.state_machine.get_snapshot()
+
+
+def write_workspace_artifacts(
+    workspace: Path,
+    config: CompanyConfig,
+    *,
+    provider_name: str,
+    provider_model: str | None,
+    max_rounds: int,
+    agent_names: tuple[str, ...] = ("Marcus", "Elena", "Kai", "David"),
+) -> dict[str, Path]:
+    """Build proposal/manifest from files already on disk (demo or recovery path)."""
+    from collections.abc import AsyncIterator
+
+    from council.llm.provider import LLMProvider, LLMResponse
+
+    class _NoOpProvider(LLMProvider):
+        async def generate(
+            self,
+            prompt: str,
+            model: str | None = None,
+            temperature: float = 0.7,
+            max_tokens: int = 4000,
+            system: str | None = None,
+        ) -> LLMResponse:
+            raise NotImplementedError
+
+        async def stream(
+            self,
+            prompt: str,
+            model: str | None = None,
+            temperature: float = 0.7,
+            max_tokens: int = 4000,
+            system: str | None = None,
+        ) -> AsyncIterator[str]:
+            raise NotImplementedError
+            yield ""  # type: ignore[unreachable]
+
+    orchestrator = AsyncOrchestrator(
+        agents=[],
+        config=config,
+        provider=_NoOpProvider(),
+        provider_name=provider_name,
+        provider_model=provider_model,
+        max_rounds=max_rounds,
+        workspace=workspace,
+    )
+
+    discussion_dir = workspace / "shared" / "discussion"
+    for round_num in range(1, max_rounds + 1):
+        round_paths: dict[str, Path] = {}
+        for name in agent_names:
+            path = discussion_dir / f"{name.lower()}_round_{round_num}.md"
+            if path.exists():
+                round_paths[name] = path
+        if round_paths:
+            orchestrator._round_results[round_num] = round_paths
+
+    agents_dir = workspace / "output" / "agents"
+    final_files = {
+        "Marcus": "marcus_offer.md",
+        "Elena": "elena_funnel.md",
+        "Kai": "kai_copy.md",
+        "David": "david_abm.md",
+    }
+    for name, filename in final_files.items():
+        path = agents_dir / filename
+        if path.exists():
+            orchestrator._final_results[name] = path
+
+    return orchestrator.write_artifacts(workspace / "output")

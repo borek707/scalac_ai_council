@@ -77,7 +77,10 @@ class AgentStateMachine:
         return True
 
     def force_state(self, agent: str, state: AgentState) -> None:
-        """Forcefully set an agent's state (bypass validation)."""
+        """Forcefully set an agent's state (bypass validation).
+
+        Intended for tests only — production code should use :meth:`transition`.
+        """
         self._states[agent] = state
 
     def get_state(self, agent: str) -> AgentState:

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import time
 from collections.abc import AsyncIterator
 
@@ -12,6 +11,7 @@ except ImportError:
 
 from council.llm.provider import LLMProvider, LLMResponse
 from council.llm.retry import retry_with_backoff
+from council.llm.secrets import resolve_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +45,7 @@ class AnthropicProvider(LLMProvider):
         model: str = "claude-sonnet-4-6",
     ) -> None:
         self.model = model
-        raw_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
-        self.api_key = raw_key.strip() if raw_key else None
+        self.api_key = resolve_api_key("anthropic", api_key)
 
         if not self.api_key:
             raise RuntimeError(
@@ -142,6 +141,15 @@ class AnthropicProvider(LLMProvider):
             "claude-3-opus-20240229": (15.0 / 1_000_000, 75.0 / 1_000_000),
             "claude-3-sonnet-20240229": (3.0 / 1_000_000, 15.0 / 1_000_000),
             "claude-3-haiku-20240307": (0.25 / 1_000_000, 1.25 / 1_000_000),
+            "claude-sonnet-4-6": (3.0 / 1_000_000, 15.0 / 1_000_000),
+            "claude-opus-4-6": (5.0 / 1_000_000, 25.0 / 1_000_000),
+            "claude-opus-4-7": (5.0 / 1_000_000, 25.0 / 1_000_000),
+            "claude-haiku-4-5": (1.0 / 1_000_000, 5.0 / 1_000_000),
         }
-        prompt_rate, completion_rate = rates.get(model, rates["claude-3-sonnet-20240229"])
+        if model not in rates:
+            logger.warning(
+                "AnthropicProvider: unknown model %r for cost estimate — using Sonnet 4 rates",
+                model,
+            )
+        prompt_rate, completion_rate = rates.get(model, rates["claude-sonnet-4-6"])
         return (prompt_tokens * prompt_rate) + (completion_tokens * completion_rate)

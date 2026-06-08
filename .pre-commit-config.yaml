@@ -3,10 +3,13 @@ repos:
     rev: v4.6.0
     hooks:
       - id: trailing-whitespace
+        exclude: ^Plan Marketingowy.*\.md$
       - id: end-of-file-fixer
+        exclude: ^Plan Marketingowy.*\.md$
       - id: check-yaml
       - id: check-toml
       - id: check-added-large-files
+        exclude: ^Plan Marketingowy.*\.md$
       - id: check-merge-conflict
       - id: debug-statements
 
@@ -17,7 +20,7 @@ repos:
         args: [--line-length=100]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.11.0
+    rev: v0.12.4
     hooks:
       - id: ruff
         args: [--fix]

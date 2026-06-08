@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+# ruff: noqa: ASYNC240, ASYNC250
 import argparse
 import asyncio
 import logging
@@ -12,9 +13,12 @@ from rich.panel import Panel
 from rich.rule import Rule
 from rich.table import Table
 
+from council.config.env_loader import load_dotenv_from_cwd
 from council.config.loader import ConfigLoader
 from council.llm.provider import LLMProvider
+from council.llm.secrets import KEY_REQUIRED_PROVIDERS, resolve_api_key
 from council.platform.base import PlatformAdapter
+from council.vis.agent_meta import AGENT_COLORS
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -164,6 +168,11 @@ Need more help? Read README.md or run: python -m council --interactive
         default=None,
         help="Review a previous run: pass a DIR to review that directory standalone, "
         "or pass without a value to auto-review after a successful council run",
+    )
+    parser.add_argument(
+        "--review-ai",
+        action="store_true",
+        help="Run LLM quality review (writes output/artifacts/reviews/) — use with --review",
     )
     parser.add_argument(
         "--verbose",
@@ -324,7 +333,36 @@ async def _run_demo(args: argparse.Namespace, dashboard=None) -> None:
     )
 
     logger.info("Demo run complete. Output: %s", workspace)
-    _print_success_summary(workspace, args.rounds, {})
+
+    from council.orchestration.orchestrator import write_workspace_artifacts
+
+    config_path = workspace / "config.json"
+    config_path.write_text(scenario.config.model_dump_json(indent=2), encoding="utf-8")
+    artifacts = write_workspace_artifacts(
+        workspace,
+        scenario.config,
+        provider_name="demo",
+        provider_model="demo",
+        max_rounds=args.rounds,
+    )
+    _print_success_summary(workspace, args.rounds, artifacts)
+
+
+def _validate_provider_api_key(args: argparse.Namespace) -> None:
+    """Fail fast when a key-required provider has no credentials."""
+    if args.demo or args.provider not in KEY_REQUIRED_PROVIDERS:
+        return
+    if resolve_api_key(args.provider, getattr(args, "api_key", None)):
+        return
+    env_name = {
+        "openai": "OPENAI_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+    }[args.provider]
+    raise RuntimeError(
+        f"{args.provider.title()} API key missing.\n"
+        f"  Set {env_name} in your environment, use --api-key, or run: python -m council --demo"
+    )
 
 
 async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
@@ -332,7 +370,10 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
     setup_logging(args.verbose)
 
     if isinstance(getattr(args, "review", None), str):
-        _review_run(Path(args.review))
+        review_path = Path(args.review)
+        _review_run(review_path)
+        if getattr(args, "review_ai", False):
+            _run_ai_review(review_path, args)
         return
 
     if args.demo:
@@ -371,6 +412,8 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
     if args.monitor:
         _show_status(Path(args.output))
         return
+
+    _validate_provider_api_key(args)
 
     # Issue #10: --scalac-mode generates its own config — skip the config requirement check.
     if args.scalac_mode:
@@ -618,7 +661,9 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
     from council.agents.marcus import MarcusAgent
     from council.orchestration.orchestrator import AsyncOrchestrator
 
-    stream_output = getattr(args, "stream", False)
+    stream_output = getattr(args, "stream", False) and not getattr(args, "dashboard", False)
+    if getattr(args, "stream", False) and getattr(args, "dashboard", False):
+        logger.info("Streaming disabled while dashboard is active")
     if stream_output:
         console.print(
             "[dim]Streaming mode:[/dim] [green]ON[/green] — you will see agent output as it generates"
@@ -660,13 +705,7 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         _print_success_summary(workspace, args.rounds, artifacts)
 
     def _console_progress(agent_name: str, state: str, **kwargs) -> None:
-        _AGENT_COLORS = {
-            "Marcus": "cyan",
-            "Elena": "magenta",
-            "Kai": "green",
-            "David": "yellow",
-        }
-        color = _AGENT_COLORS.get(agent_name, "white")
+        color = AGENT_COLORS.get(agent_name, "white")
         if state == "generating":
             console.print(f"  [bold {color}]{agent_name}[/bold {color}] [dim]is thinking…[/dim]")
         elif state == "writing":
@@ -689,11 +728,14 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
                 Rule(title=f"[bold blue]Round {round_num}/{args.rounds}[/bold blue]", style="blue")
             )
 
-    await _execute_council(_console_progress)
+    progress_cb = dashboard.make_callback() if dashboard else _console_progress
+    await _execute_council(progress_cb)
 
     # Issue #38: post-run auto-review when --review is passed without a DIR value.
     if getattr(args, "review", None) is True:
         _review_run(workspace)
+        if getattr(args, "review_ai", False):
+            _run_ai_review(workspace, args)
 
 
 _PROVIDER_KEY_HELP: dict[str, tuple[str, str]] = {
@@ -897,46 +939,66 @@ def _print_success_summary(workspace: Path, rounds: int, artifacts: dict) -> Non
 
 
 def _review_run(workspace: Path) -> None:
-    """Display a summary of a previous council run from its manifest."""
+    """Display a summary of a previous council run from manifest or filesystem."""
     import json as _json
 
+    from council.artifacts import discover_artifacts, get_default_artifact
+
     manifest_path = workspace / "output" / "manifest.json"
-    if not manifest_path.exists():
+    fallback_mode = not manifest_path.exists()
+    proposal_path: Path | None = None
+
+    if fallback_mode:
+        artifacts = discover_artifacts(workspace)
+        if not artifacts:
+            console.print(
+                Panel(
+                    f"[red]No reviewable artifacts found in {workspace}[/red]\n"
+                    "Run the council or demo first to generate outputs.",
+                    title="Review",
+                    border_style="red",
+                )
+            )
+            return
         console.print(
             Panel(
-                f"[red]No manifest found in {workspace / 'output'}[/red]\n"
-                "Run the council first to generate artifacts.",
+                "[yellow]manifest.json missing[/yellow] — showing filesystem discovery.",
                 title="Review",
-                border_style="red",
+                border_style="yellow",
             )
         )
-        return
+        table = Table(title="Discovered Artifacts", show_header=False, border_style="blue")
+        table.add_column("Kind", style="bold cyan", width=14)
+        table.add_column("Path", style="white")
+        for artifact in artifacts:
+            table.add_row(artifact.kind, str(artifact.path))
+        console.print()
+        console.print(table)
+        default = get_default_artifact(artifacts)
+        proposal_path = default.path if default else None
+    else:
+        manifest = _json.loads(manifest_path.read_text(encoding="utf-8"))
+        table = Table(title="Previous Run", show_header=False, border_style="blue")
+        table.add_column("Key", style="bold cyan", width=20)
+        table.add_column("Value", style="white")
+        table.add_row("Generated", manifest.get("generated_at", "unknown"))
+        table.add_row("Company", manifest.get("company", "unknown"))
+        table.add_row("Product", manifest.get("product", "unknown"))
+        table.add_row("Provider", f"{manifest.get('provider', '?')} / {manifest.get('model', '?')}")
+        table.add_row(
+            "Rounds completed",
+            f"{manifest.get('rounds_completed', '?')} / {manifest.get('max_rounds', '?')}",
+        )
+        table.add_row("Agents", ", ".join(manifest.get("agents", [])))
+        files = manifest.get("files", {})
+        proposal_path = Path(files.get("proposal", ""))
+        if proposal_path.exists():
+            table.add_row("Proposal", str(proposal_path))
+        console.print()
+        console.print(table)
 
-    manifest = _json.loads(manifest_path.read_text(encoding="utf-8"))
-
-    table = Table(title="Previous Run", show_header=False, border_style="blue")
-    table.add_column("Key", style="bold cyan", width=20)
-    table.add_column("Value", style="white")
-    table.add_row("Generated", manifest.get("generated_at", "unknown"))
-    table.add_row("Company", manifest.get("company", "unknown"))
-    table.add_row("Product", manifest.get("product", "unknown"))
-    table.add_row("Provider", f"{manifest.get('provider', '?')} / {manifest.get('model', '?')}")
-    table.add_row(
-        "Rounds completed",
-        f"{manifest.get('rounds_completed', '?')} / {manifest.get('max_rounds', '?')}",
-    )
-    table.add_row("Agents", ", ".join(manifest.get("agents", [])))
-
-    files = manifest.get("files", {})
-    proposal_path = Path(files.get("proposal", ""))
-    if proposal_path.exists():
-        table.add_row("Proposal", str(proposal_path))
-
-    console.print()
-    console.print(table)
-
-    if proposal_path.exists():
-        preview_lines = proposal_path.read_text(encoding="utf-8").splitlines()[:20]
+    if proposal_path and Path(proposal_path).exists():
+        preview_lines = Path(proposal_path).read_text(encoding="utf-8").splitlines()[:20]
         console.print()
         console.print(
             Panel(
@@ -945,6 +1007,38 @@ def _review_run(workspace: Path) -> None:
                 border_style="blue",
             )
         )
+
+
+def _run_ai_review(workspace: Path, args: argparse.Namespace) -> None:
+    """Run LLM quality review over discovered workspace artifacts."""
+    import asyncio
+
+    from council.artifacts import discover_artifacts
+    from council.review import ReviewRunner
+
+    artifacts = discover_artifacts(workspace)
+    if not artifacts:
+        console.print("[yellow]No artifacts to review with AI.[/yellow]")
+        return
+
+    provider = _create_provider(
+        args.provider,
+        args.model,
+        getattr(args, "free_tier", False),
+        api_key=getattr(args, "api_key", None),
+    )
+    runner = ReviewRunner(provider, workspace)
+    console.print("[dim]Running AI quality review…[/dim]")
+
+    async def _review() -> None:
+        results = await runner.review_artifacts(artifacts)
+        runner.save_results(results)
+
+    asyncio.run(_review())
+    console.print(
+        "[green]AI review saved:[/green] "
+        f"{workspace / 'output' / 'artifacts' / 'reviews' / 'review.md'}"
+    )
 
 
 def _show_status(workspace: Path) -> None:
@@ -987,6 +1081,7 @@ def _run_async_in_thread(coro) -> Exception:
 
 def main() -> None:
     """CLI entry point for the Universal AI Marketing Council."""
+    load_dotenv_from_cwd()
     argv = sys.argv[1:]
     interactive_requested = "--interactive" in argv or "-i" in argv
     onboarding_requested = "--onboarding" in argv

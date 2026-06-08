@@ -14,12 +14,7 @@ if TYPE_CHECKING:
 
 logger: logging.Logger = logging.getLogger(__name__)
 
-AGENT_COLORS: dict[str, str] = {
-    "Marcus": "cyan",
-    "Elena": "green",
-    "Kai": "yellow",
-    "David": "magenta",
-}
+from council.vis.agent_meta import AGENT_COLORS
 
 
 class BaseAgent(ABC):
@@ -262,7 +257,7 @@ class BaseAgent(ABC):
             round_num=round_num,
             brief=brief,
             discussion_history=history,
-            company_config=self.config,
+            company_config=self.config.model_copy(deep=True),
             battlecards=battlecards,
             content_plan=content_plan,
             target_accounts=target_accounts,

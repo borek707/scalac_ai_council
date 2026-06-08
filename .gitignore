@@ -28,3 +28,8 @@ output/
 .env
 .venv/
 venv/
+
+# Local marketing plan (not part of council codebase)
+Plan Marketingowy*.md
+.DS_Store
+uv.lock

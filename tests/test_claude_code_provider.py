@@ -124,22 +124,32 @@ class TestClaudeCodeProvider:
         provider = ClaudeCodeProvider(executable_path=str(fake_cli))
 
         # Build realistic stream-json lines the CLI emits
-        text_delta = json.dumps({
-            "type": "stream_event",
-            "event": {
-                "type": "content_block_delta",
-                "index": 1,
-                "delta": {"type": "text_delta", "text": "Hello"},
-            },
-        }).encode() + b"\n"
-        text_delta2 = json.dumps({
-            "type": "stream_event",
-            "event": {
-                "type": "content_block_delta",
-                "index": 1,
-                "delta": {"type": "text_delta", "text": " world"},
-            },
-        }).encode() + b"\n"
+        text_delta = (
+            json.dumps(
+                {
+                    "type": "stream_event",
+                    "event": {
+                        "type": "content_block_delta",
+                        "index": 1,
+                        "delta": {"type": "text_delta", "text": "Hello"},
+                    },
+                }
+            ).encode()
+            + b"\n"
+        )
+        text_delta2 = (
+            json.dumps(
+                {
+                    "type": "stream_event",
+                    "event": {
+                        "type": "content_block_delta",
+                        "index": 1,
+                        "delta": {"type": "text_delta", "text": " world"},
+                    },
+                }
+            ).encode()
+            + b"\n"
+        )
         # Non-text event that should be ignored
         rate_limit = json.dumps({"type": "rate_limit_event"}).encode() + b"\n"
 
@@ -167,17 +177,30 @@ class TestClaudeCodeProvider:
 
         non_text_events = [
             json.dumps({"type": "system", "subtype": "init"}).encode() + b"\n",
-            json.dumps({
-                "type": "stream_event",
-                "event": {"type": "content_block_delta", "index": 0,
-                          "delta": {"type": "thinking_delta", "thinking": "thoughts"}},
-            }).encode() + b"\n",
-            json.dumps({"type": "result", "subtype": "success", "result": "final"}).encode() + b"\n",
-            json.dumps({
-                "type": "stream_event",
-                "event": {"type": "content_block_delta", "index": 1,
-                          "delta": {"type": "text_delta", "text": "actual output"}},
-            }).encode() + b"\n",
+            json.dumps(
+                {
+                    "type": "stream_event",
+                    "event": {
+                        "type": "content_block_delta",
+                        "index": 0,
+                        "delta": {"type": "thinking_delta", "thinking": "thoughts"},
+                    },
+                }
+            ).encode()
+            + b"\n",
+            json.dumps({"type": "result", "subtype": "success", "result": "final"}).encode()
+            + b"\n",
+            json.dumps(
+                {
+                    "type": "stream_event",
+                    "event": {
+                        "type": "content_block_delta",
+                        "index": 1,
+                        "delta": {"type": "text_delta", "text": "actual output"},
+                    },
+                }
+            ).encode()
+            + b"\n",
             b"",
         ]
 

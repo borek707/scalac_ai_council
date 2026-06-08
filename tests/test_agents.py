@@ -424,3 +424,15 @@ class TestAgentRoundContext:
         assert ctx.battlecards == ""
         assert ctx.content_plan == ""
         assert ctx.target_accounts == ""
+
+    def test_context_is_frozen(self, sample_config: CompanyConfig) -> None:
+        import dataclasses
+
+        ctx = RoundContext(
+            round_num=1,
+            brief="",
+            discussion_history="",
+            company_config=sample_config,
+        )
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            ctx.round_num = 2  # type: ignore[misc]
