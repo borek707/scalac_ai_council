@@ -121,6 +121,7 @@ class TestCouncilDashboard:
         cb("marcus", "generating")
         assert dash._agents["marcus"].state == "WRITING"
         assert dash._agents["marcus"].progress_pct == 40
+        assert any("calling llm" in log.lower() for log in dash._logs)
 
     def test_callback_done_with_content(self) -> None:
         dash = CouncilDashboard(["marcus"])
