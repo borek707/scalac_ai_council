@@ -147,10 +147,11 @@ extend-exclude = '''
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["src"]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short -m 'not live'"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
+    "live: calls real external LLM providers and requires API keys",
 ]
 
 [tool.coverage.run]
