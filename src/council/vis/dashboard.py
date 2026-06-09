@@ -173,19 +173,20 @@ class AgentCard(Static):
             f"{self.agent_avatar} {self.agent_name}",
             classes="agent-name",
         )
-        yield Static("\uf017  PENDING", classes="agent-status")
+        yield Static("⏳  PENDING", classes="agent-status")
         yield ProgressBar(total=100, show_eta=False, classes="agent-progress")
         yield Static("Waiting for assignment...", classes="agent-activity")
 
     def watch_state(self, new_state: str) -> None:
-        self.remove_class("pending", "writing", "done", "error")
+        self.remove_class("pending", "writing", "done", "error", "waiting")
         self.add_class(new_state.lower())
         icon = {
-            "pending": "\uf017",
-            "writing": "\uf040",
-            "done": "\uf00c",
-            "error": "\uf00d",
-        }.get(new_state.lower(), "\uf128")
+            "pending": "⏳",
+            "writing": "✍️",
+            "done": "✅",
+            "error": "❌",
+            "waiting": "⏸️",
+        }.get(new_state.lower(), "•")
         status = self.query_one(".agent-status", Static)
         status.update(f"{icon}  {new_state}")
         status.styles.color = self.agent_color
@@ -286,12 +287,14 @@ class CouncilApp(App):
         agent_names: list[str],
         max_rounds: int = 3,
         workspace: Path = Path("./output"),
+        on_mounted: Callable[[], None] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self._agent_names = agent_names
         self._max_rounds = max_rounds
         self.workspace = workspace
+        self._on_mounted = on_mounted
         self._agent_cards: dict[str, AgentCard] = {}
         self._current_round = 0
         self._start_time = time.time()
@@ -323,34 +326,45 @@ class CouncilApp(App):
                     self._agent_cards[name] = card
                     yield card
             with Vertical(id="sidebar"):
-                yield Static("\uf06e  Content Preview", classes="sidebar-title")
+                yield Static("Content Preview", classes="sidebar-title")
                 yield Markdown(
-                    "*Waiting for the first agent output...*",
+                    "*Council starting — waiting for agent output...*",
                     id="preview",
                 )
                 yield Rule()
-                yield Rule()
-                yield Static("\uf0c5  Files", classes="sidebar-title")
+                yield Static("Files", classes="sidebar-title")
                 yield OptionList(id="file-list")
                 yield Rule()
-                yield Static("\uf02d  Event Log", classes="sidebar-title")
+                yield Static("Event Log", classes="sidebar-title")
                 yield RichLog(id="logs", max_lines=200, highlight=True)
                 yield Rule()
-                yield Static("\uf080  Stats", classes="sidebar-title")
+                yield Static("Stats", classes="sidebar-title")
                 yield Static(id="stats")
         yield Footer()
 
     def on_mount(self) -> None:
         self._mounted = True
         self.title = "Universal AI Marketing Council"
-        self.sub_title = f"Round 0/{self._max_rounds}"
+        self.sub_title = f"Starting… | 0/{self._max_rounds} rounds"
+        for name in self._agent_names:
+            card = self._agent_cards.get(name)
+            if card:
+                card.state = "PENDING"
+                card.progress = 5
+                card.activity = "Initializing council…"
+        self._add_log("Dashboard ready — waiting for council thread…")
         self.set_interval(0.5, self._tick_header)
         self.set_interval(2.0, self._refresh_files)
         self._refresh_files()
+        if self._on_mounted is not None:
+            self._on_mounted()
 
     def _tick_header(self) -> None:
         elapsed = time.time() - self._start_time
-        self.sub_title = f"Round {self._current_round}/{self._max_rounds} " f"| {elapsed:.0f}s"
+        if self._current_round <= 0:
+            self.sub_title = f"Starting… | {elapsed:.0f}s"
+        else:
+            self.sub_title = f"Round {self._current_round}/{self._max_rounds} | {elapsed:.0f}s"
 
     def update_agent(
         self,
@@ -547,6 +561,8 @@ class CouncilDashboard:
         self._logs: deque[str] = deque(maxlen=200)
         self._timeline: deque[TimelineEvent] = deque(maxlen=100)
         self._current_round = 0
+        self._pending_logs: list[str] = []
+        self._ready_callback: Callable[[], None] | None = None
         _META = {
             "marcus": ("cyan", "🏗️"),
             "elena": ("magenta", "🎯"),
@@ -564,14 +580,29 @@ class CouncilDashboard:
 
     # ── Blocking run / stop ────────────────────────────────────────────────
 
-    def run(self) -> None:
+    def run(self, on_ready: Callable[[], None] | None = None) -> None:
         """Block and run the Textual app in the main thread."""
+        self._ready_callback = on_ready
         self._app = CouncilApp(
             agent_names=self.agent_names,
             max_rounds=self.max_rounds,
             workspace=self.workspace,
+            on_mounted=self._on_app_mounted,
         )
         self._app.run(mouse=True, inline=False)
+
+    def _on_app_mounted(self) -> None:
+        """Flush pre-mount logs and release the council worker thread."""
+        self._flush_pending_logs()
+        if self._ready_callback is not None:
+            self._ready_callback()
+
+    def _flush_pending_logs(self) -> None:
+        if self._app is None or not self._app._mounted:
+            return
+        for message in self._pending_logs:
+            self._app.call_from_thread(self._app._add_log, message)
+        self._pending_logs.clear()
 
     def stop(self) -> None:
         """Signal the Textual app to exit."""
@@ -657,7 +688,7 @@ class CouncilDashboard:
     def set_round(self, round_num: int) -> None:
         self._current_round = round_num
         ts = time.strftime("%H:%M:%S")
-        self._logs.append(f"[{ts}] === Runda {round_num} ===")
+        self._logs.append(f"[{ts}] === Round {round_num} ===")
         if self._app is not None and self._app._mounted:
             self._app.call_from_thread(self._app.set_round, round_num)
 
@@ -666,6 +697,8 @@ class CouncilDashboard:
         self._logs.append(f"[{ts}] {message}")
         if self._app is not None and self._app._mounted:
             self._app.call_from_thread(self._app._add_log, message)
+        else:
+            self._pending_logs.append(message)
 
     def make_callback(self) -> Callable[..., None]:
         def _cb(agent_name: str, event: str, **kwargs: object) -> None:
@@ -680,6 +713,7 @@ class CouncilDashboard:
                     activity="Starting round...",
                 )
             elif event == "generating":
+                self.log(f"{agent_name}: calling LLM…")
                 self.update_agent(
                     agent_name,
                     state="WRITING",
@@ -711,6 +745,7 @@ class CouncilDashboard:
                 )
             elif event == "error":
                 msg = kwargs.get("message", "Error")
+                self.log(f"{agent_name}: ERROR — {msg}")
                 self.update_agent(
                     agent_name,
                     state="ERROR",

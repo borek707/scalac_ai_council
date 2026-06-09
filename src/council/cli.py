@@ -33,6 +33,12 @@ def _print_run_banner(*, agents: int | None, rounds: int, provider: str) -> None
     console.print()
 
 
+def _dlog(dashboard: object | None, message: str) -> None:
+    """Write a startup/progress line to the dashboard Event Log when active."""
+    if dashboard is not None and hasattr(dashboard, "log"):
+        dashboard.log(message)
+
+
 # Supported platforms with their display names and env detection
 PLATFORM_REGISTRY: dict[str, tuple[str, list[str]]] = {
     "cli": ("CLI (local)", []),
@@ -334,7 +340,10 @@ async def _run_demo(args: argparse.Namespace, dashboard=None) -> None:
         "Demo mode: scenario='%s' (%s), rounds=%d", scenario.key, scenario.name, args.rounds
     )
 
-    _print_run_banner(agents=4, rounds=args.rounds, provider="demo")
+    if dashboard:
+        _dlog(dashboard, f"Demo mode · scenario={scenario.name} · {args.rounds} rounds")
+    else:
+        _print_run_banner(agents=4, rounds=args.rounds, provider="demo")
 
     progress_callback = dashboard.make_callback() if dashboard else None
     await run_demo(
@@ -380,6 +389,7 @@ def _validate_provider_api_key(args: argparse.Namespace) -> None:
 async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
     """Execute the council with parsed arguments."""
     setup_logging(args.verbose)
+    _dlog(dashboard, "Council worker started")
 
     if isinstance(getattr(args, "review", None), str):
         review_path = Path(args.review)
@@ -413,6 +423,7 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         if template_path.exists():
             args.config = str(template_path)
             logger.info("Using template: %s", args.template)
+            _dlog(dashboard, f"Template: {args.template}")
         else:
             raise FileNotFoundError(
                 f"Template not found: {args.template}\n"
@@ -426,6 +437,8 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         return
 
     _validate_provider_api_key(args)
+    if dashboard and args.provider in KEY_REQUIRED_PROVIDERS:
+        _dlog(dashboard, f"API key OK for {args.provider}")
 
     # Issue #10: --scalac-mode generates its own config — skip the config requirement check.
     if args.scalac_mode:
@@ -450,12 +463,14 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         )
 
     logger.info("Loading configuration from %s", config_path)
+    _dlog(dashboard, f"Loading config: {config_path.name}")
     company_config = ConfigLoader.from_json(config_path)
     logger.info(
         "Loaded config for company: %s (%s)",
         company_config.name,
         company_config.product,
     )
+    _dlog(dashboard, f"Company: {company_config.name} — {company_config.product}")
 
     workspace = Path(args.output)
     # Confirmation if output directory already has content
@@ -464,6 +479,16 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
             logger.info(
                 "Output directory %s already exists and contains files — continuing (--force).",
                 workspace,
+            )
+            _dlog(dashboard, "Output dir has previous files — continuing (--force)")
+        elif dashboard is not None:
+            logger.info(
+                "Output directory %s already exists — auto-continuing in dashboard mode.",
+                workspace,
+            )
+            _dlog(
+                dashboard,
+                f"Output dir {workspace} has previous files — overwriting (dashboard mode)",
             )
         elif sys.stdin.isatty():
             console.print(
@@ -646,14 +671,17 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
 
     if documents:
         logger.info("Total context documents: %d", len(documents))
+        _dlog(dashboard, f"Loaded {len(documents)} context document(s)")
         for d in documents:
             logger.debug("  - %s (%s, %d chars)", d.name, d.doc_type, len(d.content))
 
     # Platform adapter (auto-detected or explicit)
     adapter = _create_platform_adapter(args.platform)
     logger.info("Platform adapter: %s", adapter.get_name())
+    _dlog(dashboard, f"Platform: {adapter.get_name()}")
 
     # Initialize LLM provider
+    _dlog(dashboard, f"Initializing provider: {args.provider}")
     provider = _create_provider(
         args.provider,
         args.model,
@@ -661,15 +689,29 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         api_key=getattr(args, "api_key", None),
     )
     if hasattr(provider, "auto_selected") and provider.auto_selected:
-        console.print(f"[green]OpenRouter auto-selected:[/green] {provider.model}")
+        msg = f"OpenRouter auto-selected model: {provider.model}"
+        if dashboard:
+            _dlog(dashboard, msg)
+        else:
+            console.print(f"[green]OpenRouter auto-selected:[/green] {provider.model}")
     elif hasattr(provider, "model"):
-        console.print(f"[dim]Provider:[/dim] {args.provider} · [dim]model:[/dim] {provider.model}")
+        model_msg = f"Model: {provider.model}"
+        if dashboard:
+            _dlog(dashboard, model_msg)
+        else:
+            console.print(
+                f"[dim]Provider:[/dim] {args.provider} · [dim]model:[/dim] {provider.model}"
+            )
 
     if args.provider == "ollama":
         from council.llm.ollama_provider import OllamaProvider
 
         if isinstance(provider, OllamaProvider):
+            _dlog(dashboard, "Checking Ollama connection…")
             await provider.verify_reachable()
+            _dlog(dashboard, "Ollama reachable")
+    elif args.provider == "openrouter" and getattr(args, "free_tier", False):
+        _dlog(dashboard, "OpenRouter free tier — model chain resolves on first LLM call")
 
     # Create agents with optional document context
     from council.agents.base import BaseAgent
@@ -706,7 +748,13 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         agent.stream_output = stream_output
 
     async def _execute_council(progress_callback=None):
-        _print_run_banner(agents=len(agents), rounds=args.rounds, provider=args.provider)
+        if dashboard:
+            _dlog(
+                dashboard,
+                f"Starting debate · {len(agents)} agents · {args.rounds} rounds · {args.provider}",
+            )
+        else:
+            _print_run_banner(agents=len(agents), rounds=args.rounds, provider=args.provider)
         orchestrator = AsyncOrchestrator(
             agents=agents,
             config=company_config,
@@ -751,7 +799,10 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
     from council.llm.retry import set_retry_status_callback
 
     def _retry_notice(msg: str) -> None:
-        console.print(f"[yellow]↻[/yellow] [dim]{msg}[/dim]")
+        if dashboard:
+            _dlog(dashboard, f"↻ {msg}")
+        else:
+            console.print(f"[yellow]↻[/yellow] [dim]{msg}[/dim]")
 
     set_retry_status_callback(_retry_notice)
     try:
@@ -1139,20 +1190,24 @@ def main() -> None:
         import threading
 
         council_exception: Exception | None = None
+        dashboard_ready = threading.Event()
 
         def _council_thread() -> None:
             nonlocal council_exception
+            if not dashboard_ready.wait(timeout=60.0):
+                dashboard.log("ERROR: dashboard did not mount within 60s")
+                return
             exc = _run_async_in_thread(_run_council(args, dashboard))
             if exc:
                 council_exception = exc
+                dashboard.log(f"Council failed: {exc}")
                 dashboard.stop()
             else:
-                # Notify user that work is done; they can browse files and press q to exit
                 dashboard.log("✓ Council run complete — browse files and press q to exit")
 
         thread = threading.Thread(target=_council_thread, daemon=True)
         thread.start()
-        dashboard.run()  # blocks in main thread (Textual requirement)
+        dashboard.run(on_ready=dashboard_ready.set)
         thread.join(timeout=60.0)
         # Issue #19: exit with an error if the council thread is still running
         # after the dashboard has closed.

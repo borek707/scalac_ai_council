@@ -70,7 +70,7 @@ class TestCouncilDashboard:
         dash = CouncilDashboard(["marcus"], max_rounds=5)
         dash.set_round(2)
         assert dash._current_round == 2
-        assert "Runda 2" in dash._logs[-1]
+        assert "Round 2" in dash._logs[-1]
 
     def test_logs_are_colored(self) -> None:
         dash = CouncilDashboard(["marcus"])
@@ -108,6 +108,12 @@ class TestCouncilDashboard:
         base = "Wywołanie LLM"
         results = {dash._animate_dots(base) for _ in range(10)}
         assert len(results) <= 4  # cycles through 4 patterns max
+
+    def test_log_before_mount_is_buffered(self) -> None:
+        dash = CouncilDashboard(["Marcus"])
+        dash.log("Early startup message")
+        assert dash._pending_logs == ["Early startup message"]
+        assert "Early startup message" in dash._logs[-1]
 
     def test_callback_generating(self) -> None:
         dash = CouncilDashboard(["marcus"])

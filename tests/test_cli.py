@@ -562,6 +562,61 @@ class TestWorkspaceOverwrite:
             overwrite_warnings == []
         ), f"--force should suppress overwrite WARNING, got: {overwrite_warnings}"
 
+    def test_dashboard_mode_skips_tty_input(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """With dashboard active, existing output dir must not block on input()."""
+        import json as _json
+
+        from council.cli import _run_council as _rc
+
+        workspace = tmp_path / "output"
+        workspace.mkdir(parents=True)
+        (workspace / "old_run.txt").write_text("data", encoding="utf-8")
+
+        config_file = tmp_path / "company.json"
+        config_file.write_text(
+            _json.dumps(
+                {
+                    "name": "TestCo",
+                    "product": "SaaS",
+                    "pricing_tier": "Free",
+                    "value_proposition": "v",
+                    "competitors": [],
+                    "differentiators": [],
+                    "target": {
+                        "segment": "SMB",
+                        "decision_maker": "CEO",
+                        "pain_points": [],
+                        "budget_range": "10k",
+                        "geo_focus": [],
+                    },
+                    "constraints": {"timeline_days": 30, "team_size": 2, "focus_areas": []},
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        args = _make_args(config=str(config_file), output=str(workspace), provider="ollama")
+        mock_dashboard = MagicMock()
+        mock_dashboard.log = MagicMock()
+
+        class _StopEarly(Exception):
+            pass
+
+        with (
+            patch("builtins.input") as mock_input,
+            patch("council.cli._create_platform_adapter", side_effect=_StopEarly),
+        ):
+            try:
+                asyncio.run(_rc(args, dashboard=mock_dashboard))
+            except _StopEarly:
+                pass
+
+        mock_input.assert_not_called()
+        logged = " ".join(str(c) for c in mock_dashboard.log.call_args_list)
+        assert "overwriting" in logged.lower() or "previous files" in logged.lower()
+
 
 # ── Issue #19 — Dashboard flag parse + thread-join sys.exit ─────────────────
 
