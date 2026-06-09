@@ -258,6 +258,34 @@ python -m council --config firm.json --provider openrouter --free-tier
 python -m council --config firm.json --provider openrouter --model anthropic/claude-sonnet-4
 ```
 
+### Live testy OpenRouter
+
+Repo zawiera opt-in smoke testy, które wykonują prawdziwe wywołania do OpenRouter.
+Nie uruchamiają się w domyślnym `pytest` ani w zwykłym CI, bo mają marker `live`
+i mogą zużywać kredyty.
+
+Lokalnie ustaw klucz przez zmienną środowiskową lub lokalny plik `.env`:
+
+```bash
+export OPENROUTER_API_KEY="sk-or-..."
+uv run pytest tests/live -m live
+```
+
+Domyślne testy pomijają live suite:
+
+```bash
+uv run pytest -m "not live"
+```
+
+W GitHub Actions live smoke testy są dostępne jako ręczny workflow
+`Live OpenRouter Smoke`. Dodaj sekret repozytorium `OPENROUTER_API_KEY`
+w `Settings -> Secrets and variables -> Actions`, a potem uruchom workflow przez
+`Actions -> Live OpenRouter Smoke -> Run workflow`.
+
+Testy używają krótkich promptów i małych limitów tokenów. Typowy koszt
+pojedynczego uruchomienia powinien być groszowy, ale zależy od aktualnych cen
+wybranego modelu OpenRouter.
+
 ### Kimi Code — bez klucza API
 
 Jeśli pracujesz w **Kimi Code IDE** (VS Code extension):
@@ -624,31 +652,36 @@ python -m council --config firm.json --verbose
 ## Testy i CI
 
 ```bash
-# Wszystkie testy (256 testów)
-pytest tests/ -v
+# Domyślne testy bez live provider smoke
+uv run pytest -m "not live"
 
 # Z coverage (target: 80%+)
-pytest tests/ --cov=council --cov-report=html
+uv run pytest --cov=council --cov-report=html --cov-fail-under=80 tests/
 
-# Type checking (44 pliki źródłowe, zero błędów)
-mypy --strict src/council
+# Ręczne live smoke testy OpenRouter
+OPENROUTER_API_KEY="sk-or-..." uv run pytest tests/live -m live
+
+# Type checking
+uv run mypy src/
 
 # Linting
-ruff check src/council
+uv run ruff check .
 
 # Formatowanie
-black src/council
+uv run black --check .
 ```
 
 ### GitHub Actions
 
 Pipeline uruchamia się na każdym PR:
-1. `mypy --strict` — zero błędów typów (44 pliki)
+1. `uv run mypy src/` — type checking
 2. `ruff check` — zero błędów lintera
 3. `black --check` — formatowanie
-4. `pytest --cov=council --cov-fail-under=80` — testy z coverage
+4. `uv run pytest --cov=council --cov-fail-under=80 tests/` — testy z coverage bez live
 5. **Smoke tests** — weryfikacja CLI entry points i demo run
 6. **Package build check** — czy wheel się buduje poprawnie
+
+Live OpenRouter smoke testy są osobnym, ręcznym workflow `Live OpenRouter Smoke`.
 
 CI używa `uv` do deterministycznego rozwiązywania zależności.
 
