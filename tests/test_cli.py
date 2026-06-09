@@ -617,6 +617,245 @@ class TestWorkspaceOverwrite:
         logged = " ".join(str(c) for c in mock_dashboard.log.call_args_list)
         assert "overwriting" in logged.lower() or "previous files" in logged.lower()
 
+    def test_non_dashboard_tty_still_prompts_on_overwrite(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """#118: without dashboard, TTY + existing output still uses input()."""
+        import json as _json
+
+        from council.cli import _run_council as _rc
+
+        workspace = tmp_path / "output"
+        workspace.mkdir(parents=True)
+        (workspace / "old_run.txt").write_text("data", encoding="utf-8")
+
+        config_file = tmp_path / "company.json"
+        config_file.write_text(
+            _json.dumps(
+                {
+                    "name": "TestCo",
+                    "product": "SaaS",
+                    "pricing_tier": "Free",
+                    "value_proposition": "v",
+                    "competitors": [],
+                    "differentiators": [],
+                    "target": {
+                        "segment": "SMB",
+                        "decision_maker": "CEO",
+                        "pain_points": [],
+                        "budget_range": "10k",
+                        "geo_focus": [],
+                    },
+                    "constraints": {"timeline_days": 30, "team_size": 2, "focus_areas": []},
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        args = _make_args(config=str(config_file), output=str(workspace), provider="ollama")
+
+        class _StopEarly(Exception):
+            pass
+
+        with (
+            patch("builtins.input", return_value="y") as mock_input,
+            patch("sys.stdin") as mock_stdin,
+            patch("council.cli._create_platform_adapter", side_effect=_StopEarly),
+        ):
+            mock_stdin.isatty.return_value = True
+            try:
+                asyncio.run(_rc(args, dashboard=None))
+            except _StopEarly:
+                pass
+
+        mock_input.assert_called_once()
+
+    def test_force_dashboard_logs_continue(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """#118: --force + dashboard logs continue without input()."""
+        import json as _json
+
+        from council.cli import _run_council as _rc
+
+        workspace = tmp_path / "output"
+        workspace.mkdir(parents=True)
+        (workspace / "old_run.txt").write_text("data", encoding="utf-8")
+
+        config_file = tmp_path / "company.json"
+        config_file.write_text(
+            _json.dumps(
+                {
+                    "name": "TestCo",
+                    "product": "SaaS",
+                    "pricing_tier": "Free",
+                    "value_proposition": "v",
+                    "competitors": [],
+                    "differentiators": [],
+                    "target": {
+                        "segment": "SMB",
+                        "decision_maker": "CEO",
+                        "pain_points": [],
+                        "budget_range": "10k",
+                        "geo_focus": [],
+                    },
+                    "constraints": {"timeline_days": 30, "team_size": 2, "focus_areas": []},
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        args = _make_args(
+            config=str(config_file),
+            output=str(workspace),
+            provider="ollama",
+            force=True,
+        )
+        mock_dashboard = MagicMock()
+        mock_dashboard.log = MagicMock()
+
+        class _StopEarly(Exception):
+            pass
+
+        with (
+            patch("builtins.input") as mock_input,
+            patch("council.cli._create_platform_adapter", side_effect=_StopEarly),
+        ):
+            try:
+                asyncio.run(_rc(args, dashboard=mock_dashboard))
+            except _StopEarly:
+                pass
+
+        mock_input.assert_not_called()
+        logged = " ".join(str(c) for c in mock_dashboard.log.call_args_list)
+        assert "previous files" in logged.lower() or "force" in logged.lower()
+
+
+class TestDashboardStartupLogs:
+    """#114 _dlog startup sequence and #113 ready-event wiring."""
+
+    @pytest.mark.asyncio
+    async def test_dlog_startup_sequence(self, tmp_path: Path) -> None:
+        import json as _json
+
+        from council.cli import _run_council as _rc
+
+        config_file = tmp_path / "company.json"
+        config_file.write_text(
+            _json.dumps(
+                {
+                    "name": "TestCo",
+                    "product": "SaaS",
+                    "pricing_tier": "Free",
+                    "value_proposition": "v",
+                    "competitors": [],
+                    "differentiators": [],
+                    "target": {
+                        "segment": "SMB",
+                        "decision_maker": "CEO",
+                        "pain_points": [],
+                        "budget_range": "10k",
+                        "geo_focus": [],
+                    },
+                    "constraints": {"timeline_days": 30, "team_size": 2, "focus_areas": []},
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        args = _make_args(
+            config=str(config_file),
+            output=str(tmp_path / "out"),
+            provider="ollama",
+            template=None,
+        )
+        mock_dashboard = MagicMock()
+        mock_dashboard.log = MagicMock()
+
+        class _StopEarly(Exception):
+            pass
+
+        mock_adapter = MagicMock()
+        mock_adapter.get_name.return_value = "CLI"
+        mock_adapter.spawn_agents = AsyncMock(side_effect=_StopEarly)
+
+        with (
+            patch("council.cli._create_platform_adapter", return_value=mock_adapter),
+            patch(
+                "council.llm.ollama_provider.OllamaProvider.verify_reachable",
+                new=AsyncMock(),
+            ),
+        ):
+            try:
+                await _rc(args, dashboard=mock_dashboard)
+            except _StopEarly:
+                pass
+
+        messages = [call.args[0] for call in mock_dashboard.log.call_args_list]
+        assert "Council worker started" in messages
+        assert any("Loading config" in m for m in messages)
+        assert any("Company: TestCo" in m for m in messages)
+        assert any("Initializing provider" in m for m in messages)
+        assert any("Platform:" in m for m in messages)
+
+    def test_council_thread_waits_for_ready_event(self) -> None:
+        """#113: worker blocks until dashboard ready event is set."""
+        import threading
+        import time
+
+        ready = threading.Event()
+        order: list[str] = []
+
+        def worker() -> None:
+            order.append("wait")
+            if not ready.wait(timeout=2.0):
+                order.append("timeout")
+                return
+            order.append("run")
+
+        thread = threading.Thread(target=worker)
+        thread.start()
+        time.sleep(0.05)
+        assert order == ["wait"]
+        ready.set()
+        thread.join(timeout=2.0)
+        assert order == ["wait", "run"]
+
+    def test_dashboard_run_passes_on_ready(self) -> None:
+        """#113: CouncilDashboard.run(on_ready=...) receives callback on mount."""
+        from council.vis.dashboard import CouncilApp, CouncilDashboard
+
+        dash = CouncilDashboard(["Marcus"], max_rounds=1, workspace=Path("/tmp/out"))
+        fired: list[bool] = []
+
+        def on_ready() -> None:
+            fired.append(True)
+
+        with patch.object(CouncilApp, "run") as mock_app_run:
+            mock_app_run.side_effect = lambda *args, **kwargs: dash._on_app_mounted()
+            dash.run(on_ready=on_ready)
+
+        assert fired == [True]
+
+    def test_retry_callback_routes_to_dashboard_log(self) -> None:
+        """#116: retry notice uses dashboard.log when dashboard active."""
+        from council.cli import _dlog
+        from council.llm.retry import set_retry_status_callback
+
+        mock_dashboard = MagicMock()
+        mock_dashboard.log = MagicMock()
+
+        def notice(msg: str) -> None:
+            _dlog(mock_dashboard, f"↻ {msg}")
+
+        set_retry_status_callback(notice)
+        try:
+            notice("generate: attempt 1/3 failed, retrying")
+        finally:
+            set_retry_status_callback(None)
+
+        mock_dashboard.log.assert_called_once_with("↻ generate: attempt 1/3 failed, retrying")
+
 
 # ── Issue #19 — Dashboard flag parse + thread-join sys.exit ─────────────────
 

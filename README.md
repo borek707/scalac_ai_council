@@ -683,6 +683,8 @@ Pipeline uruchamia się na każdym PR:
 
 Live OpenRouter smoke testy są osobnym, ręcznym workflow `Live OpenRouter Smoke`.
 
+Dashboard observability (Textual + startup logs): workflow `Dashboard smoke` — uruchamiany ręcznie lub co tydzień; obejmuje `tests/test_dashboard_textual.py` i regresję CLI dashboard (#111).
+
 CI używa `uv` do deterministycznego rozwiązywania zależności.
 
 ---
