@@ -29,6 +29,12 @@ _MAX_ROUTER_FALLBACKS = 3
 
 _PAID_DEFAULT_MODEL = "anthropic/claude-sonnet-4.5"
 
+# Free catalog sometimes contains non-chat models (audio/image/embeddings)
+# that reject chat completions with 400 INVALID_ARGUMENT.
+_NON_CHAT_ID_MARKERS = ("lyria", "embed", "whisper", "tts", "clip", "image")
+
+_DAILY_LIMIT_MARKER = "free-models-per-day"
+
 _UNAVAILABLE_MARKERS = (
     "rate limit",
     "rate-limit",
@@ -177,6 +183,25 @@ class OpenRouterProvider(OpenAIProvider):
             pricing.get("completion")
         )
 
+    @staticmethod
+    def _is_chat_capable_model(entry: dict[str, Any]) -> bool:
+        """Reject models that cannot serve text chat completions."""
+        model_id = entry.get("id", "")
+        if isinstance(model_id, str):
+            lowered = model_id.lower()
+            if any(marker in lowered for marker in _NON_CHAT_ID_MARKERS):
+                return False
+
+        architecture = entry.get("architecture")
+        if isinstance(architecture, dict):
+            output_modalities = architecture.get("output_modalities")
+            if isinstance(output_modalities, list) and "text" not in output_modalities:
+                return False
+            input_modalities = architecture.get("input_modalities")
+            if isinstance(input_modalities, list) and "text" not in input_modalities:
+                return False
+        return True
+
     @classmethod
     def _sort_free_models(cls, model_ids: list[str]) -> list[str]:
         preferred = [model_id for model_id in _PREFERRED_FREE if model_id in model_ids]
@@ -188,7 +213,7 @@ class OpenRouterProvider(OpenAIProvider):
         """Fetch and sort the current free-tier models from OpenRouter."""
         import aiohttp
 
-        url = f"{base_url.rstrip('/')}/models"
+        url = f"{base_url.rstrip('/')}/models?output_modalities=text"
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
@@ -210,12 +235,22 @@ class OpenRouterProvider(OpenAIProvider):
             return []
 
         free_ids: list[str] = []
+        skipped_non_chat = 0
         for entry in data.get("data", []):
-            if isinstance(entry, dict) and OpenRouterProvider._is_free_model_entry(entry):
-                model_id = entry.get("id")
-                if isinstance(model_id, str) and model_id:
-                    free_ids.append(model_id)
+            if not isinstance(entry, dict) or not OpenRouterProvider._is_free_model_entry(entry):
+                continue
+            if not OpenRouterProvider._is_chat_capable_model(entry):
+                skipped_non_chat += 1
+                continue
+            model_id = entry.get("id")
+            if isinstance(model_id, str) and model_id:
+                free_ids.append(model_id)
 
+        if skipped_non_chat:
+            logger.info(
+                "OpenRouter: skipped %d non-chat free model(s) from fallback chain",
+                skipped_non_chat,
+            )
         return OpenRouterProvider._sort_free_models(free_ids)
 
     def _fallback_models_for(self, primary: str) -> list[str]:
@@ -241,6 +276,33 @@ class OpenRouterProvider(OpenAIProvider):
 
         message = str(exc).lower()
         return any(marker in message for marker in _UNAVAILABLE_MARKERS)
+
+    @staticmethod
+    def _is_retryable_free_tier_error(exc: Exception) -> bool:
+        """400 from a model that cannot serve chat (e.g. audio-only) — try next in chain."""
+        status_code = getattr(exc, "status_code", None)
+        if status_code is None:
+            response = getattr(exc, "response", None)
+            if response is not None:
+                status_code = getattr(response, "status_code", None)
+        if status_code != 400:
+            return False
+        message = str(exc).lower()
+        return "invalid argument" in message or "invalid_argument" in message
+
+    @staticmethod
+    def _is_daily_limit_exhausted(exc: Exception) -> bool:
+        message = str(exc)
+        return _DAILY_LIMIT_MARKER in message and "'X-RateLimit-Remaining': '0'" in message
+
+    @staticmethod
+    def _daily_limit_error(exc: Exception) -> RuntimeError:
+        return RuntimeError(
+            "OpenRouter free tier daily limit exhausted.\n"
+            "  • Wait for the daily reset or add credits: https://openrouter.ai/settings/credits\n"
+            "  • Or run without API calls: council --demo\n"
+            "  • Or reduce LLM calls per run: --rounds 2"
+        )
 
     @staticmethod
     def _is_auth_or_bad_request(exc: Exception) -> bool:
@@ -342,10 +404,15 @@ class OpenRouterProvider(OpenAIProvider):
                 last_exc = exc
                 can_retry = (
                     self._free_tier
-                    and self._is_model_unavailable_error(exc)
                     and attempt < len(chain) - 1
+                    and (
+                        self._is_model_unavailable_error(exc)
+                        or self._is_retryable_free_tier_error(exc)
+                    )
                 )
                 if not can_retry:
+                    if self._free_tier and self._is_daily_limit_exhausted(exc):
+                        raise self._daily_limit_error(exc) from exc
                     logger.error("OpenRouter API error on %s: %s", model_name, exc)
                     raise
                 logger.warning(
@@ -429,10 +496,15 @@ class OpenRouterProvider(OpenAIProvider):
                 last_exc = exc
                 can_retry = (
                     self._free_tier
-                    and self._is_model_unavailable_error(exc)
                     and attempt < len(chain) - 1
+                    and (
+                        self._is_model_unavailable_error(exc)
+                        or self._is_retryable_free_tier_error(exc)
+                    )
                 )
                 if not can_retry:
+                    if self._free_tier and self._is_daily_limit_exhausted(exc):
+                        raise self._daily_limit_error(exc) from exc
                     logger.error("OpenRouter streaming error on %s: %s", model_name, exc)
                     raise
                 logger.warning(

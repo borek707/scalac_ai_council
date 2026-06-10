@@ -73,22 +73,51 @@ class BaseAgent(ABC):
         self.output_dir.mkdir(parents=True, exist_ok=True)
         (self.output_dir / "agents").mkdir(parents=True, exist_ok=True)
 
-    def read_discussion(self) -> str:
-        """Read the full shared discussion log.
+    def read_discussion(self, max_round_exclusive: int | None = None) -> str:
+        """Read the shared discussion log for the current run.
 
-        Aggregates all existing round files in round order.
+        Aggregates round files in round order. Files older than the
+        ``.run_started_at`` marker (leftovers from previous runs sharing the
+        same ``--output`` directory) are skipped, as are files for rounds
+        ``>= max_round_exclusive`` when given.
         Returns empty string if nothing has been written yet.
         """
         if not self.discussion_dir.exists():
             return ""
 
+        run_started_at = self._read_run_started_at()
+
         lines: list[str] = []
         for round_file in sorted(self.discussion_dir.glob("*_round_*.md")):
+            round_num = self._parse_round_number(round_file.name)
+            if max_round_exclusive is not None and round_num is not None:
+                if round_num >= max_round_exclusive:
+                    continue
             try:
+                if run_started_at is not None and round_file.stat().st_mtime < run_started_at:
+                    continue
                 lines.append(round_file.read_text(encoding="utf-8"))
             except OSError:
                 continue
         return "\n\n".join(lines)
+
+    def _read_run_started_at(self) -> float | None:
+        """Return the current run's start timestamp, if the marker exists."""
+        marker = self.workspace / "shared" / ".run_started_at"
+        try:
+            return float(marker.read_text(encoding="utf-8").strip())
+        except (OSError, ValueError):
+            return None
+
+    @staticmethod
+    def _parse_round_number(filename: str) -> int | None:
+        """Extract N from '{agent}_round_{N}.md'; None when unparseable."""
+        stem = filename.rsplit(".", 1)[0]
+        _, _, suffix = stem.rpartition("_round_")
+        try:
+            return int(suffix)
+        except ValueError:
+            return None
 
     def read_brief(self) -> str:
         """Read the marketing brief file.
@@ -247,7 +276,9 @@ class BaseAgent(ABC):
         from council.config.schema import RoundContext as _RoundContext
 
         brief: str = self.read_brief()
-        history: str = self.read_discussion()
+        # Round N sees rounds 1..N-1; the final pass (round_num=0) sees all.
+        max_round_exclusive = round_num if round_num >= 1 else None
+        history: str = self.read_discussion(max_round_exclusive=max_round_exclusive)
 
         battlecards: str = self._read_optional_artifact("battlecards.md")
         content_plan: str = self._read_optional_artifact("content_plan.md")

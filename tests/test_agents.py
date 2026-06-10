@@ -77,6 +77,66 @@ class TestBaseAgent:
         result = agent2.read_discussion()
         assert "Round 1 content" in result
 
+    def test_read_discussion_skips_stale_files_from_previous_run(
+        self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider
+    ) -> None:
+        """Files older than the .run_started_at marker must be ignored."""
+        import os
+        import time
+
+        workspace = temp_workspace
+        agent = MarcusAgent(workspace=workspace, config=sample_config, provider=mock_provider)
+
+        stale_path = agent.write_round(1, "Stale content from a previous run")
+        old_time = time.time() - 3600
+        os.utime(stale_path, (old_time, old_time))
+
+        marker = workspace / "shared" / ".run_started_at"
+        marker.write_text(str(time.time() - 60), encoding="utf-8")
+
+        agent.write_round(2, "Fresh content from current run")
+
+        result = agent.read_discussion()
+        assert "Fresh content from current run" in result
+        assert "Stale content from a previous run" not in result
+
+    def test_read_discussion_without_marker_reads_everything(
+        self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider
+    ) -> None:
+        """Backward compat: no marker means no mtime filtering."""
+        workspace = temp_workspace
+        agent = MarcusAgent(workspace=workspace, config=sample_config, provider=mock_provider)
+        agent.write_round(1, "Some round content")
+        assert "Some round content" in agent.read_discussion()
+
+    def test_read_discussion_respects_max_round_exclusive(
+        self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider
+    ) -> None:
+        """Round N context must only include rounds < N."""
+        workspace = temp_workspace
+        agent = MarcusAgent(workspace=workspace, config=sample_config, provider=mock_provider)
+        agent.write_round(1, "Round one content")
+        agent.write_round(2, "Round two content")
+        agent.write_round(3, "Round three content")
+
+        result = agent.read_discussion(max_round_exclusive=3)
+        assert "Round one content" in result
+        assert "Round two content" in result
+        assert "Round three content" not in result
+
+        # No cap → everything
+        full = agent.read_discussion()
+        assert "Round three content" in full
+
+    def test_parse_round_number(
+        self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider
+    ) -> None:
+        from council.agents.base import BaseAgent
+
+        assert BaseAgent._parse_round_number("marcus_round_1.md") == 1
+        assert BaseAgent._parse_round_number("elena_round_12.md") == 12
+        assert BaseAgent._parse_round_number("weird_file.md") is None
+
     def test_read_brief_missing(
         self, temp_workspace: Path, sample_config: CompanyConfig, mock_provider: MockLLMProvider
     ) -> None:

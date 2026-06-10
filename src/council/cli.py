@@ -779,6 +779,11 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
             round_timeout=args.timeout,
             workspace=workspace,
             progress_callback=progress_callback,
+            # Free-tier OpenRouter trips per-minute rate limits when all four
+            # agents fire their final deliverable requests at once.
+            sequential_finals=(
+                args.provider == "openrouter" and bool(getattr(args, "free_tier", False))
+            ),
         )
         await adapter.spawn_agents(orchestrator)
 
@@ -993,9 +998,11 @@ def _print_success_summary(workspace: Path, rounds: int, artifacts: dict) -> Non
     table.add_column("Key", style="bold cyan", width=20)
     table.add_column("Value", style="white")
     table.add_row("Rounds", str(rounds))
-    table.add_row("Output dir", str(workspace))
-    table.add_row("Round files", f"{len(round_files)} files")
-    table.add_row("Agent deliverables", f"{len(agent_files)} files in {agents_dir}")
+    table.add_row("Workspace", str(workspace))
+    table.add_row("Round files", f"{len(round_files)} files in {discussion_dir}")
+    # Note: deliverables live under {workspace}/output/agents/ by design,
+    # so with --output ./output the full path is ./output/output/agents/.
+    table.add_row("Final deliverables", f"{len(agent_files)} files in {agents_dir}")
     if proposal_path and proposal_path.exists():
         table.add_row("Proposal", str(proposal_path))
         table.add_row("Manifest", str(artifacts.get("manifest", "")))

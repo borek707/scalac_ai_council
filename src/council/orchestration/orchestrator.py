@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import re
+import time
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -44,6 +45,7 @@ class AsyncOrchestrator:
         workspace: Path | None = None,
         progress_callback: Callable[..., None] | None = None,
         use_filesystem_barrier: bool = False,
+        sequential_finals: bool = False,
     ) -> None:
         self.agents = agents
         self.config = config
@@ -55,6 +57,7 @@ class AsyncOrchestrator:
         self.workspace = workspace or Path("./output")
         self.progress_callback = progress_callback
         self.use_filesystem_barrier = use_filesystem_barrier
+        self.sequential_finals = sequential_finals
 
         if progress_callback:
             for agent in agents:
@@ -168,6 +171,15 @@ class AsyncOrchestrator:
         )
         return successful
 
+    def _mark_run_started(self) -> None:
+        """Write a run-start marker so agents ignore stale discussion files."""
+        marker = self.workspace / "shared" / ".run_started_at"
+        try:
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            marker.write_text(str(time.time()), encoding="utf-8")
+        except OSError as exc:
+            logger.warning("Could not write run-start marker %s: %s", marker, exc)
+
     async def run(self) -> dict[str, Path]:
         """Run full debate: all rounds sequentially, agents parallel within each round."""
         logger.info(
@@ -175,6 +187,7 @@ class AsyncOrchestrator:
             len(self.agents),
             self.max_rounds,
         )
+        self._mark_run_started()
         for round_num in range(1, self.max_rounds + 1):
             try:
                 await asyncio.wait_for(
@@ -198,10 +211,27 @@ class AsyncOrchestrator:
         return await self._collect_final_outputs()
 
     async def _run_final_all(self) -> dict[str, Path]:
-        """Call run_final() on every agent in parallel and return agent_name -> Path."""
-        logger.info("=== Generating final agent deliverables ===")
-        tasks = [agent.run_final() for agent in self.agents]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        """Call run_final() on every agent and return agent_name -> Path.
+
+        Runs sequentially when ``sequential_finals`` is set (e.g. OpenRouter
+        free tier, where 4 parallel requests trip per-minute rate limits);
+        otherwise runs all agents in parallel.
+        """
+        logger.info(
+            "=== Generating final agent deliverables (%s) ===",
+            "sequential" if self.sequential_finals else "parallel",
+        )
+        results: list[Path | BaseException]
+        if self.sequential_finals:
+            results = []
+            for agent in self.agents:
+                try:
+                    results.append(await agent.run_final())
+                except Exception as exc:
+                    results.append(exc)
+        else:
+            tasks = [agent.run_final() for agent in self.agents]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
         final: dict[str, Path] = {}
         for agent, result in zip(self.agents, results):
             if isinstance(result, Exception):

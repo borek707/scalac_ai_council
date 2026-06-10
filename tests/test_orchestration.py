@@ -407,6 +407,118 @@ class TestAsyncOrchestrator:
                 expected_file.exists()
             ), f"Final deliverable missing for agent '{agent.name}': {expected_file}"
 
+    @pytest.mark.asyncio
+    async def test_sequential_finals_runs_one_agent_at_a_time(
+        self,
+        sample_config: CompanyConfig,
+        temp_workspace: Path,
+    ) -> None:
+        """With sequential_finals=True, run_final calls must never overlap."""
+        from council.agents.base import BaseAgent
+        from council.config.schema import RoundContext
+
+        active = {"count": 0, "max": 0}
+
+        class TrackingAgent(BaseAgent):
+            def get_system_prompt(self) -> str:
+                return f"You are {self.name}."
+
+            def get_output_filename(self) -> str:
+                return f"{self.name}_final.md"
+
+            def get_template_name(self) -> str:
+                return "marcus.j2"
+
+            async def generate_round(self, ctx: RoundContext) -> str:
+                return f"# {self.name} — Round {ctx.round_num}"
+
+            async def run_final(self) -> Path:
+                active["count"] += 1
+                active["max"] = max(active["max"], active["count"])
+                await asyncio.sleep(0.02)
+                active["count"] -= 1
+                return self.write_final(f"# {self.name}", self.get_output_filename())
+
+        agents = [
+            TrackingAgent(
+                name=name,
+                role="Test Agent",
+                workspace=temp_workspace,
+                config=sample_config,
+                provider=MockLLMProvider(),
+            )
+            for name in ("alpha", "beta", "gamma")
+        ]
+
+        orc = AsyncOrchestrator(
+            agents=agents,
+            config=sample_config,
+            provider=MockLLMProvider(),
+            max_rounds=1,
+            round_timeout=10.0,
+            workspace=temp_workspace,
+            sequential_finals=True,
+        )
+        await orc.run()
+
+        assert active["max"] == 1, f"Finals overlapped (max parallel = {active['max']})"
+        assert len(orc._final_results) == 3
+
+    @pytest.mark.asyncio
+    async def test_parallel_finals_by_default(
+        self,
+        sample_config: CompanyConfig,
+        temp_workspace: Path,
+    ) -> None:
+        """Without sequential_finals, finals should still run in parallel."""
+        from council.agents.base import BaseAgent
+        from council.config.schema import RoundContext
+
+        active = {"count": 0, "max": 0}
+
+        class TrackingAgent(BaseAgent):
+            def get_system_prompt(self) -> str:
+                return f"You are {self.name}."
+
+            def get_output_filename(self) -> str:
+                return f"{self.name}_final.md"
+
+            def get_template_name(self) -> str:
+                return "marcus.j2"
+
+            async def generate_round(self, ctx: RoundContext) -> str:
+                return f"# {self.name} — Round {ctx.round_num}"
+
+            async def run_final(self) -> Path:
+                active["count"] += 1
+                active["max"] = max(active["max"], active["count"])
+                await asyncio.sleep(0.02)
+                active["count"] -= 1
+                return self.write_final(f"# {self.name}", self.get_output_filename())
+
+        agents = [
+            TrackingAgent(
+                name=name,
+                role="Test Agent",
+                workspace=temp_workspace,
+                config=sample_config,
+                provider=MockLLMProvider(),
+            )
+            for name in ("alpha", "beta")
+        ]
+
+        orc = AsyncOrchestrator(
+            agents=agents,
+            config=sample_config,
+            provider=MockLLMProvider(),
+            max_rounds=1,
+            round_timeout=10.0,
+            workspace=temp_workspace,
+        )
+        await orc.run()
+
+        assert active["max"] == 2, "Expected parallel finals by default"
+
     # ── Issue #11 ─────────────────────────────────────────────────────────
 
     @pytest.mark.asyncio

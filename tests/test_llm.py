@@ -706,6 +706,97 @@ class TestOpenRouterProvider:
             ]
         }
 
+    def test_is_chat_capable_model_filters_non_chat(self, monkeypatch: Any) -> None:
+        from council.llm.openrouter_provider import OpenRouterProvider
+
+        is_chat = OpenRouterProvider._is_chat_capable_model
+
+        assert is_chat({"id": "deepseek/deepseek-chat:free"})
+        assert is_chat(
+            {
+                "id": "vendor/model:free",
+                "architecture": {"input_modalities": ["text"], "output_modalities": ["text"]},
+            }
+        )
+        # Denylist by id marker
+        assert not is_chat({"id": "google/lyria-3-clip-preview"})
+        assert not is_chat({"id": "openai/whisper-large:free"})
+        # Non-text output modality
+        assert not is_chat(
+            {
+                "id": "vendor/audio-gen:free",
+                "architecture": {"input_modalities": ["text"], "output_modalities": ["audio"]},
+            }
+        )
+        # Non-text input modality
+        assert not is_chat(
+            {
+                "id": "vendor/vision-only:free",
+                "architecture": {"input_modalities": ["image"], "output_modalities": ["text"]},
+            }
+        )
+
+    @pytest.mark.asyncio
+    async def test_free_tier_retries_on_400_invalid_argument(self, monkeypatch: Any) -> None:
+        """A 400 INVALID_ARGUMENT from a non-chat model must move to the next model."""
+        provider = self._make_provider(monkeypatch, free_tier=True, model=None)
+        provider._model_chain = [
+            "google/lyria-3-clip-preview",
+            "meta-llama/llama-3.3-70b-instruct:free",
+        ]
+        provider.model = provider._model_chain[0]
+        provider._needs_model_resolution = False
+
+        calls: list[str] = []
+
+        class FakeBadRequest(Exception):
+            status_code = 400
+
+        async def fake_create(**kwargs: Any) -> MagicMock:
+            model_name = kwargs["model"]
+            calls.append(model_name)
+            if model_name == "google/lyria-3-clip-preview":
+                raise FakeBadRequest(
+                    "Error code: 400 - {'error': {'message': 'Provider returned error: "
+                    "* INVALID_ARGUMENT: model does not support text output'}}"
+                )
+            response = MagicMock()
+            response.choices = [MagicMock(message=MagicMock(content="fallback ok"))]
+            response.usage = MagicMock(prompt_tokens=1, completion_tokens=2)
+            response.model = model_name
+            return response
+
+        provider._client.chat.completions.create = fake_create
+        result = await provider.generate("hello")
+
+        assert calls == [
+            "google/lyria-3-clip-preview",
+            "meta-llama/llama-3.3-70b-instruct:free",
+        ]
+        assert result.content == "fallback ok"
+
+    @pytest.mark.asyncio
+    async def test_free_tier_daily_limit_raises_friendly_error(self, monkeypatch: Any) -> None:
+        provider = self._make_provider(monkeypatch, free_tier=True, model=None)
+        provider._model_chain = ["deepseek/deepseek-chat:free"]
+        provider.model = provider._model_chain[0]
+        provider._needs_model_resolution = False
+
+        class FakeRateLimit(Exception):
+            status_code = 429
+
+        async def fake_create(**kwargs: Any) -> MagicMock:
+            raise FakeRateLimit(
+                "Error code: 429 - {'error': {'message': 'Rate limit exceeded: "
+                "free-models-per-day', 'metadata': {'headers': "
+                "{'X-RateLimit-Limit': '50', 'X-RateLimit-Remaining': '0'}}}}"
+            )
+
+        provider._client.chat.completions.create = fake_create
+
+        with pytest.raises(RuntimeError, match="daily limit exhausted"):
+            await provider.generate("hello")
+
     @pytest.mark.asyncio
     async def test_free_tier_no_models_raises_without_paid_fallback(self, monkeypatch: Any) -> None:
         from council.llm.openrouter_provider import OpenRouterProvider
