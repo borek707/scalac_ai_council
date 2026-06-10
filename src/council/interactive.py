@@ -75,7 +75,7 @@ _ONBOARDING_FLAG = Path.home() / ".config" / "council" / "onboarding_done"
 _PROVIDERS = [
     ("openai", "OpenAI (GPT-4o)", "gpt-4o"),
     ("anthropic", "Anthropic (Claude)", "claude-sonnet-4-6"),
-    ("openrouter", "OpenRouter", "anthropic/claude-sonnet-4.5"),
+    ("openrouter", "OpenRouter", "auto (free)"),
     ("ollama", "Ollama (local)", "llama3"),
     ("kimi-code", "Kimi Code CLI", "kimi-for-coding"),
     ("claude-code", "Claude Code CLI / IDE", "claude-sonnet-4-6"),
@@ -543,7 +543,7 @@ class ProviderScreen(Screen):
         # Update model placeholder to show actual default
         model_input = self.query_one("#model-input", Input)
         model_input.placeholder = (
-            "leave empty — auto-picks free model"
+            "leave empty — auto-picks free model (default)"
             if is_openrouter
             else f"leave empty — default: {default_model}"
         )

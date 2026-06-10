@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from council.cli import _create_provider, _review_run, parse_args
+from council.cli import _create_provider, _resolve_free_tier, _review_run, parse_args
 
 # ── Argument-parsing tests ──────────────────────────────────────────────────
 
@@ -37,6 +37,30 @@ class TestParseArgsReview:
         """When --review is not passed, args.review is None."""
         args = parse_args([])
         assert args.review is None
+
+
+class TestResolveFreeTier:
+    """OpenRouter should default to free tier unless explicitly disabled."""
+
+    def test_openrouter_defaults_to_free_tier(self) -> None:
+        args = parse_args(["--provider", "openrouter"])
+        _resolve_free_tier(args)
+        assert args.free_tier is True
+
+    def test_openrouter_no_free_tier_opt_out(self) -> None:
+        args = parse_args(["--provider", "openrouter", "--no-free-tier"])
+        _resolve_free_tier(args)
+        assert args.free_tier is False
+
+    def test_openai_defaults_to_paid_path(self) -> None:
+        args = parse_args(["--provider", "openai"])
+        _resolve_free_tier(args)
+        assert args.free_tier is False
+
+    def test_explicit_free_tier_flag_honored(self) -> None:
+        args = parse_args(["--provider", "openai", "--free-tier"])
+        _resolve_free_tier(args)
+        assert args.free_tier is True
 
 
 class TestParseArgsTemplate:

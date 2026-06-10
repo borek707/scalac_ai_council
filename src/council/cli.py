@@ -261,8 +261,9 @@ Need more help? Read README.md or run: python -m council --interactive
     )
     parser.add_argument(
         "--free-tier",
-        action="store_true",
-        help="Use OpenRouter free-tier model fallback (fetches current free models)",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="OpenRouter: use free-model fallback (default on for --provider openrouter)",
     )
     parser.add_argument(
         "--stream",
@@ -270,6 +271,13 @@ Need more help? Read README.md or run: python -m council --interactive
         help="Stream agent output to console in real time as LLM generates",
     )
     return parser.parse_args(args)
+
+
+def _resolve_free_tier(args: argparse.Namespace) -> None:
+    """Default OpenRouter runs to free tier unless explicitly overridden."""
+    if args.free_tier is not None:
+        return
+    args.free_tier = args.provider == "openrouter"
 
 
 def _resolve_template_dir() -> Path:
@@ -1172,6 +1180,7 @@ def main() -> None:
         args = prompt_for_args(force_onboarding=onboarding_requested)
     else:
         args = parse_args()
+        _resolve_free_tier(args)
 
     dashboard = None
     if args.dashboard:
