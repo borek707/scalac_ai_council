@@ -696,6 +696,12 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         getattr(args, "free_tier", False),
         api_key=getattr(args, "api_key", None),
     )
+    if args.provider == "openrouter" and getattr(args, "free_tier", False):
+        from council.llm.openrouter_provider import OpenRouterProvider
+
+        if isinstance(provider, OpenRouterProvider):
+            _dlog(dashboard, "OpenRouter free tier — resolving model chain…")
+            await provider.ensure_ready()
     if hasattr(provider, "auto_selected") and provider.auto_selected:
         msg = f"OpenRouter auto-selected model: {provider.model}"
         if dashboard:
@@ -719,7 +725,7 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
             await provider.verify_reachable()
             _dlog(dashboard, "Ollama reachable")
     elif args.provider == "openrouter" and getattr(args, "free_tier", False):
-        _dlog(dashboard, "OpenRouter free tier — model chain resolves on first LLM call")
+        _dlog(dashboard, f"OpenRouter free tier active — primary model: {provider.model}")
 
     # Create agents with optional document context
     from council.agents.base import BaseAgent

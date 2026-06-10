@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -75,6 +76,7 @@ class OpenRouterProvider(OpenAIProvider):
         self._resolved_url = resolved_url
         self._needs_model_resolution = False
         self._explicit_model = model not in (None, "default")
+        self._resolve_lock = asyncio.Lock()
 
         if model in (None, "default"):
             if free_tier:
@@ -100,14 +102,21 @@ class OpenRouterProvider(OpenAIProvider):
             model=resolved_model or _PAID_DEFAULT_MODEL,
         )
 
+    async def ensure_ready(self) -> None:
+        """Resolve free-tier models before parallel agent calls."""
+        await self._resolve_model()
+
     async def _resolve_model(self) -> None:
         """Lazy-resolve free-tier model chain on first use."""
         if not self._needs_model_resolution:
             return
-        self._needs_model_resolution = False
-        await self._refresh_free_model_chain(
-            force_primary=self.model if self._explicit_model else None
-        )
+        async with self._resolve_lock:
+            if not self._needs_model_resolution:
+                return
+            await self._refresh_free_model_chain(
+                force_primary=self.model if self._explicit_model else None
+            )
+            self._needs_model_resolution = False
 
     async def _refresh_free_model_chain(self, *, force_primary: str | None = None) -> None:
         """Fetch current free models from OpenRouter and rebuild primary + fallbacks."""
@@ -284,9 +293,14 @@ class OpenRouterProvider(OpenAIProvider):
         return await self._client.chat.completions.create(**kwargs)
 
     async def _iter_model_chain(self) -> list[str]:
-        await self._resolve_model()
-        if self._free_tier and self._model_chain:
-            return list(self._model_chain)
+        if self._free_tier:
+            await self._resolve_model()
+            if self._model_chain:
+                return list(self._model_chain)
+            raise RuntimeError(
+                "OpenRouter free-tier model chain is empty after resolution.\n"
+                "  Try again later or pass --no-free-tier with a paid --model."
+            )
         return [self.model]
 
     async def generate(

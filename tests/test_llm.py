@@ -591,6 +591,26 @@ class TestOpenRouterProvider:
         assert provider.auto_selected is True
 
     @pytest.mark.asyncio
+    async def test_concurrent_resolve_never_uses_paid_placeholder(self, monkeypatch: Any) -> None:
+        """Parallel agent calls must not hit the paid placeholder before chain resolves."""
+        import asyncio
+
+        from council.llm.openrouter_provider import OpenRouterProvider, _PAID_DEFAULT_MODEL
+
+        provider = self._make_provider(monkeypatch, free_tier=True, model=None)
+        assert provider.model == _PAID_DEFAULT_MODEL
+
+        async def slow_fetch(*_args: Any, **_kwargs: Any) -> list[str]:
+            await asyncio.sleep(0.05)
+            return ["free/model:free", "other/model:free"]
+
+        monkeypatch.setattr(OpenRouterProvider, "_fetch_free_models", slow_fetch)
+        await asyncio.gather(*(provider._resolve_model() for _ in range(4)))
+
+        assert provider.model == "free/model:free"
+        assert provider._model_chain[0] == "free/model:free"
+
+    @pytest.mark.asyncio
     async def test_free_tier_generate_falls_back_to_next_model(self, monkeypatch: Any) -> None:
 
         provider = self._make_provider(monkeypatch, free_tier=True, model=None)
