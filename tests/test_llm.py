@@ -529,19 +529,19 @@ class TestOpenRouterProvider:
         provider = self._make_provider(monkeypatch, model="meta-llama/llama-3-70b")
         # Must NOT be silently swapped for the built-in fallback
         assert provider.model == "meta-llama/llama-3-70b"
-        assert provider.model != "anthropic/claude-3-5-sonnet-20241022"
+        assert provider.model != "anthropic/claude-sonnet-4.5"
 
     # 5b. model=None (omitted) results in the built-in default, not None
     def test_model_none_resolves_to_default(self, monkeypatch: Any) -> None:
         provider = self._make_provider(monkeypatch, model=None)
         # The constructor must not leave self.model as None
         assert provider.model is not None
-        assert provider.model == "anthropic/claude-3-5-sonnet-20241022"
+        assert provider.model == "anthropic/claude-sonnet-4.5"
 
     # 5c. model="default" is treated the same as model=None
     def test_model_default_string_resolves_to_fallback(self, monkeypatch: Any) -> None:
         provider = self._make_provider(monkeypatch, model="default")
-        assert provider.model == "anthropic/claude-3-5-sonnet-20241022"
+        assert provider.model == "anthropic/claude-sonnet-4.5"
 
     def test_sort_free_models_prefers_known_order(self) -> None:
         from council.llm.openrouter_provider import OpenRouterProvider
@@ -650,6 +650,41 @@ class TestOpenRouterProvider:
 
         assert captured["model"] == "deepseek/deepseek-chat:free"
         assert captured["extra_body"] == {"models": ["meta-llama/llama-3.3-70b-instruct:free"]}
+
+    @pytest.mark.asyncio
+    async def test_free_tier_caps_openrouter_fallback_models_at_three(self, monkeypatch: Any) -> None:
+        provider = self._make_provider(monkeypatch, free_tier=True, model=None)
+        provider._model_chain = [
+            "deepseek/deepseek-chat:free",
+            "meta-llama/llama-3.3-70b-instruct:free",
+            "moonshotai/kimi-k2.6:free",
+            "google/gemma-4-26b-a4b-it:free",
+            "nvidia/nemotron-3-super-120b-a12b:free",
+        ]
+        provider.model = provider._model_chain[0]
+        provider._needs_model_resolution = False
+
+        captured: dict[str, Any] = {}
+
+        async def fake_create(**kwargs: Any) -> MagicMock:
+            captured.update(kwargs)
+            response = MagicMock()
+            response.choices = [MagicMock(message=MagicMock(content="ok"))]
+            response.usage = MagicMock(prompt_tokens=1, completion_tokens=1)
+            response.model = kwargs["model"]
+            return response
+
+        provider._client.chat.completions.create = fake_create
+        await provider.generate("hello")
+
+        assert captured["model"] == "deepseek/deepseek-chat:free"
+        assert captured["extra_body"] == {
+            "models": [
+                "meta-llama/llama-3.3-70b-instruct:free",
+                "moonshotai/kimi-k2.6:free",
+                "google/gemma-4-26b-a4b-it:free",
+            ]
+        }
 
     @pytest.mark.asyncio
     async def test_free_tier_no_models_raises_without_paid_fallback(self, monkeypatch: Any) -> None:

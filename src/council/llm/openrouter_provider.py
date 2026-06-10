@@ -16,14 +16,17 @@ logger = logging.getLogger(__name__)
 # Soft preference order when multiple free models are available from the API.
 # Models not in this list are appended after, sorted alphabetically.
 _PREFERRED_FREE: tuple[str, ...] = (
-    "google/gemini-2.0-flash-exp:free",
+    "moonshotai/kimi-k2.6:free",
+    "google/gemma-4-26b-a4b-it:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
     "deepseek/deepseek-chat:free",
     "meta-llama/llama-3.3-70b-instruct:free",
-    "nvidia/llama-3.1-nemotron-70b-instruct:free",
-    "qwen/qwen-2.5-72b-instruct:free",
 )
 
-_PAID_DEFAULT_MODEL = "anthropic/claude-3-5-sonnet-20241022"
+# OpenRouter rejects extra_body.models arrays longer than 3 items.
+_MAX_ROUTER_FALLBACKS = 3
+
+_PAID_DEFAULT_MODEL = "anthropic/claude-sonnet-4.5"
 
 _UNAVAILABLE_MARKERS = (
     "rate limit",
@@ -209,7 +212,8 @@ class OpenRouterProvider(OpenAIProvider):
     def _fallback_models_for(self, primary: str) -> list[str]:
         if not self._free_tier or not self._model_chain:
             return []
-        return [model_id for model_id in self._model_chain if model_id != primary]
+        fallbacks = [model_id for model_id in self._model_chain if model_id != primary]
+        return fallbacks[:_MAX_ROUTER_FALLBACKS]
 
     @staticmethod
     def _is_model_unavailable_error(exc: Exception) -> bool:

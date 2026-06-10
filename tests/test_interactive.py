@@ -34,10 +34,10 @@ class TestProvidersList:
         assert len(keys) == len(set(keys))
 
     def test_openrouter_uses_claude_35_sonnet(self) -> None:
-        """OpenRouter default model is anthropic/claude-3-5-sonnet-20241022."""
+        """OpenRouter default model is anthropic/claude-sonnet-4.5."""
         openrouter = next((p for p in _PROVIDERS if p[0] == "openrouter"), None)
         assert openrouter is not None
-        assert openrouter[2] == "anthropic/claude-3-5-sonnet-20241022"
+        assert openrouter[2] == "anthropic/claude-sonnet-4.5"
 
     def test_provider_keys(self) -> None:
         """All expected provider keys are present."""

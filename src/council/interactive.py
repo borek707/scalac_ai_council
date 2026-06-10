@@ -75,7 +75,7 @@ _ONBOARDING_FLAG = Path.home() / ".config" / "council" / "onboarding_done"
 _PROVIDERS = [
     ("openai", "OpenAI (GPT-4o)", "gpt-4o"),
     ("anthropic", "Anthropic (Claude)", "claude-sonnet-4-6"),
-    ("openrouter", "OpenRouter", "anthropic/claude-3-5-sonnet-20241022"),
+    ("openrouter", "OpenRouter", "anthropic/claude-sonnet-4.5"),
     ("ollama", "Ollama (local)", "llama3"),
     ("kimi-code", "Kimi Code CLI", "kimi-for-coding"),
     ("claude-code", "Claude Code CLI / IDE", "claude-sonnet-4-6"),
