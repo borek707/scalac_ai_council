@@ -14,8 +14,6 @@ if TYPE_CHECKING:
 
 logger: logging.Logger = logging.getLogger(__name__)
 
-from council.vis.agent_meta import AGENT_COLORS
-
 
 class BaseAgent(ABC):
     """DRY abstract base for all marketing council agents.
@@ -45,6 +43,12 @@ class BaseAgent(ABC):
         self.progress_callback: Callable[..., None] | None = progress_callback
 
         self.stream_output: bool = False
+
+        # Token/cost stats from the most recent LLM response, surfaced via the
+        # progress callback so front-ends (dashboard) can report usage.
+        self._last_tokens_prompt: int = 0
+        self._last_tokens_completion: int = 0
+        self._last_cost_usd: float = 0.0
 
         self.discussion_dir: Path = self.workspace / "shared" / "discussion"
         self.output_dir: Path = self.workspace / "output"
@@ -228,6 +232,9 @@ class BaseAgent(ABC):
                 max_tokens=4000,
             )
             content = response.content
+            self._last_tokens_prompt = response.tokens_prompt
+            self._last_tokens_completion = response.tokens_completion
+            self._last_cost_usd = response.cost_usd
 
         if not content or not content.strip():
             raise ValueError(f"LLM provider returned an empty response for agent {self.name}")
@@ -236,6 +243,8 @@ class BaseAgent(ABC):
     async def _generate_streaming(self, prompt: str, system_prompt: str) -> str:
         """Stream LLM output to console with agent-colored prefix."""
         import sys
+
+        from council.vis.agent_meta import AGENT_COLORS
 
         color = AGENT_COLORS.get(self.name, "white")
         prefix = f"\033[1m[{self.name}]\033[0m "
@@ -324,7 +333,14 @@ class BaseAgent(ABC):
             path: Path = self.write_round(round_num, content)
             self.state = _AgentState.DONE
             if self.progress_callback:
-                self.progress_callback(self.name, "done", content=content)
+                self.progress_callback(
+                    self.name,
+                    "done",
+                    content=content,
+                    tokens_prompt=self._last_tokens_prompt,
+                    tokens_completion=self._last_tokens_completion,
+                    cost_usd=self._last_cost_usd,
+                )
             return path
         except Exception as exc:
             self.state = _AgentState.ERROR

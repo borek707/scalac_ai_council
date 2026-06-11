@@ -380,12 +380,17 @@ def write_workspace_artifacts(
     provider_name: str,
     provider_model: str | None,
     max_rounds: int,
-    agent_names: tuple[str, ...] = ("Marcus", "Elena", "Kai", "David"),
+    agent_names: tuple[str, ...] | None = None,
 ) -> dict[str, Path]:
     """Build proposal/manifest from files already on disk (demo or recovery path)."""
     from collections.abc import AsyncIterator
 
+    from council.agents.registry import agent_names as registry_agent_names
+    from council.agents.registry import final_filenames
     from council.llm.provider import LLMProvider, LLMResponse
+
+    if agent_names is None:
+        agent_names = tuple(registry_agent_names())
 
     class _NoOpProvider(LLMProvider):
         async def generate(
@@ -430,12 +435,7 @@ def write_workspace_artifacts(
             orchestrator._round_results[round_num] = round_paths
 
     agents_dir = workspace / "output" / "agents"
-    final_files = {
-        "Marcus": "marcus_offer.md",
-        "Elena": "elena_funnel.md",
-        "Kai": "kai_copy.md",
-        "David": "david_abm.md",
-    }
+    final_files = final_filenames()
     for name, filename in final_files.items():
         path = agents_dir / filename
         if path.exists():

@@ -743,6 +743,20 @@ class CouncilDashboard:
                     progress_pct=100,
                     content=str(content),
                 )
+                tokens_prompt = kwargs.get("tokens_prompt")
+                tokens_completion = kwargs.get("tokens_completion")
+                cost_usd = kwargs.get("cost_usd")
+                if any(v is not None for v in (tokens_prompt, tokens_completion, cost_usd)):
+                    self.update_agent_stats(
+                        agent_name,
+                        tokens_prompt=(
+                            int(tokens_prompt) if tokens_prompt is not None else None
+                        ),
+                        tokens_completion=(
+                            int(tokens_completion) if tokens_completion is not None else None
+                        ),
+                        cost_usd=(float(cost_usd) if cost_usd is not None else None),
+                    )
             elif event == "error":
                 msg = kwargs.get("message", "Error")
                 self.log(f"{agent_name}: ERROR — {msg}")

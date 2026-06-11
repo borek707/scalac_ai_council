@@ -732,13 +732,9 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
     elif args.provider == "openrouter" and getattr(args, "free_tier", False):
         _dlog(dashboard, f"OpenRouter free tier active — primary model: {provider.model}")
 
-    # Create agents with optional document context
-    from council.agents.base import BaseAgent
-    from council.agents.david import DavidAgent
-    from council.agents.elena import ElenaAgent
-    from council.agents.kai import KaiAgent
-    from council.agents.marcus import MarcusAgent
-    from council.orchestration.orchestrator import AsyncOrchestrator
+    # Create agents with optional document context via the central registry.
+    from council.agents.registry import agent_names as registry_agent_names
+    from council.service import CouncilRunConfig, CouncilService
 
     stream_output = getattr(args, "stream", False) and not getattr(args, "dashboard", False)
     if getattr(args, "stream", False) and getattr(args, "dashboard", False):
@@ -748,52 +744,38 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
             "[dim]Streaming mode:[/dim] [green]ON[/green] — you will see agent output as it generates"
         )
 
-    agents: list[BaseAgent] = [
-        MarcusAgent(
-            workspace=workspace, config=company_config, provider=provider, documents=documents
+    num_agents = len(registry_agent_names())
+    run_config = CouncilRunConfig(
+        company_config=company_config,
+        provider_name=args.provider,
+        workspace=workspace,
+        provider_model=args.model,
+        rounds=args.rounds,
+        round_timeout=args.timeout,
+        documents=documents,
+        stream_output=stream_output,
+        # Free-tier OpenRouter trips per-minute rate limits when all four
+        # agents fire their final deliverable requests at once.
+        sequential_finals=(
+            args.provider == "openrouter" and bool(getattr(args, "free_tier", False))
         ),
-        ElenaAgent(
-            workspace=workspace, config=company_config, provider=provider, documents=documents
-        ),
-        KaiAgent(
-            workspace=workspace, config=company_config, provider=provider, documents=documents
-        ),
-        DavidAgent(
-            workspace=workspace, config=company_config, provider=provider, documents=documents
-        ),
-    ]
-
-    for agent in agents:
-        agent.stream_output = stream_output
+    )
 
     async def _execute_council(progress_callback=None):
         if dashboard:
             _dlog(
                 dashboard,
-                f"Starting debate · {len(agents)} agents · {args.rounds} rounds · {args.provider}",
+                f"Starting debate · {num_agents} agents · {args.rounds} rounds · {args.provider}",
             )
         else:
-            _print_run_banner(agents=len(agents), rounds=args.rounds, provider=args.provider)
-        orchestrator = AsyncOrchestrator(
-            agents=agents,
-            config=company_config,
-            provider=provider,
-            provider_name=args.provider,
-            provider_model=args.model,
-            max_rounds=args.rounds,
-            round_timeout=args.timeout,
-            workspace=workspace,
+            _print_run_banner(agents=num_agents, rounds=args.rounds, provider=args.provider)
+        service = CouncilService(
+            provider,
             progress_callback=progress_callback,
-            # Free-tier OpenRouter trips per-minute rate limits when all four
-            # agents fire their final deliverable requests at once.
-            sequential_finals=(
-                args.provider == "openrouter" and bool(getattr(args, "free_tier", False))
-            ),
+            adapter=adapter,
         )
-        await adapter.spawn_agents(orchestrator)
-
-        artifacts = orchestrator.write_artifacts(workspace / "output")
-        _print_success_summary(workspace, args.rounds, artifacts)
+        result = await service.run(run_config)
+        _print_success_summary(workspace, args.rounds, result.artifacts)
 
     def _console_progress(agent_name: str, state: str, **kwargs) -> None:
         color = AGENT_COLORS.get(agent_name, "white")
@@ -1219,8 +1201,10 @@ def main() -> None:
         except ImportError as exc:
             logger.warning("Dashboard requires 'textual'. Install: pip install textual (%s)", exc)
         else:
+            from council.agents.registry import agent_names as registry_agent_names
+
             dashboard = CouncilDashboard(
-                agent_names=["Marcus", "Elena", "Kai", "David"],
+                agent_names=registry_agent_names(),
                 max_rounds=args.rounds,
                 workspace=Path(args.output),
             )
