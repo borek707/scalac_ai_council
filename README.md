@@ -436,6 +436,16 @@ System używa **manifest-first discovery** — każdy run generuje `output/manif
 
 Jeśli manifest nie istnieje, system automatycznie fallbackuje do skanowania filesystemu (wspiera też legacy `FINAL_PROPOSAL.md` z v2).
 
+### Structured outputs i polityka kompatybilności
+
+Manifest oraz typowane deliverable mają schematy Pydantic w `council.schemas` (`Manifest`, `ManifestFiles`, `FinalDeliverable`, `DeliverableSection`) z polem `schema_version` (obecnie `1.0`).
+
+- **Manifest** jest walidowany schematem **przed** zapisem (`AsyncOrchestrator.write_artifacts`), więc plik na dysku zawsze jest zgodny z kontraktem. Czytniki (np. `discover_artifacts`, `--review`, dashboard) tolerują starsze manifesty bez `schema_version` przez `Manifest.from_dict()` (legacy → `schema_version="0"`).
+- **Markdown pozostaje publicznym formatem** artefaktów. `FinalDeliverable.to_markdown()` renderuje typowane dane do markdown; struktura jest warstwą walidacji/integracji, nie zastępuje dokumentów dla użytkownika.
+- **Repair loop**: `council.structured.generate_structured(provider, prompt, model_cls, max_retries=...)` waliduje JSON z LLM względem schematu i przy błędzie ponawia z treścią błędu walidacji (ograniczona liczba prób), a po wyczerpaniu prób rzuca `StructuredOutputError`.
+
+Polityka zmian: pola można dodawać kompatybilnie (z domyślnymi wartościami) bez podbijania `schema_version`. Zmiany łamiące kształt wymagają podbicia `SCHEMA_VERSION` i aktualizacji `Manifest.from_dict()`.
+
 ### Układ workspace (`--output`)
 
 `--output` (domyślnie `./output`) wskazuje **katalog workspace**, nie katalog z finalnymi plikami. Wewnątrz tworzona jest następująca struktura:

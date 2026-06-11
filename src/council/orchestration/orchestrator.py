@@ -340,30 +340,34 @@ class AsyncOrchestrator:
         proposal_path = out / "proposal.md"
         proposal_path.write_text(self.aggregate_proposal(), encoding="utf-8")
 
-        manifest: dict[str, Any] = {
-            "generated_at": datetime.now(UTC).isoformat(),
-            "company": self.config.name,
-            "product": self.config.product,
-            "provider": self.provider_name,
-            "model": self.provider_model,
-            "rounds_completed": len(self._round_results),
-            "max_rounds": self.max_rounds,
-            "agents": [a.name for a in self.agents],
-            "files": {
-                "proposal": str(proposal_path),
-                "agents_dir": str(agents_dir),
-                "agent_outputs": {
+        from council.schemas import Manifest, ManifestFiles
+
+        # Validate the manifest shape before writing so the on-disk contract
+        # is always schema-conformant (guardrail for #145).
+        manifest_model = Manifest(
+            generated_at=datetime.now(UTC).isoformat(),
+            company=self.config.name,
+            product=self.config.product,
+            provider=self.provider_name,
+            model=self.provider_model,
+            rounds_completed=len(self._round_results),
+            max_rounds=self.max_rounds,
+            agents=[a.name for a in self.agents],
+            files=ManifestFiles(
+                proposal=str(proposal_path),
+                agents_dir=str(agents_dir),
+                agent_outputs={
                     name: str(path)
                     for round_results in self._round_results.values()
                     for name, path in round_results.items()
                 },
-                "final_deliverables": {
+                final_deliverables={
                     name: str(path) for name, path in self._final_results.items()
                 },
-            },
-        }
+            ),
+        )
         manifest_path = out / "manifest.json"
-        manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        manifest_path.write_text(json.dumps(manifest_model.to_dict(), indent=2), encoding="utf-8")
 
         logger.info("Artifacts written: %s, %s", proposal_path, manifest_path)
         return {"proposal": proposal_path, "manifest": manifest_path, "agents_dir": agents_dir}
