@@ -121,6 +121,12 @@ python -m council --config my_company.json --provider kimi-code
 # Claude Code CLI / IDE (automatycznie wykrywa credentials)
 python -m council --config my_company.json --provider claude-code
 
+# LiteLLM — jeden interfejs do 100+ providerów, z fallbackami i kosztorysem
+python -m council --config my_company.json --provider litellm \
+  --model openai/gpt-4o \
+  --litellm-fallback anthropic/claude-sonnet-4-6 \
+  --litellm-fallback openrouter/google/gemini-2.0-flash-exp:free
+
 # Live dashboard (działa z demo i real run)
 python -m council --config my_company.json --dashboard
 
@@ -237,6 +243,20 @@ Po onboardingu (lub przy `--interactive` / `-i`) menu główne oferuje:
 | **Ollama** | `--provider ollama` | `llama3` | Lokalny Ollama |
 | **Kimi Code** | `--provider kimi-code` | `kimi-for-coding` | Zainstalowane Kimi Code CLI |
 | **Claude Code** | `--provider claude-code` | `claude-sonnet-4-6` | Zainstalowane Claude Code CLI lub IDE |
+| **LiteLLM** | `--provider litellm` | `openai/gpt-4o` | `pip install 'council[litellm]'` + klucz upstream |
+
+### LiteLLM — 100+ providerów z fallbackami i kosztorysem
+
+LiteLLM kieruje wywołania przez jeden, kompatybilny z OpenAI interfejs i ma wbudowane łańcuchy fallbacków, retry oraz liczenie kosztów. Modele podajesz w formacie `provider/model` (np. `openai/gpt-4o`, `anthropic/claude-sonnet-4-6`, `ollama/llama3`, `openrouter/google/gemini-2.0-flash-exp:free`). Klucze API czyta z odpowiednich zmiennych środowiskowych upstreamu.
+
+```bash
+pip install 'council[litellm]'
+
+python -m council --config firm.json --provider litellm \
+  --model openai/gpt-4o \
+  --litellm-fallback anthropic/claude-sonnet-4-6 \
+  --litellm-api-base https://twoj-litellm-proxy   # opcjonalnie, np. proxy LiteLLM
+```
 
 ### OpenRouter — 200+ modeli, jeden klucz
 

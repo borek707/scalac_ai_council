@@ -129,13 +129,39 @@ Need more help? Read README.md or run: python -m council --interactive
     parser.add_argument(
         "--provider",
         default="openai",
-        choices=["openai", "anthropic", "ollama", "openrouter", "kimi-code", "claude-code"],
+        choices=[
+            "openai",
+            "anthropic",
+            "ollama",
+            "openrouter",
+            "kimi-code",
+            "claude-code",
+            "litellm",
+        ],
         help="LLM provider to use (default: openai)",
     )
     parser.add_argument(
         "--model",
         default=None,
-        help="Model name override",
+        help=(
+            "Model name override. For --provider litellm use LiteLLM ids, "
+            "e.g. openai/gpt-4o, anthropic/claude-sonnet-4-6, ollama/llama3."
+        ),
+    )
+    parser.add_argument(
+        "--litellm-fallback",
+        action="append",
+        default=None,
+        metavar="MODEL",
+        help=(
+            "LiteLLM fallback model id (repeatable). Tried in order when the "
+            "primary --model fails. Only used with --provider litellm."
+        ),
+    )
+    parser.add_argument(
+        "--litellm-api-base",
+        default=None,
+        help="Custom API base URL for LiteLLM (e.g. a LiteLLM proxy endpoint).",
     )
     parser.add_argument(
         "--api-key",
@@ -700,6 +726,8 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         getattr(args, "free_tier", False),
         api_key=getattr(args, "api_key", None),
         call_timeout=getattr(args, "timeout", 120.0),
+        litellm_fallbacks=getattr(args, "litellm_fallback", None),
+        litellm_api_base=getattr(args, "litellm_api_base", None),
     )
     if args.provider == "openrouter" and getattr(args, "free_tier", False):
         from council.llm.openrouter_provider import OpenRouterProvider
@@ -823,11 +851,7 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
             _run_ai_review(workspace, args)
 
 
-_PROVIDER_KEY_HELP: dict[str, tuple[str, str]] = {
-    "openai": ("OPENAI_API_KEY", "https://platform.openai.com/api-keys"),
-    "anthropic": ("ANTHROPIC_API_KEY", "https://console.anthropic.com/settings/keys"),
-    "openrouter": ("OPENROUTER_API_KEY", "https://openrouter.ai/keys"),
-}
+from council.llm.factory import create_provider as _factory_create_provider
 
 
 def _create_provider(
@@ -837,146 +861,24 @@ def _create_provider(
     api_key: str | None = None,
     call_timeout: float = 120.0,
     executable_path: str | None = None,
+    litellm_fallbacks: list[str] | None = None,
+    litellm_api_base: str | None = None,
 ) -> LLMProvider:
-    """Create an LLM provider based on the name.
+    """Create an LLM provider by delegating to :mod:`council.llm.factory`.
 
-    Parameters
-    ----------
-    provider_name:
-        One of the supported provider identifiers.
-    model:
-        Optional model name override.
-    free_tier:
-        Use the OpenRouter free-tier model fallback when True.
-    api_key:
-        API key passed directly via --api-key.  Forwarded to provider
-        constructors that accept it; ignored for providers that don't
-        use API keys (ollama, kimi-code, claude-code).
-    call_timeout:
-        Timeout for a single local CLI provider call.
+    Kept as a thin wrapper for backward compatibility with existing call
+    sites and tests; all construction logic lives in the factory.
     """
-    if provider_name == "openai":
-        try:
-            from council.llm.openai_provider import OpenAIProvider
-        except ImportError as exc:
-            raise ImportError(
-                "OpenAI package not installed.\n"
-                "  Fix: pip install openai\n"
-                "  Then: export OPENAI_API_KEY=sk-..."
-            ) from exc
-        try:
-            return OpenAIProvider(model=model or "gpt-4o", api_key=api_key)
-        except RuntimeError:
-            if provider_name in _PROVIDER_KEY_HELP:
-                env_var, url = _PROVIDER_KEY_HELP[provider_name]
-                raise RuntimeError(
-                    f"No API key found for {provider_name}.\n\n"
-                    f"  Set env var:   export {env_var}=<your-key>\n"
-                    f"  Or pass flag:  --api-key <your-key>\n"
-                    f"  Get a key at:  {url}\n"
-                    f"  No key needed? Use --demo for a zero-config demo run."
-                ) from None
-            raise
-    elif provider_name == "anthropic":
-        try:
-            from council.llm.anthropic_provider import AnthropicProvider
-        except ImportError as exc:
-            raise ImportError(
-                "Anthropic package not installed.\n"
-                "  Fix: pip install anthropic\n"
-                "  Then: export ANTHROPIC_API_KEY=sk-ant-..."
-            ) from exc
-        try:
-            return AnthropicProvider(model=model or "claude-sonnet-4-6", api_key=api_key)
-        except RuntimeError:
-            if provider_name in _PROVIDER_KEY_HELP:
-                env_var, url = _PROVIDER_KEY_HELP[provider_name]
-                raise RuntimeError(
-                    f"No API key found for {provider_name}.\n\n"
-                    f"  Set env var:   export {env_var}=<your-key>\n"
-                    f"  Or pass flag:  --api-key <your-key>\n"
-                    f"  Get a key at:  {url}\n"
-                    f"  No key needed? Use --demo for a zero-config demo run."
-                ) from None
-            raise
-    elif provider_name == "openrouter":
-        try:
-            from council.llm.openrouter_provider import OpenRouterProvider
-        except ImportError as exc:
-            raise ImportError(
-                "OpenAI package not installed (needed for OpenRouter).\n"
-                "  Fix: pip install openai\n"
-                "  Then: export OPENROUTER_API_KEY=sk-or-..."
-            ) from exc
-        try:
-            return OpenRouterProvider(
-                model=model,
-                free_tier=free_tier,
-                api_key=api_key,
-            )
-        except RuntimeError:
-            if provider_name in _PROVIDER_KEY_HELP:
-                env_var, url = _PROVIDER_KEY_HELP[provider_name]
-                raise RuntimeError(
-                    f"No API key found for {provider_name}.\n\n"
-                    f"  Set env var:   export {env_var}=<your-key>\n"
-                    f"  Or pass flag:  --api-key <your-key>\n"
-                    f"  Get a key at:  {url}\n"
-                    f"  No key needed? Use --demo for a zero-config demo run."
-                ) from None
-            raise
-    elif provider_name == "ollama":
-        try:
-            from council.llm.ollama_provider import OllamaProvider
-        except ImportError as exc:
-            raise ImportError(
-                "aiohttp not installed (needed for Ollama).\n"
-                "  Fix: pip install aiohttp\n"
-                "  Also ensure Ollama is running: ollama serve"
-            ) from exc
-        try:
-            # Ollama connects to localhost — no API key is used.
-            return OllamaProvider(model=model or "llama3")
-        except RuntimeError as exc:
-            raise RuntimeError(
-                f"Failed to initialize Ollama provider: {exc}\n"
-                "  Check that Ollama is running (ollama serve) and the model is pulled."
-            ) from exc
-    elif provider_name == "kimi-code":
-        from council.llm.kimi_code_provider import KimiCodeProvider
-
-        try:
-            # Kimi Code uses subprocess/session — no API key is used.
-            return KimiCodeProvider(
-                executable_path=executable_path,
-                model=model or "kimi-for-coding",
-                call_timeout=call_timeout,
-            )
-        except RuntimeError as exc:
-            raise RuntimeError(
-                f"Failed to initialize Kimi Code provider: {exc}\n"
-                "  Make sure you are running inside the Kimi Code IDE,\n"
-                "  or that ~/.kimi/credentials/kimi-code.json exists."
-            ) from exc
-    elif provider_name == "claude-code":
-        from council.llm.claude_code_provider import ClaudeCodeProvider
-
-        try:
-            # Claude Code uses the local 'claude' CLI — no API key is used.
-            return ClaudeCodeProvider(
-                executable_path=executable_path,
-                model=model or "claude-sonnet-4-6",
-                call_timeout=call_timeout,
-            )
-        except RuntimeError as exc:
-            raise RuntimeError(
-                f"Failed to initialize Claude Code provider: {exc}\n"
-                "  Make sure you are running inside Claude Code IDE,\n"
-                "  or that the 'claude' CLI is installed (npm install -g @anthropic-ai/claude-code),\n"
-                "  or that ~/.claude/.credentials.json exists."
-            ) from exc
-    else:
-        raise ValueError(f"Unknown provider: {provider_name}")
+    return _factory_create_provider(
+        provider_name,
+        model,
+        free_tier=free_tier,
+        api_key=api_key,
+        call_timeout=call_timeout,
+        executable_path=executable_path,
+        litellm_fallbacks=litellm_fallbacks,
+        litellm_api_base=litellm_api_base,
+    )
 
 
 def _print_success_summary(workspace: Path, rounds: int, artifacts: dict) -> None:

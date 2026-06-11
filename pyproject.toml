@@ -49,6 +49,9 @@ ollama = [
 dashboard = [
     "rich>=13.0",
 ]
+litellm = [
+    "litellm>=1.74.0",
+]
 
 [project.scripts]
 council = "council.cli:main"
