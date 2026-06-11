@@ -1009,6 +1009,45 @@ def _review_run(workspace: Path) -> None:
             )
         )
 
+    _print_observability_summary(workspace)
+
+
+def _print_observability_summary(workspace: Path) -> None:
+    """Print debate observability: feed size, divergence, and latency."""
+    from council.observability import (
+        build_debate_feed,
+        build_latency_timeline,
+        divergence_score,
+    )
+
+    feed = build_debate_feed(workspace)
+    if not feed:
+        return
+
+    rounds = sorted({m.round_num for m in feed})
+    obs = Table(title="Debate Observability", show_header=True, border_style="magenta")
+    obs.add_column("Round", style="bold cyan")
+    obs.add_column("Messages", style="white")
+    obs.add_column("Divergence", style="yellow")
+    for rnd in rounds:
+        msgs = sum(1 for m in feed if m.round_num == rnd)
+        div = divergence_score(workspace, rnd)
+        obs.add_row(str(rnd), str(msgs), f"{div.divergence:.2f}")
+    console.print()
+    console.print(obs)
+
+    timeline = build_latency_timeline(workspace)
+    if timeline.per_agent_ms:
+        lat = Table(title="Per-agent latency", show_header=True, border_style="magenta")
+        lat.add_column("Agent", style="bold cyan")
+        lat.add_column("Total", style="white")
+        for agent, ms in sorted(timeline.per_agent_ms.items(), key=lambda kv: -kv[1]):
+            lat.add_row(agent, f"{ms / 1000:.1f}s")
+        console.print()
+        console.print(lat)
+        if timeline.slowest_agent:
+            console.print(f"[dim]Slowest agent: {timeline.slowest_agent}[/dim]")
+
 
 def _run_ai_review(workspace: Path, args: argparse.Namespace) -> None:
     """Run LLM quality review over discovered workspace artifacts."""

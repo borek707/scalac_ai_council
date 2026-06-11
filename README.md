@@ -446,6 +446,18 @@ Manifest oraz typowane deliverable mają schematy Pydantic w `council.schemas` (
 
 Polityka zmian: pola można dodawać kompatybilnie (z domyślnymi wartościami) bez podbijania `schema_version`. Zmiany łamiące kształt wymagają podbicia `SCHEMA_VERSION` i aktualizacji `Manifest.from_dict()`.
 
+### Observability debaty
+
+Po runie powstaje też `output/trace.json` (spany per agent/runda/finał). Moduł `council.observability` udostępnia analizy (czytelne i testowalne, nigdy nie rzucają):
+
+- `build_debate_feed(workspace)` — chronologiczny feed wiadomości agentów (runda → agent).
+- `build_latency_timeline(workspace | RunTrace)` — czas per agent/faza + najwolniejszy agent.
+- `divergence_score(workspace, round_num)` — miernik rozbieżności (1.0 = pełna rozbieżność) na bazie średniej parowej odległości Jaccarda.
+- `round_diff(workspace, agent, round_a, round_b)` — unified diff outputu agenta między rundami.
+- `RunTrace.export_otel()` — opcjonalny eksport spanów do OpenTelemetry (no-op bez zainstalowanego SDK).
+
+Podsumowanie observability (feed, divergence per runda, latency per agent) jest też drukowane przez `--review`.
+
 ### Układ workspace (`--output`)
 
 `--output` (domyślnie `./output`) wskazuje **katalog workspace**, nie katalog z finalnymi plikami. Wewnątrz tworzona jest następująca struktura:

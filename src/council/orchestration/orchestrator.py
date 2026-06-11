@@ -79,6 +79,22 @@ class AsyncOrchestrator:
         self._final_results: dict[str, Path] = {}
         self.agent_errors: list[tuple[str, str, str]] = []
 
+        from council.observability.traces import RunTrace
+
+        self.trace = RunTrace()
+
+    async def _timed(self, agent_name: str, phase: str, coro: Any) -> Any:
+        """Await *coro*, recording a trace span for *agent_name*/*phase*."""
+        start = time.time()
+        status = "ok"
+        try:
+            return await coro
+        except Exception:
+            status = "error"
+            raise
+        finally:
+            self.trace.add_span(agent_name, phase, start, time.time(), status)
+
     def _record_agent_error(self, phase: str, agent_name: str, exc: Exception) -> None:
         entry = (phase, agent_name, str(exc))
         if entry not in self.agent_errors:
@@ -111,7 +127,10 @@ class AsyncOrchestrator:
                 activity="Starting round...",
             )
 
-        tasks = [agent.run_round(round_num) for agent in self.agents]
+        tasks = [
+            self._timed(agent.name, f"round_{round_num}", agent.run_round(round_num))
+            for agent in self.agents
+        ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         failed_agents: dict[str, Exception] = {}
@@ -226,11 +245,13 @@ class AsyncOrchestrator:
             results = []
             for agent in self.agents:
                 try:
-                    results.append(await agent.run_final())
+                    results.append(await self._timed(agent.name, "final", agent.run_final()))
                 except Exception as exc:
                     results.append(exc)
         else:
-            tasks = [agent.run_final() for agent in self.agents]
+            tasks = [
+                self._timed(agent.name, "final", agent.run_final()) for agent in self.agents
+            ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
         final: dict[str, Path] = {}
         for agent, result in zip(self.agents, results):
@@ -369,8 +390,18 @@ class AsyncOrchestrator:
         manifest_path = out / "manifest.json"
         manifest_path.write_text(json.dumps(manifest_model.to_dict(), indent=2), encoding="utf-8")
 
+        from council.observability.traces import TRACE_FILENAME
+
+        trace_path = out / TRACE_FILENAME
+        self.trace.write(trace_path)
+
         logger.info("Artifacts written: %s, %s", proposal_path, manifest_path)
-        return {"proposal": proposal_path, "manifest": manifest_path, "agents_dir": agents_dir}
+        return {
+            "proposal": proposal_path,
+            "manifest": manifest_path,
+            "agents_dir": agents_dir,
+            "trace": trace_path,
+        }
 
     def get_state_snapshot(self) -> dict[str, AgentState]:
         """Return current state snapshot of all agents."""
