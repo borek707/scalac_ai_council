@@ -10,10 +10,12 @@ import pytest
 from textual.widgets import Input, OptionList
 
 from council.interactive import (
+    _PROVIDER_REQUIREMENTS,
     _PROVIDERS,
     ApiKeyModal,
     CouncilMenuApp,
     ProviderScreen,
+    RunConfigScreen,
     prompt_for_args,
 )
 from council.llm.secrets import KEY_REQUIRED_PROVIDERS
@@ -159,36 +161,23 @@ class TestApiKeyModal:
 # ── TestProviderScreenState ──────────────────────────────────────────────────
 
 
+class TestProviderRequirements:
+    """Tests for provider requirement metadata (#65)."""
+
+    def test_every_provider_has_requirement_label(self) -> None:
+        for key, _name, _model in _PROVIDERS:
+            assert _PROVIDER_REQUIREMENTS.get(key)
+
+    def test_key_providers_mention_api_key(self) -> None:
+        for key in ("openai", "anthropic", "openrouter"):
+            assert "API key" in _PROVIDER_REQUIREMENTS[key]
+
+
 class TestProviderScreenState:
-    """Tests for ProviderScreen._go_next() logic."""
+    """Tests for ProviderScreen._go_next() logic (provider/model only, #64)."""
 
-    async def test_valid_state_pushes_brief_screen(self) -> None:
-        """When state has valid provider and inputs are filled, _go_next pushes 'brief' screen."""
-        app = CouncilMenuApp(start_screen="provider")
-        async with app.run_test() as pilot:
-            await pilot.pause()
-
-            screen = pilot.app.screen
-            assert isinstance(screen, ProviderScreen)
-
-            # Set a non-key-requiring provider (index 3 = ollama)
-            ol = screen.query_one(OptionList)
-            ol.highlighted = 3
-            pilot.app.state["api_key"] = None
-
-            # Ensure rounds has a valid value
-            rounds_input = screen.query_one("#rounds-input", Input)
-            rounds_input.value = "3"
-
-            screen._go_next()
-            await pilot.pause()
-
-            # Should have navigated to brief screen
-            assert pilot.app.state.get("provider") == "ollama"
-            assert pilot.app.state.get("rounds") == 3
-
-    async def test_invalid_rounds_shows_notification(self) -> None:
-        """Non-integer rounds triggers self.notify(...) and does not push 'brief' screen."""
+    async def test_valid_provider_pushes_runconfig_screen(self) -> None:
+        """ProviderScreen._go_next stores the provider and advances to run config."""
         app = CouncilMenuApp(start_screen="provider")
         async with app.run_test() as pilot:
             await pilot.pause()
@@ -198,78 +187,13 @@ class TestProviderScreenState:
 
             ol = screen.query_one(OptionList)
             ol.highlighted = 3  # ollama — no API key required
-
-            rounds_input = screen.query_one("#rounds-input", Input)
-            rounds_input.value = "abc"
-
-            initial_stack_depth = len(pilot.app.screen_stack)
-
-            # Patch notify to capture calls
-            notifications: list[str] = []
-
-            def mock_notify(msg: str, **kwargs: object) -> None:
-                notifications.append(msg)
-
-            screen.notify = mock_notify  # type: ignore[method-assign]
-            screen._go_next()
-            await pilot.pause()
-
-            # Stack should not have grown (no new screen pushed)
-            assert len(pilot.app.screen_stack) == initial_stack_depth
-            assert len(notifications) == 1
-            assert "1 and 20" in notifications[0]
-
-    async def test_rounds_out_of_range_shows_notification(self) -> None:
-        """rounds=0 or rounds=21 triggers notification."""
-        app = CouncilMenuApp(start_screen="provider")
-        async with app.run_test() as pilot:
-            await pilot.pause()
-
-            screen = pilot.app.screen
-            assert isinstance(screen, ProviderScreen)
-
-            rounds_input = screen.query_one("#rounds-input", Input)
-
-            notifications: list[str] = []
-
-            def mock_notify(msg: str, **kwargs: object) -> None:
-                notifications.append(msg)
-
-            screen.notify = mock_notify  # type: ignore[method-assign]
-
-            # Test rounds=0
-            rounds_input.value = "0"
-            screen._go_next()
-            await pilot.pause()
-            assert len(notifications) == 1
-
-            # Test rounds=21
-            rounds_input.value = "21"
-            screen._go_next()
-            await pilot.pause()
-            assert len(notifications) == 2
-
-    async def test_valid_rounds_stored_as_int(self) -> None:
-        """String '5' in rounds-input stores as int 5 in state."""
-        app = CouncilMenuApp(start_screen="provider")
-        async with app.run_test() as pilot:
-            await pilot.pause()
-
-            screen = pilot.app.screen
-            assert isinstance(screen, ProviderScreen)
-
-            ol = screen.query_one(OptionList)
-            ol.highlighted = 3  # ollama — no key required
             pilot.app.state["api_key"] = None
 
-            rounds_input = screen.query_one("#rounds-input", Input)
-            rounds_input.value = "5"
-
             screen._go_next()
             await pilot.pause()
 
-            assert pilot.app.state.get("rounds") == 5
-            assert isinstance(pilot.app.state.get("rounds"), int)
+            assert pilot.app.state.get("provider") == "ollama"
+            assert isinstance(pilot.app.screen, RunConfigScreen)
 
     async def test_empty_model_stored_as_none(self) -> None:
         """Blank model-input stores None in state['model']."""
@@ -287,33 +211,86 @@ class TestProviderScreenState:
             model_input = screen.query_one("#model-input", Input)
             model_input.value = ""
 
-            rounds_input = screen.query_one("#rounds-input", Input)
-            rounds_input.value = "3"
-
             screen._go_next()
             await pilot.pause()
 
             assert pilot.app.state.get("model") is None
 
-    async def test_empty_output_falls_back_to_default(self) -> None:
-        """Blank output-input stores './output' in state['output']."""
-        app = CouncilMenuApp(start_screen="provider")
+
+class TestRunConfigScreenState:
+    """Tests for RunConfigScreen._go_next() logic (rounds/dashboard/output)."""
+
+    async def test_valid_rounds_stored_as_int_and_pushes_brief(self) -> None:
+        app = CouncilMenuApp(start_screen="runconfig")
         async with app.run_test() as pilot:
             await pilot.pause()
-
             screen = pilot.app.screen
-            assert isinstance(screen, ProviderScreen)
+            assert isinstance(screen, RunConfigScreen)
 
-            ol = screen.query_one(OptionList)
-            ol.highlighted = 3  # ollama
-            pilot.app.state["api_key"] = None
+            screen.query_one("#rounds-input", Input).value = "5"
+            screen._go_next()
+            await pilot.pause()
+
+            assert pilot.app.state.get("rounds") == 5
+            assert isinstance(pilot.app.state.get("rounds"), int)
+
+    async def test_invalid_rounds_shows_notification(self) -> None:
+        app = CouncilMenuApp(start_screen="runconfig")
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = pilot.app.screen
+            assert isinstance(screen, RunConfigScreen)
+
+            screen.query_one("#rounds-input", Input).value = "abc"
+            initial_stack_depth = len(pilot.app.screen_stack)
+
+            notifications: list[str] = []
+
+            def mock_notify(msg: str, **kwargs: object) -> None:
+                notifications.append(msg)
+
+            screen.notify = mock_notify  # type: ignore[method-assign]
+            screen._go_next()
+            await pilot.pause()
+
+            assert len(pilot.app.screen_stack) == initial_stack_depth
+            assert len(notifications) == 1
+            assert "1 and 20" in notifications[0]
+
+    async def test_rounds_out_of_range_shows_notification(self) -> None:
+        app = CouncilMenuApp(start_screen="runconfig")
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = pilot.app.screen
+            assert isinstance(screen, RunConfigScreen)
 
             rounds_input = screen.query_one("#rounds-input", Input)
-            rounds_input.value = "3"
+            notifications: list[str] = []
 
-            output_input = screen.query_one("#output-input", Input)
-            output_input.value = ""
+            def mock_notify(msg: str, **kwargs: object) -> None:
+                notifications.append(msg)
 
+            screen.notify = mock_notify  # type: ignore[method-assign]
+
+            rounds_input.value = "0"
+            screen._go_next()
+            await pilot.pause()
+            assert len(notifications) == 1
+
+            rounds_input.value = "21"
+            screen._go_next()
+            await pilot.pause()
+            assert len(notifications) == 2
+
+    async def test_empty_output_falls_back_to_default(self) -> None:
+        app = CouncilMenuApp(start_screen="runconfig")
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = pilot.app.screen
+            assert isinstance(screen, RunConfigScreen)
+
+            screen.query_one("#rounds-input", Input).value = "3"
+            screen.query_one("#output-input", Input).value = ""
             screen._go_next()
             await pilot.pause()
 

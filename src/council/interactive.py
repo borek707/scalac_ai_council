@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 from textual.app import App, ComposeResult
-from textual.containers import Center, Horizontal, Vertical
+from textual.containers import Center, Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen, Screen
 from textual.widgets import (
     Button,
@@ -81,6 +81,21 @@ _PROVIDERS = [
     ("claude-code", "Claude Code CLI / IDE", "claude-sonnet-4-6"),
 ]
 
+# What each provider needs to run — surfaced in the provider list (#65).
+_PROVIDER_REQUIREMENTS: dict[str, str] = {
+    "openai": "needs API key",
+    "anthropic": "needs API key",
+    "openrouter": "needs API key",
+    "ollama": "needs local Ollama",
+    "kimi-code": "needs Kimi CLI session",
+    "claude-code": "needs Claude CLI / IDE session",
+}
+
+
+def _provider_requirement(key: str) -> str:
+    """Return the human-readable requirement label for a provider."""
+    return _PROVIDER_REQUIREMENTS.get(key, "")
+
 
 def _is_onboarding_done() -> bool:
     return _ONBOARDING_FLAG.exists()
@@ -120,11 +135,10 @@ class WelcomeScreen(Screen):
             )
             yield Rule()
             with Horizontal(classes="button-row"):
-                yield Button("Skip →", variant="default", id="skip")
                 yield Button("Start →", variant="primary", id="start")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id in ("start", "skip"):
+        if event.button.id == "start":
             _mark_onboarding_done()
             self.app.push_screen("main")
 
@@ -442,7 +456,11 @@ class ApiKeyModal(ModalScreen[str | None]):
 
 
 class ProviderScreen(Screen):
-    """LLM provider selection."""
+    """LLM provider selection (provider + model + key only).
+
+    Run configuration (rounds, dashboard, output) lives on the dedicated
+    :class:`RunConfigScreen` so this screen stays focused (#64).
+    """
 
     def compose(self) -> ComposeResult:
         with Center(), Vertical(classes="menu-container"):
@@ -450,7 +468,11 @@ class ProviderScreen(Screen):
             yield Static("Choose who powers the agents", classes="subtitle")
             yield OptionList(
                 *[
-                    Option(f"{name}  [dim](default: {default_model})[/dim]", id=key)
+                    Option(
+                        f"{name}  [dim](default: {default_model})[/dim]\n"
+                        f"[dim italic]{_provider_requirement(key)}[/dim italic]",
+                        id=key,
+                    )
                     for key, name, default_model in _PROVIDERS
                 ],
                 classes="provider-options",
@@ -462,15 +484,6 @@ class ProviderScreen(Screen):
             with Horizontal(classes="switch-row"):
                 yield Switch(value=False, id="free-tier-switch", disabled=True)
                 yield Label("Use free-tier model fallback")
-            yield Rule()
-            yield Static("Rounds:", classes="field-label")
-            yield Input(value="3", placeholder="3", id="rounds-input")
-            yield Static("Dashboard:", classes="field-label")
-            with Horizontal(classes="switch-row"):
-                yield Switch(value=True, id="dashboard-switch")
-                yield Label("Enable live terminal dashboard")
-            yield Static("Output directory:", classes="field-label")
-            yield Input(value="./output", placeholder="./output", id="output-input")
             yield Static("[dim]Tab next · Enter submit field · Esc back[/dim]", classes="hint")
             with Horizontal(classes="button-row"):
                 yield Button("← Back", variant="default", id="back")
@@ -506,28 +519,15 @@ class ProviderScreen(Screen):
             )
             self.app.push_screen(ApiKeyModal(provider), self._on_api_key_modal)
             return
-        ol = self.query_one(OptionList)
-        sel = ol.highlighted
-        provider = self._selected_provider()
-        api_key = self.app.state.get("api_key")
         model = self.query_one("#model-input", Input).value.strip() or None
         free_tier = self.query_one("#free-tier-switch", Switch).value
-        rounds_str = self.query_one("#rounds-input", Input).value or "3"
-        rounds = _parse_rounds(rounds_str, self.notify)
-        if rounds is None:
-            return
-        dashboard = self.query_one("#dashboard-switch", Switch).value
-        output = self.query_one("#output-input", Input).value.strip() or "./output"
         self.app.state.update(
             provider=provider,
             api_key=api_key,
             model=model,
             free_tier=free_tier,
-            rounds=rounds,
-            dashboard=dashboard,
-            output=output,
         )
-        self.app.push_screen("brief")
+        self.app.push_screen("runconfig")
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
         sel = event.option_index
@@ -554,8 +554,54 @@ class ProviderScreen(Screen):
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         if event.input.id == "model-input":
-            self.query_one("#rounds-input", Input).focus()
-        elif event.input.id == "rounds-input":
+            self._go_next()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "back":
+            self.app.pop_screen()
+        elif event.button.id == "next":
+            self._go_next()
+
+
+class RunConfigScreen(Screen):
+    """Run configuration: rounds, dashboard, and output directory (#64)."""
+
+    def compose(self) -> ComposeResult:
+        with Center(), Vertical(classes="menu-container"):
+            yield Static("Run Configuration", classes="title")
+            yield Static("Tune how the council run executes", classes="subtitle")
+            yield Static("Rounds:", classes="field-label")
+            yield Input(value="3", placeholder="3", id="rounds-input")
+            yield Static("Dashboard:", classes="field-label")
+            with Horizontal(classes="switch-row"):
+                yield Switch(value=True, id="dashboard-switch")
+                yield Label("Enable live terminal dashboard")
+            yield Static("Output directory:", classes="field-label")
+            yield Input(value="./output", placeholder="./output", id="output-input")
+            yield Static("[dim]Tab next · Enter submit field · Esc back[/dim]", classes="hint")
+            with Horizontal(classes="button-row"):
+                yield Button("← Back", variant="default", id="back")
+                yield Button("Next →", variant="primary", id="next")
+
+    def on_mount(self) -> None:
+        self.query_one("#rounds-input", Input).focus()
+
+    def _go_next(self) -> None:
+        rounds_str = self.query_one("#rounds-input", Input).value or "3"
+        rounds = _parse_rounds(rounds_str, self.notify)
+        if rounds is None:
+            return
+        dashboard = self.query_one("#dashboard-switch", Switch).value
+        output = self.query_one("#output-input", Input).value.strip() or "./output"
+        self.app.state.update(
+            rounds=rounds,
+            dashboard=dashboard,
+            output=output,
+        )
+        self.app.push_screen("brief")
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id == "rounds-input":
             self.query_one("#output-input", Input).focus()
         elif event.input.id == "output-input":
             self._go_next()
@@ -737,15 +783,16 @@ class HelpScreen(Screen):
     def compose(self) -> ComposeResult:
         with Center(), Vertical(classes="menu-container"):
             yield Static("How the Debate Works", classes="title")
-            yield Static(
-                "[bold]Round 1:[/bold] Each agent writes their specialised output\n"
-                "  Marcus → offer, Elena → funnel, Kai → copy, David → ABM\n\n"
-                "[bold]Round 2:[/bold] Agents read and critique each other\n"
-                "  Marcus might say: 'Elena, at this price your funnel breaks'\n\n"
-                "[bold]Round 3:[/bold] Final outputs with all feedback incorporated\n\n"
-                "[dim]The result is a plan that survived criticism from 4 experts.[/dim]",
-                classes="description",
-            )
+            with VerticalScroll(classes="scroll-body"):
+                yield Static(
+                    "[bold]Round 1:[/bold] Each agent writes their specialised output\n"
+                    "  Marcus → offer, Elena → funnel, Kai → copy, David → ABM\n\n"
+                    "[bold]Round 2:[/bold] Agents read and critique each other\n"
+                    "  Marcus might say: 'Elena, at this price your funnel breaks'\n\n"
+                    "[bold]Round 3:[/bold] Final outputs with all feedback incorporated\n\n"
+                    "[dim]The result is a plan that survived criticism from 4 experts.[/dim]",
+                    classes="description",
+                )
             with Center():
                 yield Button("← Back", variant="default", id="back")
 
@@ -760,21 +807,22 @@ class IDEScreen(Screen):
     def compose(self) -> ComposeResult:
         with Center(), Vertical(classes="menu-container"):
             yield Static("IDE Setup", classes="title")
-            yield Static(
-                "[bold]VS Code / Cursor / Windsurf[/bold]\n"
-                "  Open integrated terminal (Ctrl+`)\n"
-                "  Run: python -m council\n\n"
-                "[bold]Kimi Code IDE[/bold]\n"
-                "  Run: python -m council --provider kimi-code\n"
-                "  No API key — uses your logged-in Kimi session\n\n"
-                "[bold]Claude Code IDE[/bold]\n"
-                "  Run: python -m council --provider claude-code\n"
-                "  Reads OAuth from ~/.claude/.credentials.json\n\n"
-                "[bold]GitHub Codespaces[/bold]\n"
-                "  Run: python -m council --platform copilot\n\n"
-                "[dim]All platforms auto-detect.[/dim]",
-                classes="description",
-            )
+            with VerticalScroll(classes="scroll-body"):
+                yield Static(
+                    "[bold]VS Code / Cursor / Windsurf[/bold]\n"
+                    "  Open integrated terminal (Ctrl+`)\n"
+                    "  Run: python -m council\n\n"
+                    "[bold]Kimi Code IDE[/bold]\n"
+                    "  Run: python -m council --provider kimi-code\n"
+                    "  No API key — uses your logged-in Kimi session\n\n"
+                    "[bold]Claude Code IDE[/bold]\n"
+                    "  Run: python -m council --provider claude-code\n"
+                    "  Reads OAuth from ~/.claude/.credentials.json\n\n"
+                    "[bold]GitHub Codespaces[/bold]\n"
+                    "  Run: python -m council --platform copilot\n\n"
+                    "[dim]All platforms auto-detect.[/dim]",
+                    classes="description",
+                )
             with Center():
                 yield Button("← Back", variant="default", id="back")
 
@@ -807,52 +855,53 @@ class CouncilMenuApp(App):
         max-height: 12;
     }
 
-    .title {
-        text-style: bold;
+    /* Shared layout for all centered text blocks (de-duplicated, #67) */
+    .title, .subtitle, .section-title, .agents-list, .description, .hint {
         width: 100%;
         content-align: center middle;
         height: auto;
+    }
+
+    /* Muted text color shared by secondary copy (#67) */
+    .subtitle, .description, .hint {
+        color: $text-muted;
+    }
+
+    /* Bold headings shared style (#67) */
+    .title, .section-title {
+        text-style: bold;
+    }
+
+    .title {
         padding: 1 0;
         color: $text;
     }
 
     .subtitle {
-        color: $text-muted;
-        width: 100%;
-        content-align: center middle;
-        height: auto;
         padding-bottom: 1;
     }
 
     .section-title {
-        text-style: bold;
-        width: 100%;
-        content-align: center middle;
-        height: auto;
         padding: 1 0;
     }
 
     .agents-list {
-        width: 100%;
-        content-align: center middle;
-        height: auto;
         padding: 1 0;
     }
 
     .description {
-        color: $text-muted;
-        width: 100%;
-        content-align: center middle;
-        height: auto;
         padding: 1 0;
     }
 
     .hint {
-        color: $text-muted;
-        width: 100%;
-        content-align: center middle;
-        height: auto;
         padding-top: 1;
+    }
+
+    .scroll-body {
+        width: 100%;
+        height: auto;
+        max-height: 70%;
+        overflow-y: auto;
     }
 
     .field-label {
@@ -928,6 +977,7 @@ class CouncilMenuApp(App):
         self.install_screen(DemoScreen(), "demo")
         self.install_screen(TemplateScreen(), "template")
         self.install_screen(ProviderScreen(), "provider")
+        self.install_screen(RunConfigScreen(), "runconfig")
         self.install_screen(BriefScreen(), "brief")
         self.install_screen(ConfigScreen(), "config")
         self.install_screen(ConfirmScreen(), "confirm")
