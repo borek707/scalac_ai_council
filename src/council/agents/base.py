@@ -90,9 +90,12 @@ class BaseAgent(ABC):
         lines: list[str] = []
         for round_file in sorted(self.discussion_dir.glob("*_round_*.md")):
             round_num = self._parse_round_number(round_file.name)
-            if max_round_exclusive is not None and round_num is not None:
-                if round_num >= max_round_exclusive:
-                    continue
+            if (
+                max_round_exclusive is not None
+                and round_num is not None
+                and round_num >= max_round_exclusive
+            ):
+                continue
             try:
                 if run_started_at is not None and round_file.stat().st_mtime < run_started_at:
                     continue

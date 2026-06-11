@@ -271,6 +271,12 @@ class TestKimiCodeProvider:
         assert "--work-dir" in cmd
         assert cmd[cmd.index("--work-dir") + 1] == "/tmp"
 
+    def test_call_timeout_is_configurable(self, fake_kimi: Path) -> None:
+        from council.llm.kimi_code_provider import KimiCodeProvider
+
+        provider = KimiCodeProvider(executable_path=str(fake_kimi), call_timeout=600.0)
+        assert provider.call_timeout == 600.0
+
     @pytest.mark.asyncio
     async def test_generate_success(self, monkeypatch: Any, fake_kimi: Path) -> None:
         from council.llm.kimi_code_provider import KimiCodeProvider
@@ -313,6 +319,57 @@ class TestKimiCodeProvider:
         monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
 
         with pytest.raises(RuntimeError, match="Kimi CLI failed"):
+            await provider.generate("Say hi")
+
+    @pytest.mark.asyncio
+    async def test_generate_timeout_has_context(self, monkeypatch: Any, fake_kimi: Path) -> None:
+        from council.llm.kimi_code_provider import KimiCodeProvider
+
+        provider = KimiCodeProvider(executable_path=str(fake_kimi), call_timeout=0.01)
+
+        class FakeProc:
+            returncode = None
+
+            def kill(self) -> None:
+                self.killed = True
+
+            async def communicate(self) -> tuple[bytes, bytes]:
+                raise TimeoutError
+
+        proc = FakeProc()
+
+        async def fake_exec(*args: Any, **kwargs: Any) -> FakeProc:
+            return proc
+
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+
+        with pytest.raises(RuntimeError, match="Kimi Code provider timed out after 0.01s"):
+            await provider.generate("Say hi")
+        assert getattr(proc, "killed", False) is True
+
+    @pytest.mark.asyncio
+    async def test_mcp_config_error_has_actionable_message(
+        self, monkeypatch: Any, fake_kimi: Path
+    ) -> None:
+        from council.llm.kimi_code_provider import KimiCodeProvider
+
+        provider = KimiCodeProvider(executable_path=str(fake_kimi))
+
+        class FakeProc:
+            returncode = 1
+
+            async def communicate(self) -> tuple[bytes, bytes]:
+                return (
+                    b"",
+                    b"failed to start MCP server chrome-devtools from ~/.kimi/mcp.json",
+                )
+
+        async def fake_exec(*args: Any, **kwargs: Any) -> FakeProc:
+            return FakeProc()
+
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+
+        with pytest.raises(RuntimeError, match=r"~/.kimi/mcp.json"):
             await provider.generate("Say hi")
 
     @pytest.mark.asyncio
@@ -595,7 +652,7 @@ class TestOpenRouterProvider:
         """Parallel agent calls must not hit the paid placeholder before chain resolves."""
         import asyncio
 
-        from council.llm.openrouter_provider import OpenRouterProvider, _PAID_DEFAULT_MODEL
+        from council.llm.openrouter_provider import _PAID_DEFAULT_MODEL, OpenRouterProvider
 
         provider = self._make_provider(monkeypatch, free_tier=True, model=None)
         assert provider.model == _PAID_DEFAULT_MODEL

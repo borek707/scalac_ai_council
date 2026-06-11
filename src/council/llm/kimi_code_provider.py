@@ -17,6 +17,10 @@ logger = logging.getLogger(__name__)
 _RESUME_SESSION_RE = re.compile(r"^To resume this session:.*$", re.MULTILINE)
 
 
+class ProviderTimeoutError(RuntimeError):
+    """Raised when a local CLI provider call exceeds its configured timeout."""
+
+
 class KimiCodeProvider(LLMProvider):
     """LLM provider backed by the local Kimi Code CLI.
 
@@ -45,10 +49,12 @@ class KimiCodeProvider(LLMProvider):
         executable_path: str | None = None,
         model: str | None = None,
         work_dir: str | None = None,
+        call_timeout: float = 120.0,
     ) -> None:
         self.model = model or "kimi-for-coding"
         self.executable_path = executable_path or self._detect_executable()
         self.work_dir = work_dir
+        self.call_timeout = call_timeout
 
         if not self.executable_path or not os.path.isfile(self.executable_path):
             raise RuntimeError(
@@ -144,10 +150,23 @@ class KimiCodeProvider(LLMProvider):
         cleaned = _RESUME_SESSION_RE.sub("", raw)
         return cleaned.strip()
 
+    @staticmethod
+    def _format_cli_error(stderr: str, returncode: int) -> str:
+        """Return an actionable error for common Kimi CLI startup failures."""
+        lower = stderr.lower()
+        if "mcp" in lower and ("mcp.json" in lower or "chrome-devtools" in lower):
+            return (
+                f"Kimi CLI failed (exit {returncode}) while loading MCP configuration.\n"
+                "  Check ~/.kimi/mcp.json for broken MCP server entries"
+                " (for example chrome-devtools).\n"
+                f"  Kimi stderr: {stderr[:500]}"
+            )
+        return f"Kimi CLI failed (exit {returncode}): {stderr[:500]}"
+
     @retry_with_backoff(
         max_retries=2,
         exceptions=(Exception,),
-        non_retryable_exceptions=(ValueError, FileNotFoundError, PermissionError),
+        non_retryable_exceptions=(ValueError, FileNotFoundError, PermissionError, ProviderTimeoutError),
     )
     async def generate(
         self,
@@ -173,8 +192,18 @@ class KimiCodeProvider(LLMProvider):
             stderr=asyncio.subprocess.PIPE,
         )
 
-        # Kimi CLI can take a long time on large workspaces; cap single call at 2 min
-        stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=120.0)
+        try:
+            stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                proc.communicate(),
+                timeout=self.call_timeout,
+            )
+        except TimeoutError as exc:
+            proc.kill()
+            raise ProviderTimeoutError(
+                f"Kimi Code provider timed out after {self.call_timeout:g}s "
+                "while waiting for the Kimi CLI response. "
+                "Increase --timeout or use fewer rounds / a faster provider."
+            ) from exc
         latency = (time.time() - start) * 1000
 
         stdout = stdout_bytes.decode("utf-8", errors="replace")
@@ -186,7 +215,7 @@ class KimiCodeProvider(LLMProvider):
                 proc.returncode,
                 stderr[:500],
             )
-            raise RuntimeError(f"Kimi CLI failed (exit {proc.returncode}): {stderr[:500]}")
+            raise RuntimeError(self._format_cli_error(stderr, proc.returncode))
 
         content = self._clean_output(stdout)
 

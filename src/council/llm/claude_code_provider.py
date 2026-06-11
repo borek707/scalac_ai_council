@@ -15,9 +15,18 @@ from council.llm.retry import retry_with_backoff
 logger = logging.getLogger(__name__)
 
 
+class ProviderTimeoutError(RuntimeError):
+    """Raised when a local CLI provider call exceeds its configured timeout."""
+
+
 def _anthropic_non_retryable() -> tuple[type[Exception], ...]:
     """Return non-retryable Anthropic exception types when the SDK is available."""
-    types: list[type[Exception]] = [ValueError, FileNotFoundError, PermissionError]
+    types: list[type[Exception]] = [
+        ValueError,
+        FileNotFoundError,
+        PermissionError,
+        ProviderTimeoutError,
+    ]
     try:
         import anthropic as _anthropic
 
@@ -53,9 +62,11 @@ class ClaudeCodeProvider(LLMProvider):
         executable_path: str | None = None,
         model: str | None = None,
         work_dir: str | None = None,
+        call_timeout: float = 120.0,
     ) -> None:
         self.model = model or "claude-sonnet-4-6"
         self.work_dir = work_dir
+        self.call_timeout = call_timeout
         self._http_client: object | None = None
 
         # Try subprocess first
@@ -151,7 +162,12 @@ class ClaudeCodeProvider(LLMProvider):
     @retry_with_backoff(
         max_retries=2,
         exceptions=(Exception,),
-        non_retryable_exceptions=(ValueError, FileNotFoundError, PermissionError),
+        non_retryable_exceptions=(
+            ValueError,
+            FileNotFoundError,
+            PermissionError,
+            ProviderTimeoutError,
+        ),
     )
     async def _generate_subprocess(
         self,
@@ -172,8 +188,18 @@ class ClaudeCodeProvider(LLMProvider):
             stderr=asyncio.subprocess.PIPE,
         )
 
-        # Cap single subprocess call at 2 minutes to avoid hanging forever
-        stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=120.0)
+        try:
+            stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                proc.communicate(),
+                timeout=self.call_timeout,
+            )
+        except TimeoutError as exc:
+            proc.kill()
+            raise ProviderTimeoutError(
+                f"Claude Code provider timed out after {self.call_timeout:g}s "
+                "while waiting for the Claude CLI response. "
+                "Increase --timeout or use fewer rounds / a faster provider."
+            ) from exc
         latency = (time.time() - start) * 1000
 
         stdout = stdout_bytes.decode("utf-8", errors="replace")
@@ -294,7 +320,10 @@ class ClaudeCodeProvider(LLMProvider):
 
         try:
             while True:
-                line_bytes = await asyncio.wait_for(proc.stdout.readline(), timeout=120.0)
+                line_bytes = await asyncio.wait_for(
+                    proc.stdout.readline(),
+                    timeout=self.call_timeout,
+                )
                 if not line_bytes:
                     break
                 line = line_bytes.decode("utf-8", errors="replace").strip()
@@ -314,7 +343,10 @@ class ClaudeCodeProvider(LLMProvider):
                         yield text
         except TimeoutError:
             proc.kill()
-            raise RuntimeError("Claude CLI streaming timed out after 120 s")
+            raise ProviderTimeoutError(
+                f"Claude Code provider streaming timed out after {self.call_timeout:g}s. "
+                "Increase --timeout or use fewer rounds / a faster provider."
+            )
 
         await proc.wait()
         if proc.returncode != 0:

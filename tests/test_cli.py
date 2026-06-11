@@ -231,6 +231,32 @@ class TestCreateProvider:
         with pytest.raises(ValueError, match="[Uu]nknown provider|bogus"):
             _create_provider("bogus-provider", None)
 
+    def test_create_provider_claude_code_forwards_call_timeout(self, tmp_path: Path) -> None:
+        """Claude Code provider receives CLI timeout as provider call timeout."""
+        fake_cli = tmp_path / "claude"
+        fake_cli.write_text("#!/bin/bash", encoding="utf-8")
+        fake_cli.chmod(0o755)
+        provider = _create_provider(
+            "claude-code",
+            None,
+            call_timeout=600.0,
+            executable_path=str(fake_cli),
+        )
+        assert provider.call_timeout == 600.0
+
+    def test_create_provider_kimi_code_forwards_call_timeout(self, tmp_path: Path) -> None:
+        """Kimi Code provider receives CLI timeout as provider call timeout."""
+        fake_cli = tmp_path / "kimi"
+        fake_cli.write_text("#!/bin/bash", encoding="utf-8")
+        fake_cli.chmod(0o755)
+        provider = _create_provider(
+            "kimi-code",
+            None,
+            call_timeout=600.0,
+            executable_path=str(fake_cli),
+        )
+        assert provider.call_timeout == 600.0
+
     def test_create_provider_openai_whitespace_key_stripped(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

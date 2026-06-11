@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from pathlib import Path
@@ -86,6 +87,27 @@ class TestClaudeCodeProvider:
         provider = ClaudeCodeProvider(executable_path=str(fake_cli))
         cmd = provider._build_cmd("Hello")
         assert cmd[-1] == "Hello"
+
+    def test_call_timeout_is_configurable(self, tmp_path: Path) -> None:
+        fake_cli = tmp_path / "claude"
+        fake_cli.write_text("#!/bin/bash")
+        provider = ClaudeCodeProvider(executable_path=str(fake_cli), call_timeout=600.0)
+        assert provider.call_timeout == 600.0
+
+    @pytest.mark.asyncio
+    async def test_generate_subprocess_timeout_has_context(self, tmp_path: Path) -> None:
+        fake_cli = tmp_path / "claude"
+        fake_cli.write_text("#!/bin/bash")
+        provider = ClaudeCodeProvider(executable_path=str(fake_cli), call_timeout=0.01)
+
+        mock_proc = MagicMock()
+        mock_proc.kill = MagicMock()
+        mock_proc.communicate = AsyncMock(side_effect=asyncio.TimeoutError)
+
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
+            with pytest.raises(RuntimeError, match="Claude Code provider timed out after 0.01s"):
+                await provider._generate_subprocess("prompt")
+        mock_proc.kill.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_generate_subprocess_success(self, tmp_path: Path) -> None:

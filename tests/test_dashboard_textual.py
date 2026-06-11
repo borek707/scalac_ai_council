@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
-from textual.widgets import Markdown, OptionList, RichLog
+from textual.widgets import Markdown, OptionList
 
 from council.demo import run_demo
 from council.vis.dashboard import CouncilApp, CouncilDashboard
@@ -98,6 +99,39 @@ class TestCouncilAppRunTest:
             await pilot.pause()
             assert any("Preview text here" in text for text in captured)
 
+    async def test_file_list_uses_manifest_artifacts(self, tmp_path: Path) -> None:
+        """Files panel should show artifacts recorded in manifest.json."""
+        output_dir = tmp_path / "output"
+        custom_dir = tmp_path / "custom-deliverables"
+        output_dir.mkdir(parents=True)
+        custom_dir.mkdir(parents=True)
+        deliverable = custom_dir / "marcus_custom.md"
+        deliverable.write_text("# Marcus custom\n\nManifest-only artifact.", encoding="utf-8")
+        manifest = {
+            "files": {
+                "final_deliverables": {
+                    "Marcus": str(deliverable),
+                },
+            },
+        }
+        (output_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+        app = CouncilApp(
+            agent_names=["Marcus"],
+            max_rounds=1,
+            workspace=tmp_path,
+        )
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            app._refresh_files()
+            await pilot.pause()
+            file_list = app.query_one("#file-list", OptionList)
+            option_ids = [
+                file_list.get_option_at_index(index).id
+                for index in range(file_list.option_count)
+            ]
+            assert str(deliverable.resolve()) in option_ids
+
 
 class TestCouncilDashboardFlush:
     """Phase A: pending log flush (#112)."""
@@ -136,6 +170,19 @@ class TestCouncilDashboardFlush:
         dash._on_app_mounted()
         assert events == ["ready"]
         assert dash._pending_logs == []
+
+    def test_refresh_files_invokes_app_refresh(self) -> None:
+        dash = CouncilDashboard(["Marcus"])
+        calls: list[str] = []
+
+        dash._app = type("FakeApp", (), {})()
+        dash._app._mounted = True
+        dash._app.call_from_thread = lambda fn: fn()
+        dash._app._refresh_files = lambda: calls.append("refresh")  # type: ignore[attr-defined]
+
+        dash.refresh_files()
+
+        assert calls == ["refresh"]
 
 
 @pytest.mark.integration

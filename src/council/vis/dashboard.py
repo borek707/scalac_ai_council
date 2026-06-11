@@ -39,7 +39,15 @@ from textual.widgets import (
 )
 from textual.widgets.option_list import Option
 
+from council.artifacts import ArtifactKind, discover_artifacts
 from council.vis.agent_meta import AGENT_META
+
+_ARTIFACT_ICONS: dict[ArtifactKind, str] = {
+    "proposal": "📋",
+    "agent": "🎯",
+    "discussion": "💬",
+    "manifest": "📄",
+}
 
 
 @dataclass
@@ -443,6 +451,7 @@ class CouncilApp(App):
 
     def set_round(self, round_num: int) -> None:
         self._current_round = round_num
+        self.sub_title = f"Round {self._current_round}/{self._max_rounds}"
         self._add_log(f"=== Round {round_num} ===")
 
     def _add_log(self, message: str, agent_name: str | None = None) -> None:
@@ -500,24 +509,10 @@ class CouncilApp(App):
         except Exception:
             return
         file_list.clear_options()
-        candidates: list[tuple[Path, str]] = []
-        for path in [
-            self.workspace / "output" / "proposal.md",
-            self.workspace / "output" / "manifest.json",
-        ]:
-            if path.exists():
-                candidates.append((path, "📋"))
-        agents_dir = self.workspace / "output" / "agents"
-        if agents_dir.exists():
-            for path in sorted(agents_dir.glob("*.md")):
-                candidates.append((path, "🎯"))
-        for subpath, icon in [("output", "📄"), ("shared/discussion", "💬")]:
-            directory = self.workspace / subpath
-            if directory.exists():
-                for path in sorted(directory.glob("*.md")):
-                    if path not in {item[0] for item in candidates}:
-                        candidates.append((path, icon))
-        for path, icon in candidates:
+        artifacts = [artifact for artifact in discover_artifacts(self.workspace) if artifact.exists]
+        for artifact in artifacts:
+            path = artifact.path
+            icon = _ARTIFACT_ICONS.get(artifact.kind, "📄")
             file_list.add_option(Option(f"{icon} {path.name}", id=str(path)))
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
@@ -699,6 +694,11 @@ class CouncilDashboard:
             self._app.call_from_thread(self._app._add_log, message)
         else:
             self._pending_logs.append(message)
+
+    def refresh_files(self) -> None:
+        """Refresh the Textual Files panel from the worker thread."""
+        if self._app is not None and self._app._mounted:
+            self._app.call_from_thread(self._app._refresh_files)
 
     def make_callback(self) -> Callable[..., None]:
         def _cb(agent_name: str, event: str, **kwargs: object) -> None:

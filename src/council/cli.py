@@ -695,6 +695,7 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
         args.model,
         getattr(args, "free_tier", False),
         api_key=getattr(args, "api_key", None),
+        call_timeout=getattr(args, "timeout", 120.0),
     )
     if args.provider == "openrouter" and getattr(args, "free_tier", False):
         from council.llm.openrouter_provider import OpenRouterProvider
@@ -848,6 +849,8 @@ def _create_provider(
     model: str | None,
     free_tier: bool = False,
     api_key: str | None = None,
+    call_timeout: float = 120.0,
+    executable_path: str | None = None,
 ) -> LLMProvider:
     """Create an LLM provider based on the name.
 
@@ -863,6 +866,8 @@ def _create_provider(
         API key passed directly via --api-key.  Forwarded to provider
         constructors that accept it; ignored for providers that don't
         use API keys (ollama, kimi-code, claude-code).
+    call_timeout:
+        Timeout for a single local CLI provider call.
     """
     if provider_name == "openai":
         try:
@@ -956,7 +961,11 @@ def _create_provider(
 
         try:
             # Kimi Code uses subprocess/session — no API key is used.
-            return KimiCodeProvider(model=model or "kimi-for-coding")
+            return KimiCodeProvider(
+                executable_path=executable_path,
+                model=model or "kimi-for-coding",
+                call_timeout=call_timeout,
+            )
         except RuntimeError as exc:
             raise RuntimeError(
                 f"Failed to initialize Kimi Code provider: {exc}\n"
@@ -968,7 +977,11 @@ def _create_provider(
 
         try:
             # Claude Code uses the local 'claude' CLI — no API key is used.
-            return ClaudeCodeProvider(model=model or "claude-sonnet-4-6")
+            return ClaudeCodeProvider(
+                executable_path=executable_path,
+                model=model or "claude-sonnet-4-6",
+                call_timeout=call_timeout,
+            )
         except RuntimeError as exc:
             raise RuntimeError(
                 f"Failed to initialize Claude Code provider: {exc}\n"
@@ -1225,6 +1238,7 @@ def main() -> None:
                 dashboard.log(f"Council failed: {exc}")
                 dashboard.stop()
             else:
+                dashboard.refresh_files()
                 dashboard.log("✓ Council run complete — browse files and press q to exit")
 
         thread = threading.Thread(target=_council_thread, daemon=True)
