@@ -416,6 +416,21 @@ System używa **manifest-first discovery** — każdy run generuje `output/manif
 
 Jeśli manifest nie istnieje, system automatycznie fallbackuje do skanowania filesystemu (wspiera też legacy `FINAL_PROPOSAL.md` z v2).
 
+### Układ workspace (`--output`)
+
+`--output` (domyślnie `./output`) wskazuje **katalog workspace**, nie katalog z finalnymi plikami. Wewnątrz tworzona jest następująca struktura:
+
+```
+<workspace>/
+  shared/discussion/    # pliki rundy po rundzie (*_round_*.md)
+  output/
+    agents/             # finalne deliverable per agent
+    proposal.md         # zagregowana propozycja
+    manifest.json       # indeks artefaktów
+```
+
+Uwaga: przy `--output ./output` finalne pliki agentów trafiają do `./output/output/agents/`, ponieważ `output/` jest podkatalogiem workspace. Podsumowanie po runie (`Council Run Complete`) wypisuje pełne, rozdzielone ścieżki dla round files, deliverables, proposal i manifestu.
+
 ---
 
 ## Dokumenty kontekstowe

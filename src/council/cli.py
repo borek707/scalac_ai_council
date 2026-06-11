@@ -164,7 +164,11 @@ Need more help? Read README.md or run: python -m council --interactive
         "--output",
         "-o",
         default="./output",
-        help="Output directory (default: ./output)",
+        help=(
+            "Workspace directory (default: ./output). Round-by-round debate files "
+            "are written to <workspace>/shared/discussion/, and final deliverables "
+            "to <workspace>/output/agents/ plus <workspace>/output/proposal.md."
+        ),
     )
     parser.add_argument(
         "--monitor",
