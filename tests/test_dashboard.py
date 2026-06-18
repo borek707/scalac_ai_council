@@ -24,12 +24,12 @@ class TestAgentView:
         assert view.activity == "Czeka..."
         assert view.progress_pct == 0
         assert view.last_content == ""
-        assert view.avatar == "🤖"
+        assert view.avatar == "[AGENT]"
 
     def test_avatar_from_meta(self) -> None:
         dash = CouncilDashboard(["marcus", "elena"])
-        assert dash._agents["marcus"].avatar == "🏗️"
-        assert dash._agents["elena"].avatar == "🎯"
+        assert dash._agents["marcus"].avatar == "[AGENT]"
+        assert dash._agents["elena"].avatar == "[AGENT]"
 
 
 class TestCouncilDashboard:
@@ -38,7 +38,7 @@ class TestCouncilDashboard:
         assert len(dash._agents) == 4
         assert "marcus" in dash._agents
         assert dash._agents["marcus"].color == "cyan"
-        assert dash._agents["marcus"].avatar == "🏗️"
+        assert dash._agents["marcus"].avatar == "[AGENT]"
 
     def test_update_agent(self) -> None:
         dash = CouncilDashboard(["marcus"])
@@ -191,7 +191,7 @@ class TestCouncilDashboard:
         assert "Marcus" in str(panel.title)
         assert "WRITING" in panel.renderable
         assert "50%" in panel.renderable
-        assert "🏗️" in panel.renderable
+        assert "[AGENT]" in panel.renderable
 
     def test_render_header_and_footer(self) -> None:
         dash = CouncilDashboard(["marcus", "elena"], max_rounds=3)
@@ -227,15 +227,15 @@ class TestAvatarCaseInsensitive:
         """'Marcus' (titlecase) resolves to the same avatar/color as 'marcus'."""
         dash = CouncilDashboard(["Marcus"])
         agent = dash._agents["Marcus"]
-        # Known values for marcus
-        assert agent.avatar == "🏗️", f"Expected 🏗️, got {agent.avatar!r}"
+        # Color remains agent-specific; structural avatar label is ASCII-only.
+        assert agent.avatar == "[AGENT]"
         assert agent.color == "cyan", f"Expected 'cyan', got {agent.color!r}"
 
     def test_avatar_case_insensitive_elena_uppercase(self) -> None:
         """'ELENA' (uppercase) resolves to the same avatar/color as 'elena'."""
         dash = CouncilDashboard(["ELENA"])
         agent = dash._agents["ELENA"]
-        assert agent.avatar == "🎯", f"Expected 🎯, got {agent.avatar!r}"
+        assert agent.avatar == "[AGENT]"
         assert agent.color == "magenta", f"Expected 'magenta', got {agent.color!r}"
 
     def test_avatar_case_insensitive_mixed_list(self) -> None:
@@ -243,10 +243,8 @@ class TestAvatarCaseInsensitive:
         dash = CouncilDashboard(["Marcus", "ELENA"])
         marcus = dash._agents["Marcus"]
         elena = dash._agents["ELENA"]
-        # Neither should be the unknown-agent fallbacks
-        assert marcus.avatar != "🤖", "Marcus fell back to unknown avatar"
+        # Neither should be the unknown-agent color fallback
         assert marcus.color != "white", "Marcus fell back to unknown color"
-        assert elena.avatar != "🤖", "ELENA fell back to unknown avatar"
         assert elena.color != "white", "ELENA fell back to unknown color"
 
 

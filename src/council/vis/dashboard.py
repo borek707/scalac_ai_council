@@ -39,15 +39,17 @@ from textual.widgets import (
 )
 from textual.widgets.option_list import Option
 
-from council.artifacts import ArtifactKind, discover_artifacts
+from council.artifacts import Artifact, discover_artifacts
 from council.vis.agent_meta import AGENT_META
+from council.vis.artifact_browser import ARTIFACT_LABELS
 
-_ARTIFACT_ICONS: dict[ArtifactKind, str] = {
-    "proposal": "📋",
-    "agent": "🎯",
-    "discussion": "💬",
-    "manifest": "📄",
-}
+_AGENT_LABEL = "[AGENT]"
+
+
+def _artifact_marker(artifact: Artifact) -> str:
+    if artifact.kind == "discussion" and artifact.round_num is not None:
+        return f"[ROUND {artifact.round_num}]"
+    return ARTIFACT_LABELS[artifact.kind]
 
 
 @dataclass
@@ -73,7 +75,7 @@ class AgentView:
 
     name: str
     display_name: str
-    avatar: str = "🤖"
+    avatar: str = _AGENT_LABEL
     state: str = "PENDING"
     round_num: int = 0
     activity: str = "Czeka..."
@@ -158,7 +160,7 @@ class AgentCard(Static):
     """
 
     agent_name: str = ""
-    agent_avatar: str = "🤖"
+    agent_avatar: str = _AGENT_LABEL
     agent_color: str = "white"
     state: str = reactive("PENDING")
     progress: int = reactive(0)
@@ -167,7 +169,7 @@ class AgentCard(Static):
     def __init__(
         self,
         name: str,
-        avatar: str = "🤖",
+        avatar: str = _AGENT_LABEL,
         color: str = "white",
         **kwargs,
     ) -> None:
@@ -181,22 +183,22 @@ class AgentCard(Static):
             f"{self.agent_avatar} {self.agent_name}",
             classes="agent-name",
         )
-        yield Static("⏳  PENDING", classes="agent-status")
+        yield Static("[PENDING] PENDING", classes="agent-status")
         yield ProgressBar(total=100, show_eta=False, classes="agent-progress")
         yield Static("Waiting for assignment...", classes="agent-activity")
 
     def watch_state(self, new_state: str) -> None:
         self.remove_class("pending", "writing", "done", "error", "waiting")
         self.add_class(new_state.lower())
-        icon = {
-            "pending": "⏳",
-            "writing": "✍️",
-            "done": "✅",
-            "error": "❌",
-            "waiting": "⏸️",
-        }.get(new_state.lower(), "•")
+        marker = {
+            "pending": "[PENDING]",
+            "writing": "[WRITING]",
+            "done": "[DONE]",
+            "error": "[ERROR]",
+            "waiting": "[WAITING]",
+        }.get(new_state.lower(), "[STATE]")
         status = self.query_one(".agent-status", Static)
-        status.update(f"{icon}  {new_state}")
+        status.update(f"{marker} {new_state}")
         status.styles.color = self.agent_color
 
     def watch_progress(self, value: int) -> None:
@@ -312,12 +314,12 @@ class CouncilApp(App):
         self._mounted = False
 
         for name in agent_names:
-            meta = AGENT_META.get(name, {"color": "white", "emoji": "🤖"})
+            meta = AGENT_META.get(name, {"color": "white"})
             self._agents_data[name] = AgentView(
                 name=name,
                 display_name=name,
                 color=meta["color"],
-                avatar=meta["emoji"],
+                avatar=_AGENT_LABEL,
             )
 
     def compose(self) -> ComposeResult:
@@ -353,14 +355,14 @@ class CouncilApp(App):
     def on_mount(self) -> None:
         self._mounted = True
         self.title = "Universal AI Marketing Council"
-        self.sub_title = f"Starting… | 0/{self._max_rounds} rounds"
+        self.sub_title = f"Starting... | 0/{self._max_rounds} rounds"
         for name in self._agent_names:
             card = self._agent_cards.get(name)
             if card:
                 card.state = "PENDING"
                 card.progress = 5
-                card.activity = "Initializing council…"
-        self._add_log("Dashboard ready — waiting for council thread…")
+                card.activity = "Initializing council..."
+        self._add_log("Dashboard ready - waiting for council thread...")
         self.set_interval(0.5, self._tick_header)
         self.set_interval(2.0, self._refresh_files)
         self._refresh_files()
@@ -370,7 +372,7 @@ class CouncilApp(App):
     def _tick_header(self) -> None:
         elapsed = time.time() - self._start_time
         if self._current_round <= 0:
-            self.sub_title = f"Starting… | {elapsed:.0f}s"
+            self.sub_title = f"Starting... | {elapsed:.0f}s"
         else:
             self.sub_title = f"Round {self._current_round}/{self._max_rounds} | {elapsed:.0f}s"
 
@@ -480,7 +482,7 @@ class CouncilApp(App):
             a = self._agents_data[name]
             stats = a.stats
             duration = stats.duration_ms
-            dur_str = f"{duration:.0f} ms" if duration else "—"
+            dur_str = f"{duration:.0f} ms" if duration else "-"
             tokens = stats.tokens_prompt + stats.tokens_completion
             cost = f"${stats.cost_usd:.4f}" if stats.cost_usd else "$0.0000"
             lines.append(
@@ -497,7 +499,7 @@ class CouncilApp(App):
                 a = self._agents_data[name]
                 dur = a.stats.duration_ms
                 bar_len = int(12 * dur / max_dur) if max_dur else 0
-                bar = "█" * bar_len + "░" * (12 - bar_len)
+                bar = "#" * bar_len + "-" * (12 - bar_len)
                 lines.append(f"{bar} {a.avatar} {a.display_name}")
 
         stats_widget = self.query_one("#stats", Static)
@@ -512,8 +514,9 @@ class CouncilApp(App):
         artifacts = [artifact for artifact in discover_artifacts(self.workspace) if artifact.exists]
         for artifact in artifacts:
             path = artifact.path
-            icon = _ARTIFACT_ICONS.get(artifact.kind, "📄")
-            file_list.add_option(Option(f"{icon} {path.name}", id=str(path)))
+            file_list.add_option(
+                Option(f"{_artifact_marker(artifact)} {artifact.relative_path}", id=str(path))
+            )
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
         option_id = getattr(event, "option_id", None)
@@ -559,13 +562,13 @@ class CouncilDashboard:
         self._pending_logs: list[str] = []
         self._ready_callback: Callable[[], None] | None = None
         _META = {
-            "marcus": ("cyan", "🏗️"),
-            "elena": ("magenta", "🎯"),
-            "kai": ("green", "✍️"),
-            "david": ("yellow", "🎣"),
+            "marcus": ("cyan", _AGENT_LABEL),
+            "elena": ("magenta", _AGENT_LABEL),
+            "kai": ("green", _AGENT_LABEL),
+            "david": ("yellow", _AGENT_LABEL),
         }
         for name in agent_names:
-            color, avatar = _META.get(name.lower(), ("white", "🤖"))
+            color, avatar = _META.get(name.lower(), ("white", _AGENT_LABEL))
             self._agents[name] = AgentView(
                 name=name,
                 display_name=name.capitalize(),
@@ -713,7 +716,7 @@ class CouncilDashboard:
                     activity="Starting round...",
                 )
             elif event == "generating":
-                self.log(f"{agent_name}: calling LLM…")
+                self.log(f"{agent_name}: calling LLM...")
                 self.update_agent(
                     agent_name,
                     state="WRITING",
@@ -759,7 +762,7 @@ class CouncilDashboard:
                     )
             elif event == "error":
                 msg = kwargs.get("message", "Error")
-                self.log(f"{agent_name}: ERROR — {msg}")
+                self.log(f"{agent_name}: ERROR - {msg}")
                 self.update_agent(
                     agent_name,
                     state="ERROR",
@@ -819,9 +822,7 @@ class CouncilDashboard:
         for name, a in self._agents.items():
             cls = html.escape(a.state.lower())
             lines.append(f'<div class="agent {cls}">')
-            lines.append(
-                f"<h3>{a.avatar} {html.escape(a.display_name)} — {html.escape(a.state)}</h3>"
-            )
+            lines.append(f"<h3>{a.avatar} {html.escape(a.display_name)} - {html.escape(a.state)}</h3>")
             lines.append(
                 f"<p>Progress: {a.progress_pct}% | "
                 f"Time: {a.stats.duration_ms:.0f}ms | "
@@ -847,15 +848,20 @@ class CouncilDashboard:
         return base_text + dots[idx]
 
     def _render_agent_panel(self, agent: AgentView) -> Panel:
-        emoji = {"PENDING": "⏳", "WRITING": "✍️", "DONE": "✅", "ERROR": "❌"}.get(
-            agent.state, "❓"
+        marker = {
+            "PENDING": "[PENDING]",
+            "WRITING": "[WRITING]",
+            "DONE": "[DONE]",
+            "ERROR": "[ERROR]",
+        }.get(
+            agent.state, "[STATE]"
         )
         lines = Text()
         lines.append(f"{agent.avatar} {agent.display_name}\n", style=f"bold {agent.color}")
-        lines.append(f"{emoji} {agent.state}\n", style=f"bold {agent.color}")
+        lines.append(f"{marker} {agent.state}\n", style=f"bold {agent.color}")
         lines.append(f"Round: {agent.round_num}/{self.max_rounds}\n", style="dim")
         lines.append(f"Progress: {agent.progress_pct}%\n")
-        lines.append("─" * 16 + "\n", style="dim")
+        lines.append("-" * 16 + "\n", style="dim")
         lines.append(agent.activity or "Waiting...")
         return Panel(lines, title=f"[bold {agent.color}]{agent.display_name}[/bold {agent.color}]")
 
@@ -888,14 +894,14 @@ class CouncilDashboard:
             return Panel(Text("Brak zdarzeń...", style="dim"))
         content = Text()
         _META = {
-            "marcus": ("cyan", "🏗️"),
-            "elena": ("magenta", "🎯"),
-            "kai": ("green", "✍️"),
-            "david": ("yellow", "🎣"),
+            "marcus": ("cyan", _AGENT_LABEL),
+            "elena": ("magenta", _AGENT_LABEL),
+            "kai": ("green", _AGENT_LABEL),
+            "david": ("yellow", _AGENT_LABEL),
         }
         for ev in list(self._timeline)[-12:]:
             ts = time.strftime("%H:%M:%S", time.localtime(ev.timestamp))
-            color, avatar = _META.get(ev.agent_name, ("white", "🤖"))
+            color, avatar = _META.get(ev.agent_name, ("white", _AGENT_LABEL))
             content.append(f"[{ts}] ", style="dim")
             content.append(f"{avatar} {ev.agent_name.capitalize()}: ", style=f"bold {color}")
             content.append(f"{ev.event_type} (r{ev.round_num})\n", style="white")
@@ -906,7 +912,7 @@ class CouncilDashboard:
         for name in self.agent_names:
             a = self._agents[name]
             duration = a.stats.duration_ms
-            dur_str = f"{duration:.0f}ms" if duration else "—"
+            dur_str = f"{duration:.0f}ms" if duration else "-"
             tokens = a.stats.tokens_prompt + a.stats.tokens_completion
             cost = f"${a.stats.cost_usd:.4f}" if a.stats.cost_usd else "$0.0000"
             lines.append(f"{a.avatar} {a.display_name}\n", style=f"bold {a.color}")
@@ -918,7 +924,7 @@ class CouncilDashboard:
                 a = self._agents[name]
                 dur = a.stats.duration_ms
                 bar_len = int(10 * dur / max_dur) if max_dur else 0
-                bar = "█" * bar_len + "░" * (10 - bar_len)
+                bar = "#" * bar_len + "-" * (10 - bar_len)
                 lines.append(f"{bar} {a.avatar}\n", style=a.color)
         return Panel(lines, title="[bold]Statystyki[/bold]", border_style="green")
 

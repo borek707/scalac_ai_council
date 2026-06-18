@@ -77,6 +77,22 @@ def auto_detect_platform() -> str:
 
 def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     """Parse command line arguments."""
+    raw_args = sys.argv[1:] if args is None else args
+    if raw_args and raw_args[0] == "browse":
+        browse_parser = argparse.ArgumentParser(
+            prog="council browse",
+            description="Browse artifacts from a previous council workspace.",
+        )
+        browse_parser.add_argument("workspace", help="Council workspace to browse")
+        browse_parser.add_argument(
+            "--rich",
+            action="store_true",
+            help="Use the legacy Rich review output instead of the Textual browser",
+        )
+        parsed = browse_parser.parse_args(raw_args[1:])
+        parsed.command = "browse"
+        return parsed
+
     auto_platform = auto_detect_platform()
     auto_msg = f"auto-detected: {auto_platform}" if auto_platform != "cli" else "default"
 
@@ -103,6 +119,7 @@ Quick start (pick one):
 Common operations:
   More debate rounds         python -m council --template saas --rounds 5
   Live terminal dashboard    python -m council --template saas --dashboard
+  Browse run artifacts       python -m council browse ./output
   Aggregate final proposal   python -m council --template saas --aggregate
   Only check status          python -m council --config firm.json --monitor
 
@@ -300,7 +317,7 @@ Need more help? Read README.md or run: python -m council --interactive
         action="store_true",
         help="Stream agent output to console in real time as LLM generates",
     )
-    return parser.parse_args(args)
+    return parser.parse_args(raw_args)
 
 
 def _resolve_free_tier(args: argparse.Namespace) -> None:
@@ -431,7 +448,8 @@ async def _run_council(args: argparse.Namespace, dashboard=None) -> None:
 
     if isinstance(getattr(args, "review", None), str):
         review_path = Path(args.review)
-        _review_run(review_path)
+        if not _browse_run(review_path):
+            _review_run(review_path)
         if getattr(args, "review_ai", False):
             _run_ai_review(review_path, args)
         return
@@ -1012,6 +1030,23 @@ def _review_run(workspace: Path) -> None:
     _print_observability_summary(workspace)
 
 
+def _browse_run(workspace: Path, *, force_rich: bool = False) -> bool:
+    """Open the Textual artifact browser when available and appropriate.
+
+    Returns ``True`` when the Textual browser handled the workspace.  Returns
+    ``False`` so callers can fall back to the legacy Rich review path.
+    """
+    if force_rich or not sys.stdin.isatty() or not sys.stdout.isatty():
+        return False
+    try:
+        from council.vis.artifact_browser import browse_artifacts
+    except ImportError as exc:
+        logger.warning("Artifact browser requires 'textual'. Falling back to Rich review: %s", exc)
+        return False
+    browse_artifacts(workspace)
+    return True
+
+
 def _print_observability_summary(workspace: Path) -> None:
     """Print debate observability: feed size, divergence, and latency."""
     from council.observability import (
@@ -1133,6 +1168,11 @@ def main() -> None:
         args = prompt_for_args(force_onboarding=onboarding_requested)
     else:
         args = parse_args()
+        if getattr(args, "command", None) == "browse":
+            workspace = Path(args.workspace)
+            if not _browse_run(workspace, force_rich=getattr(args, "rich", False)):
+                _review_run(workspace)
+            return
         _resolve_free_tier(args)
 
     dashboard = None
@@ -1154,10 +1194,11 @@ def main() -> None:
         import threading
 
         council_exception: Exception | None = None
+        council_completed = False
         dashboard_ready = threading.Event()
 
         def _council_thread() -> None:
-            nonlocal council_exception
+            nonlocal council_completed, council_exception
             if not dashboard_ready.wait(timeout=60.0):
                 dashboard.log("ERROR: dashboard did not mount within 60s")
                 return
@@ -1167,8 +1208,10 @@ def main() -> None:
                 dashboard.log(f"Council failed: {exc}")
                 dashboard.stop()
             else:
+                council_completed = True
                 dashboard.refresh_files()
-                dashboard.log("✓ Council run complete — browse files and press q to exit")
+                dashboard.log("Council run complete - opening artifact browser")
+                dashboard.stop()
 
         thread = threading.Thread(target=_council_thread, daemon=True)
         thread.start()
@@ -1182,6 +1225,10 @@ def main() -> None:
         if council_exception:
             _handle_error(council_exception)
             sys.exit(1)
+        if council_completed:
+            workspace = Path(args.output)
+            if not _browse_run(workspace):
+                _review_run(workspace)
         return
 
     try:

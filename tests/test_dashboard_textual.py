@@ -132,6 +132,27 @@ class TestCouncilAppRunTest:
             ]
             assert str(deliverable.resolve()) in option_ids
 
+    async def test_file_list_uses_ascii_artifact_labels(self, tmp_path: Path) -> None:
+        """Files panel should use stable ASCII labels instead of emoji icons."""
+        output_dir = tmp_path / "output"
+        output_dir.mkdir(parents=True)
+        proposal = output_dir / "proposal.md"
+        proposal.write_text("# Proposal", encoding="utf-8")
+
+        app = CouncilApp(
+            agent_names=["Marcus"],
+            max_rounds=1,
+            workspace=tmp_path,
+        )
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            app._refresh_files()
+            await pilot.pause()
+            file_list = app.query_one("#file-list", OptionList)
+            label = str(file_list.get_option_at_index(0).prompt)
+            assert "[PROPOSAL]" in label
+            assert "📋" not in label
+
 
 class TestCouncilDashboardFlush:
     """Phase A: pending log flush (#112)."""

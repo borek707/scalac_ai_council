@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from council.cli import _create_provider, _resolve_free_tier, _review_run, parse_args
+from council.cli import _browse_run, _create_provider, _resolve_free_tier, _review_run, parse_args
 
 # ── Argument-parsing tests ──────────────────────────────────────────────────
 
@@ -37,6 +37,21 @@ class TestParseArgsReview:
         """When --review is not passed, args.review is None."""
         args = parse_args([])
         assert args.review is None
+
+
+class TestParseArgsBrowse:
+    """Tests for the browse subcommand."""
+
+    def test_browse_subcommand_sets_workspace(self) -> None:
+        args = parse_args(["browse", "/some/workspace"])
+        assert args.command == "browse"
+        assert args.workspace == "/some/workspace"
+        assert args.rich is False
+
+    def test_browse_subcommand_supports_rich_fallback_flag(self) -> None:
+        args = parse_args(["browse", "/some/workspace", "--rich"])
+        assert args.command == "browse"
+        assert args.rich is True
 
 
 class TestResolveFreeTier:
@@ -154,6 +169,20 @@ class TestReviewRunLegacy:
         _review_run(legacy_workspace)
         captured = capsys.readouterr()
         assert "manifest" in captured.out.lower() or "artifact" in captured.out.lower()
+
+
+class TestBrowseRun:
+    """Tests for Textual browse selection and Rich fallback conditions."""
+
+    def test_browse_run_returns_false_when_forced_rich(self, tmp_path: Path) -> None:
+        assert _browse_run(tmp_path, force_rich=True) is False
+
+    def test_browse_run_returns_false_outside_tty(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
+        monkeypatch.setattr(sys.stdout, "isatty", lambda: False)
+        assert _browse_run(tmp_path) is False
 
 
 # ── _create_provider passthrough tests (Issue #3) ──────────────────────────

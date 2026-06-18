@@ -11,7 +11,13 @@ import json
 from pathlib import Path
 from typing import Any
 
-from council.artifacts import Artifact, ArtifactKind, discover_artifacts, get_default_artifact
+from council.artifacts import (
+    Artifact,
+    ArtifactKind,
+    discover_artifacts,
+    discover_run_status,
+    get_default_artifact,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -157,6 +163,22 @@ class TestDiscoverArtifacts:
         assert len(manifest_artifacts) == 1
         assert manifest_artifacts[0].path == manifest_path.resolve()
 
+    def test_artifacts_include_metadata_and_relative_paths(self, tmp_path: Path) -> None:
+        """Discovered artifacts expose display metadata for browser UIs."""
+        output_dir = tmp_path / "output"
+        output_dir.mkdir(parents=True)
+        proposal = output_dir / "proposal.md"
+        proposal.write_text("# Proposal\n\nUseful summary.", encoding="utf-8")
+        _write_manifest(output_dir, {"proposal": str(proposal)})
+
+        artifact = next(a for a in discover_artifacts(tmp_path) if a.path == proposal.resolve())
+
+        assert artifact.relative_path == Path("output/proposal.md")
+        assert artifact.size_bytes == proposal.stat().st_size
+        assert artifact.modified_at is not None
+        assert artifact.display_group == "Proposal"
+        assert artifact.summary_hint == "Useful summary."
+
     # --- Workspace without manifest (filesystem fallback) ------------------
 
     def test_filesystem_fallback_finds_proposal(self, tmp_path: Path) -> None:
@@ -223,6 +245,27 @@ class TestDiscoverArtifacts:
         discussion_artifacts = [a for a in artifacts if a.kind == "discussion"]
         assert any(a.path == round_file.resolve() for a in discussion_artifacts)
 
+    def test_filesystem_fallback_exposes_trace_review_config_and_brief(self, tmp_path: Path) -> None:
+        """Browser-visible support files are discoverable without manifest.json."""
+        files = [
+            tmp_path / "output" / "trace.json",
+            tmp_path / "output" / "artifacts" / "reviews" / "review.md",
+            tmp_path / "output" / "artifacts" / "reviews" / "review.json",
+            tmp_path / "config.json",
+            tmp_path / "shared" / "brief.md",
+        ]
+        for path in files:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("content", encoding="utf-8")
+
+        by_relative_path = {a.relative_path: a for a in discover_artifacts(tmp_path)}
+
+        assert by_relative_path[Path("output/trace.json")].kind == "trace"
+        assert by_relative_path[Path("output/artifacts/reviews/review.md")].kind == "review"
+        assert by_relative_path[Path("output/artifacts/reviews/review.json")].kind == "review"
+        assert by_relative_path[Path("config.json")].kind == "input"
+        assert by_relative_path[Path("shared/brief.md")].kind == "input"
+
     # --- Empty workspace ---------------------------------------------------
 
     def test_empty_workspace_returns_empty_list(self, tmp_path: Path) -> None:
@@ -232,6 +275,33 @@ class TestDiscoverArtifacts:
         artifacts = discover_artifacts(tmp_path)
         existing = [a for a in artifacts if a.exists]
         assert existing == []
+
+    def test_run_status_marks_missing_manifest_partial_workspace_as_interrupted(
+        self, tmp_path: Path
+    ) -> None:
+        """A workspace with artifacts but no manifest is interrupted, not empty."""
+        discussion = tmp_path / "shared" / "discussion" / "marcus_round_1.md"
+        discussion.parent.mkdir(parents=True)
+        discussion.write_text("# Round 1", encoding="utf-8")
+
+        assert discover_run_status(tmp_path) == "interrupted"
+
+    def test_run_status_distinguishes_complete_and_in_progress(self, tmp_path: Path) -> None:
+        """Manifest round counters expose complete vs in-progress states."""
+        output_dir = tmp_path / "output"
+        output_dir.mkdir(parents=True)
+        _write_manifest(output_dir, {"proposal": ""})
+        manifest_path = output_dir / "manifest.json"
+
+        data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        data["rounds_completed"] = 1
+        data["max_rounds"] = 3
+        manifest_path.write_text(json.dumps(data), encoding="utf-8")
+        assert discover_run_status(tmp_path) == "in_progress"
+
+        data["rounds_completed"] = 3
+        manifest_path.write_text(json.dumps(data), encoding="utf-8")
+        assert discover_run_status(tmp_path) == "complete"
 
     # --- Deduplication / sort stability -----------------------------------
 
