@@ -249,9 +249,7 @@ class AsyncOrchestrator:
                 except Exception as exc:
                     results.append(exc)
         else:
-            tasks = [
-                self._timed(agent.name, "final", agent.run_final()) for agent in self.agents
-            ]
+            tasks = [self._timed(agent.name, "final", agent.run_final()) for agent in self.agents]
             results = await asyncio.gather(*tasks, return_exceptions=True)
         final: dict[str, Path] = {}
         for agent, result in zip(self.agents, results):
@@ -382,9 +380,7 @@ class AsyncOrchestrator:
                     for round_results in self._round_results.values()
                     for name, path in round_results.items()
                 },
-                final_deliverables={
-                    name: str(path) for name, path in self._final_results.items()
-                },
+                final_deliverables={name: str(path) for name, path in self._final_results.items()},
             ),
         )
         manifest_path = out / "manifest.json"

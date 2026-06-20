@@ -729,7 +729,9 @@ class TestOpenRouterProvider:
         assert captured["extra_body"] == {"models": ["meta-llama/llama-3.3-70b-instruct:free"]}
 
     @pytest.mark.asyncio
-    async def test_free_tier_caps_openrouter_fallback_models_at_three(self, monkeypatch: Any) -> None:
+    async def test_free_tier_caps_openrouter_fallback_models_at_three(
+        self, monkeypatch: Any
+    ) -> None:
         provider = self._make_provider(monkeypatch, free_tier=True, model=None)
         provider._model_chain = [
             "deepseek/deepseek-chat:free",

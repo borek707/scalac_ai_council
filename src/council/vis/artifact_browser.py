@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from typing import Any
+
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
@@ -65,9 +67,7 @@ def build_artifact_browser_model(workspace: Path) -> ArtifactBrowserModel:
         )
 
     groups = [
-        ArtifactGroup(name=name, items=items)
-        for name, items in groups_by_name.items()
-        if items
+        ArtifactGroup(name=name, items=items) for name, items in groups_by_name.items() if items
     ]
 
     default = _default_browser_artifact(artifacts)
@@ -132,7 +132,7 @@ def format_artifact_metadata(artifact: Artifact | None, status: str, workspace: 
     return "\n".join(lines)
 
 
-class ArtifactBrowserApp(App):
+class ArtifactBrowserApp(App[None]):
     """Full-screen read-only artifact browser."""
 
     CSS = """
@@ -179,9 +179,9 @@ class ArtifactBrowserApp(App):
         ("q", "quit", "Quit"),
     ]
 
-    selected_artifact: Artifact | None = reactive(None)
+    selected_artifact: reactive[Artifact | None] = reactive(None)
 
-    def __init__(self, workspace: Path, **kwargs) -> None:
+    def __init__(self, workspace: Path, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.workspace = workspace.resolve()
         self.model = build_artifact_browser_model(self.workspace)

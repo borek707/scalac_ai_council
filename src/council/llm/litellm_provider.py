@@ -121,7 +121,7 @@ class LiteLLMProvider(LLMProvider):
     def _estimate_cost(response: object) -> float:
         """Best-effort cost from LiteLLM's pricing tables."""
         if litellm is None:
-            return 0.0
+            return 0.0  # type: ignore[unreachable]
         try:
             cost = litellm.completion_cost(completion_response=response)
             return float(cost) if cost else 0.0

@@ -127,8 +127,7 @@ class TestCouncilAppRunTest:
             await pilot.pause()
             file_list = app.query_one("#file-list", OptionList)
             option_ids = [
-                file_list.get_option_at_index(index).id
-                for index in range(file_list.option_count)
+                file_list.get_option_at_index(index).id for index in range(file_list.option_count)
             ]
             assert str(deliverable.resolve()) in option_ids
 

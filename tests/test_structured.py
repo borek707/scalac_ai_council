@@ -73,9 +73,7 @@ class TestGenerateStructured:
     @pytest.mark.asyncio
     async def test_repairs_after_invalid_then_valid(self) -> None:
         provider = _ScriptedProvider(["not json at all", _VALID])
-        result = await generate_structured(
-            provider, "make offer", FinalDeliverable, max_retries=2
-        )
+        result = await generate_structured(provider, "make offer", FinalDeliverable, max_retries=2)
         assert result.agent == "Marcus"
         assert provider.calls == 2
 
@@ -83,7 +81,5 @@ class TestGenerateStructured:
     async def test_raises_after_exhausting_retries(self) -> None:
         provider = _ScriptedProvider(["nope"])
         with pytest.raises(StructuredOutputError):
-            await generate_structured(
-                provider, "make offer", FinalDeliverable, max_retries=1
-            )
+            await generate_structured(provider, "make offer", FinalDeliverable, max_retries=1)
         assert provider.calls == 2

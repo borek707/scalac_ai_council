@@ -218,7 +218,9 @@ def _discover_from_manifest(workspace: Path) -> list[Artifact] | None:
     # Proposal
     proposal_str = files.get("proposal")
     if proposal_str:
-        artifacts.append(_make_artifact(workspace, Path(proposal_str), "proposal", title="proposal"))
+        artifacts.append(
+            _make_artifact(workspace, Path(proposal_str), "proposal", title="proposal")
+        )
 
     # Final agent deliverables (preferred over raw agent_outputs)
     final_deliverables: dict[str, str] = files.get("final_deliverables", {})
@@ -277,7 +279,9 @@ def _discover_from_filesystem(workspace: Path) -> list[Artifact]:
     # Legacy: FINAL_PROPOSAL.md at workspace root
     legacy_proposal = workspace / "FINAL_PROPOSAL.md"
     if legacy_proposal.exists():
-        artifacts.append(_make_artifact(workspace, legacy_proposal, "proposal", title="FINAL_PROPOSAL"))
+        artifacts.append(
+            _make_artifact(workspace, legacy_proposal, "proposal", title="FINAL_PROPOSAL")
+        )
 
     # -- Agent outputs: output/agents/*.md ------------------------------------
     agents_dir = workspace / "output" / "agents"
@@ -303,7 +307,9 @@ def _discover_from_filesystem(workspace: Path) -> list[Artifact]:
             # File naming: {agent_lower}_round_{n}.md
             parts = p.stem.split("_round_")
             agent_name = parts[0].capitalize() if parts else p.stem
-            artifacts.append(_make_artifact(workspace, p, "discussion", agent=agent_name, title=p.stem))
+            artifacts.append(
+                _make_artifact(workspace, p, "discussion", agent=agent_name, title=p.stem)
+            )
 
     # -- Manifest -------------------------------------------------------------
     manifest_path = workspace / "output" / "manifest.json"
@@ -375,7 +381,9 @@ def discover_run_status(workspace: Path) -> RunStatus:
     workspace = workspace.resolve()
     manifest_path = workspace / "output" / "manifest.json"
     if not manifest_path.exists():
-        existing = [artifact for artifact in _discover_from_filesystem(workspace) if artifact.exists]
+        existing = [
+            artifact for artifact in _discover_from_filesystem(workspace) if artifact.exists
+        ]
         return "interrupted" if existing else "missing_manifest"
 
     try:

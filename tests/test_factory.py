@@ -26,9 +26,7 @@ class TestProviderFactory:
         assert provider.model == "openai/gpt-4o"
         assert provider.fallbacks == ["anthropic/claude-sonnet-4-6"]
 
-    def test_openai_missing_key_raises_actionable(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_openai_missing_key_raises_actionable(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         with pytest.raises(RuntimeError, match="No API key found for openai"):
             create_provider("openai", None)

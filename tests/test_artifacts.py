@@ -245,7 +245,9 @@ class TestDiscoverArtifacts:
         discussion_artifacts = [a for a in artifacts if a.kind == "discussion"]
         assert any(a.path == round_file.resolve() for a in discussion_artifacts)
 
-    def test_filesystem_fallback_exposes_trace_review_config_and_brief(self, tmp_path: Path) -> None:
+    def test_filesystem_fallback_exposes_trace_review_config_and_brief(
+        self, tmp_path: Path
+    ) -> None:
         """Browser-visible support files are discoverable without manifest.json."""
         files = [
             tmp_path / "output" / "trace.json",

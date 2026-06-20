@@ -55,7 +55,9 @@ def test_browser_model_groups_artifacts_and_selects_proposal(tmp_path: Path) -> 
     assert "[AGENT] output/agents/marcus_offer.md" in rendered_labels
     assert "[ROUND 1] shared/discussion/marcus_round_1.md" in rendered_labels
     assert "[TRACE] output/trace.json" in rendered_labels
-    assert all("📋" not in label and "🎯" not in label and "💬" not in label for label in rendered_labels)
+    assert all(
+        "📋" not in label and "🎯" not in label and "💬" not in label for label in rendered_labels
+    )
 
 
 def test_read_artifact_preview_does_not_truncate_normal_markdown(tmp_path: Path) -> None:

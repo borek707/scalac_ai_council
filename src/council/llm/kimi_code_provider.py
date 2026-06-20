@@ -166,7 +166,12 @@ class KimiCodeProvider(LLMProvider):
     @retry_with_backoff(
         max_retries=2,
         exceptions=(Exception,),
-        non_retryable_exceptions=(ValueError, FileNotFoundError, PermissionError, ProviderTimeoutError),
+        non_retryable_exceptions=(
+            ValueError,
+            FileNotFoundError,
+            PermissionError,
+            ProviderTimeoutError,
+        ),
     )
     async def generate(
         self,
@@ -215,7 +220,7 @@ class KimiCodeProvider(LLMProvider):
                 proc.returncode,
                 stderr[:500],
             )
-            raise RuntimeError(self._format_cli_error(stderr, proc.returncode))
+            raise RuntimeError(self._format_cli_error(stderr, proc.returncode or 1))
 
         content = self._clean_output(stdout)
 

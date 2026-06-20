@@ -118,7 +118,7 @@ class OpenRouterProvider(OpenAIProvider):
             return
         async with self._resolve_lock:
             if not self._needs_model_resolution:
-                return
+                return  # type: ignore[unreachable]
             await self._refresh_free_model_chain(
                 force_primary=self.model if self._explicit_model else None
             )

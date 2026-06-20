@@ -121,7 +121,7 @@ def build_agents(
     agents: list[BaseAgent] = []
     for spec in AGENT_REGISTRY.values():
         agent_class = spec.load_class()
-        agent = agent_class(
+        agent = agent_class(  # type: ignore[call-arg]
             workspace=workspace,
             config=config,
             provider=provider,

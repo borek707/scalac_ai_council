@@ -53,9 +53,7 @@ def build_debate_feed(workspace: Path) -> list[FeedMessage]:
             content = path.read_text(encoding="utf-8")
         except OSError:
             content = ""
-        messages.append(
-            FeedMessage(round_num=round_num, agent=agent, content=content, path=path)
-        )
+        messages.append(FeedMessage(round_num=round_num, agent=agent, content=content, path=path))
 
     messages.sort(key=lambda m: (m.round_num, m.agent.lower()))
     return messages
@@ -140,9 +138,7 @@ def divergence_score(workspace: Path, round_num: int) -> DivergenceResult:
     word_sets = _round_word_sets(workspace, round_num)
     agents = sorted(word_sets)
     if len(agents) < 2:
-        return DivergenceResult(
-            round_num=round_num, divergence=0.0, similarity=1.0, agents=agents
-        )
+        return DivergenceResult(round_num=round_num, divergence=0.0, similarity=1.0, agents=agents)
 
     similarities: list[float] = []
     for i in range(len(agents)):

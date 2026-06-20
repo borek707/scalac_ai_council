@@ -752,9 +752,7 @@ class CouncilDashboard:
                 if any(v is not None for v in (tokens_prompt, tokens_completion, cost_usd)):
                     self.update_agent_stats(
                         agent_name,
-                        tokens_prompt=(
-                            int(tokens_prompt) if tokens_prompt is not None else None
-                        ),
+                        tokens_prompt=(int(tokens_prompt) if tokens_prompt is not None else None),
                         tokens_completion=(
                             int(tokens_completion) if tokens_completion is not None else None
                         ),
@@ -822,7 +820,9 @@ class CouncilDashboard:
         for name, a in self._agents.items():
             cls = html.escape(a.state.lower())
             lines.append(f'<div class="agent {cls}">')
-            lines.append(f"<h3>{a.avatar} {html.escape(a.display_name)} - {html.escape(a.state)}</h3>")
+            lines.append(
+                f"<h3>{a.avatar} {html.escape(a.display_name)} - {html.escape(a.state)}</h3>"
+            )
             lines.append(
                 f"<p>Progress: {a.progress_pct}% | "
                 f"Time: {a.stats.duration_ms:.0f}ms | "
@@ -853,9 +853,7 @@ class CouncilDashboard:
             "WRITING": "[WRITING]",
             "DONE": "[DONE]",
             "ERROR": "[ERROR]",
-        }.get(
-            agent.state, "[STATE]"
-        )
+        }.get(agent.state, "[STATE]")
         lines = Text()
         lines.append(f"{agent.avatar} {agent.display_name}\n", style=f"bold {agent.color}")
         lines.append(f"{marker} {agent.state}\n", style=f"bold {agent.color}")

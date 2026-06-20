@@ -49,7 +49,5 @@ class TestAgentRegistry:
     def test_build_agents_sets_stream_flag(
         self, sample_config: CompanyConfig, temp_workspace: Path, mock_provider
     ) -> None:
-        agents = build_agents(
-            temp_workspace, sample_config, mock_provider, stream_output=True
-        )
+        agents = build_agents(temp_workspace, sample_config, mock_provider, stream_output=True)
         assert all(a.stream_output for a in agents)
