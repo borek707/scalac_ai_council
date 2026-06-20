@@ -73,6 +73,11 @@ class ClaudeCodeProvider(LLMProvider):
         self.executable_path = executable_path or self._detect_executable()
         if self.executable_path and os.path.isfile(self.executable_path):
             logger.info("ClaudeCodeProvider using subprocess mode (%s)", self.executable_path)
+            # Also initialise HTTP client so long-prompt fallback works across all rounds
+            token = self._read_oauth_token()
+            if token:
+                self._init_http_client(token)
+                logger.info("ClaudeCodeProvider: HTTP fallback initialised for prompts exceeding subprocess limit")
             return
 
         # Fallback: try to read OAuth token and use Anthropic SDK
