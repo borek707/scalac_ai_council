@@ -77,7 +77,9 @@ class ClaudeCodeProvider(LLMProvider):
             token = self._read_oauth_token()
             if token:
                 self._init_http_client(token)
-                logger.info("ClaudeCodeProvider: HTTP fallback initialised for prompts exceeding subprocess limit")
+                logger.info(
+                    "ClaudeCodeProvider: HTTP fallback initialised for prompts exceeding subprocess limit"
+                )
             return
 
         # Fallback: try to read OAuth token and use Anthropic SDK

@@ -53,7 +53,9 @@ def parse_model[T: BaseModel](text: str, model_cls: type[T]) -> T:
     return model_cls.model_validate(data)
 
 
-async def generate_structured[T: BaseModel](
+async def generate_structured[
+    T: BaseModel
+](
     provider: LLMProvider,
     prompt: str,
     model_cls: type[T],

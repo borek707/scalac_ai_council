@@ -19,7 +19,7 @@ from collections.abc import AsyncIterator, Sequence
 try:
     import litellm
 except ImportError:
-    litellm = None  # type: ignore[assignment]
+    litellm = None
 
 from council.llm.provider import LLMProvider, LLMResponse
 from council.llm.retry import retry_with_backoff
@@ -121,7 +121,7 @@ class LiteLLMProvider(LLMProvider):
     def _estimate_cost(response: object) -> float:
         """Best-effort cost from LiteLLM's pricing tables."""
         if litellm is None:
-            return 0.0  # type: ignore[unreachable]
+            return 0.0
         try:
             cost = litellm.completion_cost(completion_response=response)
             return float(cost) if cost else 0.0
