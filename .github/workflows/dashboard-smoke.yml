@@ -18,7 +18,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
 
       - name: Install dependencies
-        run: uv sync --extra dev
+        run: uv sync --frozen --extra dev
 
       - name: Run dashboard unit + Textual tests
         run: |
@@ -38,3 +38,13 @@ jobs:
 
       - name: Run demo + dashboard callback integration
         run: uv run pytest tests/test_dashboard_textual.py::TestDemoDashboardIntegration -m integration -q
+
+      - name: Create issue on failure
+        if: failure()
+        run: |
+          gh issue create \
+            --title "Dashboard smoke failed $(date +%Y-%m-%d)" \
+            --body "Weekly dashboard smoke test failed. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --label "ci"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -11,8 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint:
-    name: Lint & Type Check
+  pre-commit:
+    name: Pre-commit hooks
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -22,16 +22,10 @@ jobs:
         uses: astral-sh/setup-uv@v5
 
       - name: Install dependencies
-        run: uv sync --extra dev
+        run: uv sync --frozen --extra dev
 
-      - name: Run Black (check formatting)
-        run: uv run black --check .
-
-      - name: Run Ruff (linting)
-        run: uv run ruff check .
-
-      - name: Run mypy (strict type check)
-        run: uv run mypy src/
+      - name: Run pre-commit hooks
+        run: uv run pre-commit run --all-files --show-diff-on-failure
 
   test:
     name: Tests
@@ -47,7 +41,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
 
       - name: Install dependencies
-        run: uv sync --extra dev
+        run: uv sync --frozen --extra dev
 
       - name: Run tests with coverage
         run: |
@@ -65,22 +59,6 @@ jobs:
           file: ./coverage.xml
           fail_ci_if_error: false
 
-  pre-commit:
-    name: Pre-commit hooks
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
-      - name: Install dependencies
-        run: uv sync --extra dev
-
-      - name: Run pre-commit hooks
-        run: uv run pre-commit run --all-files --show-diff-on-failure
-
   smoke:
     name: Smoke Tests
     runs-on: ubuntu-latest
@@ -92,7 +70,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
 
       - name: Install dependencies
-        run: uv sync --extra dev
+        run: uv sync --frozen --extra dev
 
       - name: Verify python -m council --help (exit code 0)
         run: uv run python -m council --help
@@ -120,7 +98,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
 
       - name: Install dependencies
-        run: uv sync --extra dev
+        run: uv sync --frozen --extra dev
 
       - name: Build package
         run: uv build

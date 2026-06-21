@@ -32,4 +32,4 @@ venv/
 # Local marketing plan (not part of council codebase)
 Plan Marketingowy*.md
 .DS_Store
-uv.lock
+# uv.lock is intentionally tracked for reproducible CI builds
